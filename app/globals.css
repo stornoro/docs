@@ -1,0 +1,64 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Shiki dual-theme support */
+.shiki,
+.shiki span {
+  color: var(--shiki-light) !important;
+  background-color: var(--shiki-light-bg) !important;
+}
+
+.dark .shiki,
+.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+
+/* Prose customizations */
+.prose table {
+  @apply text-sm;
+}
+
+.prose thead th {
+  @apply text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400;
+}
+
+.prose tbody td {
+  @apply py-2;
+}
+
+.prose code:not(pre code) {
+  @apply px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-sm font-medium;
+}
+
+.prose code:not(pre code)::before,
+.prose code:not(pre code)::after {
+  content: "" !important;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+/* Scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgb(156 163 175 / 0.3);
+  border-radius: 2px;
+}
+
+/* Endpoint bar */
+.endpoint-bar {
+  @apply flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 font-mono text-sm;
+}

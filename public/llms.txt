@@ -1,0 +1,355 @@
+# Storno.ro API Documentation
+
+> Storno.ro is an e-invoicing platform that integrates with e-invoice provider systems across the EU (Romania, Germany, Italy, Poland, France). The API allows you to manage companies, create and send invoices, track payments, and automate your invoicing workflow.
+
+Base URL: https://api.storno.ro
+Docs: https://docs.storno.ro
+
+## Getting Started
+
+- [Authentication](https://docs.storno.ro/getting-started/authentication): Learn how to authenticate with the Storno.ro API using JWT tokens, refresh tokens, Google OAuth, and passkeys.
+- [Environment Variables](https://docs.storno.ro/getting-started/environment-variables): Complete reference for all backend environment variables used in Storno.ro deployments.
+- [Error Handling](https://docs.storno.ro/getting-started/errors): Understand error response formats and HTTP status codes used by the Storno.ro API.
+- [Pagination](https://docs.storno.ro/getting-started/pagination): How to paginate through list endpoints in the Storno.ro API.
+- [Quickstart](https://docs.storno.ro/getting-started/quickstart): Make your first API call to the Storno.ro API in under 5 minutes.
+- [Rate Limiting](https://docs.storno.ro/getting-started/rate-limiting): Understand API rate limits, throttling policies, and how to handle 429 responses.
+- [Security](https://docs.storno.ro/getting-started/security): Security practices, vulnerability reporting, and data protection in Storno.ro.
+- [Self-Hosting](https://docs.storno.ro/getting-started/self-hosting): Deploy Storno.ro on your own infrastructure using Docker.
+- [System Requirements](https://docs.storno.ro/getting-started/system-requirements): Minimum and recommended hardware and software requirements for self-hosted Storno.ro deployments.
+
+## Concepts
+
+- [ANAF Integration](https://docs.storno.ro/concepts/anaf-integration): How Storno.ro integrates with Romania's ANAF e-Factura system for electronic invoicing.
+- [Architecture](https://docs.storno.ro/concepts/architecture): System architecture, service topology, and data flow in Storno.ro.
+- [Document Lifecycle](https://docs.storno.ro/concepts/document-lifecycle): Understanding the status transitions for invoices, proforma invoices, delivery notes, and credit notes.
+- [E-Invoicing (Multi-Country)](https://docs.storno.ro/concepts/einvoice-integration): Multi-country e-invoicing support for Romania (ANAF), Germany (XRechnung), Italy (SDI), Poland (KSeF), and France (Factur-X).
+- [Licensing](https://docs.storno.ro/concepts/licensing): How Storno.ro licensing works for SaaS and self-hosted deployments.
+- [Multi-Tenancy](https://docs.storno.ro/concepts/multi-tenancy): How organizations, companies, and resources are structured in the Storno.ro API.
+- [Recurring Invoices](https://docs.storno.ro/concepts/recurring-invoices): How to set up automatic invoice generation on a schedule.
+- [Series & Numbering](https://docs.storno.ro/concepts/series-numbering): How document series and automatic numbering work in Storno.ro.
+- [Webhooks & Events](https://docs.storno.ro/concepts/webhooks-events): Outbound HTTP webhooks, real-time WebSocket events, and in-app notification system.
+
+## Integrations
+
+- [CLI / MCP Server](https://docs.storno.ro/integrations/cli): Use the Storno.ro MCP server to manage invoices through AI assistants like Claude Code, Cursor, and Windsurf.
+- [Mobile App](https://docs.storno.ro/integrations/mobile-app): Manage invoices, clients, and e-invoice submissions on the go with the Storno.ro mobile app for iOS and Android.
+- [Stripe App](https://docs.storno.ro/integrations/stripe-app): Automatically create e-invoices from Stripe payments using the Storno.ro Stripe marketplace app.
+
+## Objects
+
+- [Bank Account](https://docs.storno.ro/objects/bank-account): Bank account object for payment tracking
+- [Client](https://docs.storno.ro/objects/client): Client object representing companies and individuals
+- [Company](https://docs.storno.ro/objects/company): Company object representing a business entity in the system
+- [Credit Note](https://docs.storno.ro/objects/credit-note): Credit note object for invoice corrections and refunds
+- [Delivery Note](https://docs.storno.ro/objects/delivery-note): Delivery note object for goods shipment documentation
+- [Document Series](https://docs.storno.ro/objects/document-series): Document series object for sequential numbering
+- [Email Template](https://docs.storno.ro/objects/email-template): Email template object for automated communications
+- [Enums](https://docs.storno.ro/objects/enums): Enumeration types used throughout the API
+- [Invoice](https://docs.storno.ro/objects/invoice): Invoice object representing both incoming and outgoing invoices
+- [Invoice Line](https://docs.storno.ro/objects/invoice-line): Invoice line item object for products and services
+- [Payment](https://docs.storno.ro/objects/payment): Payment object for tracking invoice payments
+- [PDF Template Config](https://docs.storno.ro/objects/pdf-template-config): PDF template configuration object for customizing document appearance
+- [Product](https://docs.storno.ro/objects/product): Product or service object for invoice line items
+- [Proforma Invoice](https://docs.storno.ro/objects/proforma-invoice): Proforma invoice object for quotations and advance billing
+- [Receipt](https://docs.storno.ro/objects/receipt): Receipt (Bon Fiscal) object for cash register fiscal documentation
+- [Recurring Invoice](https://docs.storno.ro/objects/recurring-invoice): Recurring invoice template for automated invoice generation
+- [Supplier](https://docs.storno.ro/objects/supplier): Supplier object for incoming invoices
+- [User](https://docs.storno.ro/objects/user): User object representing an authenticated user
+- [VAT Rate](https://docs.storno.ro/objects/vat-rate): VAT rate configuration object
+
+## API Reference — Admin
+
+- [Admin Organization Management](https://docs.storno.ro/api-reference/admin/organizations): Manage organizations (SUPER_ADMIN only)
+- [Admin Platform Statistics](https://docs.storno.ro/api-reference/admin/stats): Get platform-wide statistics (SUPER_ADMIN only)
+- [Admin User Management](https://docs.storno.ro/api-reference/admin/users): Manage users (SUPER_ADMIN only)
+
+## API Reference — Anaf
+
+- [ANAF Connection Status](https://docs.storno.ro/api-reference/anaf/status): Check ANAF integration status and token validity
+- [ANAF Token Links](https://docs.storno.ro/api-reference/anaf/token-links): Device-based authentication flow for ANAF tokens
+- [ANAF Tokens](https://docs.storno.ro/api-reference/anaf/tokens): Manage ANAF OAuth tokens for e-Factura integration
+- [E-Factura Sync](https://docs.storno.ro/api-reference/anaf/sync): Trigger and monitor e-Factura synchronization
+- [Validate CIF](https://docs.storno.ro/api-reference/anaf/validate-cif): Validate ANAF token for a specific CIF
+
+## API Reference — Api Keys
+
+- [Create API token](https://docs.storno.ro/api-reference/api-keys/create): Create a new API token for programmatic access to the API.
+- [List API tokens](https://docs.storno.ro/api-reference/api-keys/list): Retrieve all API tokens for the current user within the current organization.
+- [List available scopes](https://docs.storno.ro/api-reference/api-keys/scopes): Retrieve all permission scopes available to the current user, grouped by category.
+- [Revoke API token](https://docs.storno.ro/api-reference/api-keys/revoke): Revoke an API token, immediately preventing it from being used for authentication.
+- [Update API token](https://docs.storno.ro/api-reference/api-keys/update): Update the name or scopes of an existing API token.
+
+## API Reference — Auth
+
+- [Disable TOTP](https://docs.storno.ro/api-reference/auth/mfa-totp-disable): Disable two-factor authentication for the current user
+- [Email Confirmation](https://docs.storno.ro/api-reference/auth/confirm-email): Confirm user email address and resend confirmation emails
+- [Enable TOTP](https://docs.storno.ro/api-reference/auth/mfa-totp-enable): Verify a TOTP code to activate two-factor authentication
+- [Forgot Password](https://docs.storno.ro/api-reference/auth/forgot-password): Request a password reset email
+- [Google OAuth Login](https://docs.storno.ro/api-reference/auth/google-oauth): Authenticate or register using Google OAuth
+- [Login](https://docs.storno.ro/api-reference/auth/login): Authenticate a user with email and password
+- [MFA Status](https://docs.storno.ro/api-reference/auth/mfa-status): Get multi-factor authentication status for the current user
+- [Passkeys (WebAuthn)](https://docs.storno.ro/api-reference/auth/passkeys): Passwordless authentication using WebAuthn passkeys
+- [Refresh Token](https://docs.storno.ro/api-reference/auth/refresh): Refresh an expired JWT access token
+- [Regenerate Backup Codes](https://docs.storno.ro/api-reference/auth/mfa-backup-codes): Generate a new set of backup codes, invalidating all previous codes
+- [Register](https://docs.storno.ro/api-reference/auth/register): Create a new user account
+- [Reset Password](https://docs.storno.ro/api-reference/auth/reset-password): Reset password using a reset token
+- [Setup TOTP](https://docs.storno.ro/api-reference/auth/mfa-totp-setup): Generate a TOTP secret and QR code for authenticator app setup
+- [User Profile](https://docs.storno.ro/api-reference/auth/me): Get and update current user profile information
+- [Verify MFA Challenge](https://docs.storno.ro/api-reference/auth/mfa-verify): Complete a multi-factor authentication challenge with a TOTP code or backup code
+
+## API Reference — Bank Accounts
+
+- [Create bank account](https://docs.storno.ro/api-reference/bank-accounts/create): Add a new bank account to the company.
+- [Delete bank account](https://docs.storno.ro/api-reference/bank-accounts/delete): Permanently delete a bank account.
+- [List bank accounts](https://docs.storno.ro/api-reference/bank-accounts/list): Retrieve all bank accounts for the authenticated company.
+- [Update bank account](https://docs.storno.ro/api-reference/bank-accounts/update): Update an existing bank account.
+
+## API Reference — Centrifugo
+
+- [Centrifugo Connection Token](https://docs.storno.ro/api-reference/centrifugo/connection-token): Generate JWT token for Centrifugo WebSocket connection
+- [Centrifugo Subscription Token](https://docs.storno.ro/api-reference/centrifugo/subscription-token): Generate JWT token for subscribing to Centrifugo channels
+
+## API Reference — Clients
+
+- [Get client](https://docs.storno.ro/api-reference/clients/get): Retrieve detailed information about a specific client including invoice history.
+- [List clients](https://docs.storno.ro/api-reference/clients/list): Retrieve a paginated, alphabetically grouped list of clients.
+
+## API Reference — Companies
+
+- [Create Company](https://docs.storno.ro/api-reference/companies/create): Add a new company by CIF with automatic ANAF validation
+- [Delete Company](https://docs.storno.ro/api-reference/companies/delete): Permanently delete a company and all associated data
+- [Get Company](https://docs.storno.ro/api-reference/companies/get): Retrieve detailed information for a specific company
+- [List Companies](https://docs.storno.ro/api-reference/companies/list): Retrieve all companies for the current organization
+- [Toggle Sync](https://docs.storno.ro/api-reference/companies/toggle-sync): Enable or disable ANAF e-Factura synchronization
+- [Update Company](https://docs.storno.ro/api-reference/companies/update): Update company configuration settings
+
+## API Reference — Credit Notes
+
+- [Create Credit Note](https://docs.storno.ro/api-reference/credit-notes/create): Create a new credit note to reverse or partially reverse an invoice
+- [Delete Credit Note](https://docs.storno.ro/api-reference/credit-notes/delete): Permanently delete a credit note (draft status only)
+- [Get Credit Note](https://docs.storno.ro/api-reference/credit-notes/get): Retrieve detailed information for a specific credit note including line items
+- [List Credit Notes](https://docs.storno.ro/api-reference/credit-notes/list): Retrieve a paginated list of credit notes with optional filtering
+- [Update Credit Note](https://docs.storno.ro/api-reference/credit-notes/update): Update an existing credit note (draft status only)
+
+## API Reference — Dashboard
+
+- [Dashboard Statistics](https://docs.storno.ro/api-reference/dashboard/stats): Get comprehensive dashboard statistics and analytics
+
+## API Reference — Defaults
+
+- [Invoice Defaults](https://docs.storno.ro/api-reference/defaults/invoice-defaults): Get default values and configuration for invoices
+
+## API Reference — Delivery Notes
+
+- [Bulk Convert Delivery Notes](https://docs.storno.ro/api-reference/delivery-notes/bulk-convert): Convert multiple issued delivery notes into a single invoice
+- [Cancel Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/cancel): Cancel a delivery note when delivery will not occur
+- [Convert Delivery Note to Invoice](https://docs.storno.ro/api-reference/delivery-notes/convert): Convert a delivery note into an invoice for payment
+- [Create Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/create): Create a new delivery note to document delivery of goods or completion of services
+- [Create Delivery Note from Proforma](https://docs.storno.ro/api-reference/delivery-notes/from-proforma): Create a new delivery note from an existing proforma invoice
+- [Create Storno Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/storno): Create a storno (return) delivery note with negated quantities
+- [Delete Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/delete): Permanently delete a delivery note (draft status only)
+- [Download Delivery Note PDF](https://docs.storno.ro/api-reference/delivery-notes/pdf): Download the PDF representation of a delivery note
+- [Get Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/get): Retrieve detailed information for a specific delivery note including line items
+- [Get Email Defaults](https://docs.storno.ro/api-reference/delivery-notes/email-defaults): Get pre-filled email content for a delivery note
+- [Get Email History](https://docs.storno.ro/api-reference/delivery-notes/email-history): Get email sending history for a delivery note
+- [Issue Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/issue): Mark a delivery note as issued when delivery occurs
+- [List Delivery Notes](https://docs.storno.ro/api-reference/delivery-notes/list): Retrieve a paginated list of delivery notes with optional filtering
+- [Restore Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/restore): Restore a cancelled delivery note back to draft status
+- [Send Delivery Note Email](https://docs.storno.ro/api-reference/delivery-notes/email): Send a delivery note to a client via email with PDF attachment
+- [Submit Delivery Note to e-Transport](https://docs.storno.ro/api-reference/delivery-notes/submit-etransport): Submit an issued delivery note to ANAF's e-Transport system
+- [Update Delivery Note](https://docs.storno.ro/api-reference/delivery-notes/update): Update an existing delivery note (draft or issued status)
+
+## API Reference — Devices
+
+- [Register Device](https://docs.storno.ro/api-reference/devices/register): Register device token for push notifications
+- [Unregister Device](https://docs.storno.ro/api-reference/devices/unregister): Unregister device token from push notifications
+
+## API Reference — Document Series
+
+- [Create document series](https://docs.storno.ro/api-reference/document-series/create): Create a new document series for invoices, proformas, credit notes, or delivery notes.
+- [Delete document series](https://docs.storno.ro/api-reference/document-series/delete): Permanently delete a document series.
+- [List document series](https://docs.storno.ro/api-reference/document-series/list): Retrieve all document series for the authenticated company.
+- [Update document series](https://docs.storno.ro/api-reference/document-series/update): Update an existing document series.
+
+## API Reference — Efactura Messages
+
+- [Get E-Factura Message](https://docs.storno.ro/api-reference/efactura-messages/get): Get detailed information about a specific e-Factura message
+- [List E-Factura Messages](https://docs.storno.ro/api-reference/efactura-messages/list): List e-Factura messages from ANAF with filtering
+
+## API Reference — Email Templates
+
+- [Create email template](https://docs.storno.ro/api-reference/email-templates/create): Create a new email template for invoice communications.
+- [Delete email template](https://docs.storno.ro/api-reference/email-templates/delete): Permanently delete an email template.
+- [List email templates](https://docs.storno.ro/api-reference/email-templates/list): Retrieve all email templates for the authenticated company.
+- [Update email template](https://docs.storno.ro/api-reference/email-templates/update): Update an existing email template.
+
+## API Reference — Exchange Rates
+
+- [Currency Conversion](https://docs.storno.ro/api-reference/exchange-rates/convert): Convert amounts between currencies using BNR rates
+- [Exchange Rates](https://docs.storno.ro/api-reference/exchange-rates/rates): Get current BNR exchange rates
+
+## API Reference — Exports
+
+- [Download Export](https://docs.storno.ro/api-reference/exports/download): Download generated export files
+
+## API Reference — Invitations
+
+- [Accept Invitation](https://docs.storno.ro/api-reference/invitations/accept): View and accept organization invitation
+- [Cancel Invitation](https://docs.storno.ro/api-reference/invitations/cancel): Cancel a pending invitation
+- [Create Invitation](https://docs.storno.ro/api-reference/invitations/create): Invite a user to join the organization
+- [List Invitations](https://docs.storno.ro/api-reference/invitations/list): List all pending invitations
+- [Resend Invitation](https://docs.storno.ro/api-reference/invitations/resend): Resend invitation email
+
+## API Reference — Invoices
+
+- [Cancel invoice](https://docs.storno.ro/api-reference/invoices/cancel): Cancel an issued invoice
+- [Create invoice](https://docs.storno.ro/api-reference/invoices/create): Create a new draft invoice
+- [Delete invoice](https://docs.storno.ro/api-reference/invoices/delete): Delete a draft invoice
+- [Download invoice attachment](https://docs.storno.ro/api-reference/invoices/attachments): Download a file attached to an invoice
+- [Download invoice PDF](https://docs.storno.ro/api-reference/invoices/pdf): Download or generate the PDF representation of an invoice
+- [Download invoice XML](https://docs.storno.ro/api-reference/invoices/xml): Download the UBL 2.1 XML representation of an invoice
+- [Email invoice](https://docs.storno.ro/api-reference/invoices/email): Send an invoice via email with PDF and XML attachments
+- [Export invoices to CSV](https://docs.storno.ro/api-reference/invoices/export-csv): Export a filtered list of invoices to CSV format
+- [Export invoices to ZIP](https://docs.storno.ro/api-reference/invoices/export-zip): Export invoices with PDF and XML files to a ZIP archive
+- [Get email defaults](https://docs.storno.ro/api-reference/invoices/email-defaults): Retrieve pre-filled email content from company template
+- [Get email history](https://docs.storno.ro/api-reference/invoices/email-history): Retrieve the history of emails sent for an invoice
+- [Get invoice details](https://docs.storno.ro/api-reference/invoices/get): Retrieve complete details for a specific invoice
+- [Get invoice events](https://docs.storno.ro/api-reference/invoices/events): Retrieve the timeline of status changes and actions for an invoice
+- [Issue invoice](https://docs.storno.ro/api-reference/invoices/issue): Issue a draft invoice and generate XML/PDF
+- [List invoices](https://docs.storno.ro/api-reference/invoices/list): Retrieve a paginated list of invoices with optional filtering and sorting
+- [Restore cancelled invoice](https://docs.storno.ro/api-reference/invoices/restore): Restore a cancelled invoice back to draft status
+- [Submit invoice to e-invoice provider](https://docs.storno.ro/api-reference/invoices/submit): Submit an issued invoice to the e-invoice provider
+- [Update invoice](https://docs.storno.ro/api-reference/invoices/update): Update an existing draft invoice
+- [Validate invoice](https://docs.storno.ro/api-reference/invoices/validate): Validate invoice data before issuing or submitting
+- [Verify ANAF signature](https://docs.storno.ro/api-reference/invoices/verify-signature): Verify the digital signature on an ANAF-validated invoice
+
+## API Reference — Licensing
+
+- [Create License Key](https://docs.storno.ro/api-reference/licensing/create-key): Generate a new license key for self-hosted instances.
+- [List License Keys](https://docs.storno.ro/api-reference/licensing/list-keys): List all license keys for the current organization.
+- [Revoke License Key](https://docs.storno.ro/api-reference/licensing/revoke-key): Deactivate a license key to revoke access for a self-hosted instance.
+- [Validate License](https://docs.storno.ro/api-reference/licensing/validate): Validate a self-hosted license key and retrieve the current plan and features.
+
+## API Reference — Members
+
+- [Deactivate Organization Member](https://docs.storno.ro/api-reference/members/delete): Deactivate a member from the organization
+- [List Organization Members](https://docs.storno.ro/api-reference/members/list): List all members of the organization with permissions
+- [Update Organization Member](https://docs.storno.ro/api-reference/members/update): Update member role and permissions
+
+## API Reference — Notification Preferences
+
+- [Get Notification Preferences](https://docs.storno.ro/api-reference/notification-preferences/get): Retrieve user notification preferences
+- [Update Notification Preferences](https://docs.storno.ro/api-reference/notification-preferences/update): Update user notification preferences
+
+## API Reference — Notifications
+
+- [List Notifications](https://docs.storno.ro/api-reference/notifications/list): Retrieve paginated list of user notifications
+- [Mark All Notifications as Read](https://docs.storno.ro/api-reference/notifications/read-all): Mark all notifications as read at once
+- [Mark Notification as Read](https://docs.storno.ro/api-reference/notifications/read): Mark a specific notification as read
+- [Unread Notification Count](https://docs.storno.ro/api-reference/notifications/unread-count): Get count of unread notifications
+
+## API Reference — Payments
+
+- [Delete invoice payment](https://docs.storno.ro/api-reference/payments/delete): Delete a recorded payment from an invoice.
+- [List invoice payments](https://docs.storno.ro/api-reference/payments/list): Retrieve all payments recorded for a specific invoice.
+- [Record invoice payment](https://docs.storno.ro/api-reference/payments/create): Record a payment received for a specific invoice.
+
+## API Reference — Pdf Template Config
+
+- [Get PDF Template Configuration](https://docs.storno.ro/api-reference/pdf-template-config/get): Retrieve the PDF template configuration for a company
+- [List Available Templates](https://docs.storno.ro/api-reference/pdf-template-config/list-templates): List all available PDF template designs
+- [Preview PDF Template](https://docs.storno.ro/api-reference/pdf-template-config/preview): Generate an HTML preview of a PDF template with sample data
+- [Update PDF Template Configuration](https://docs.storno.ro/api-reference/pdf-template-config/update): Update the PDF template configuration for a company
+
+## API Reference — Products
+
+- [Get product](https://docs.storno.ro/api-reference/products/get): Retrieve detailed information about a specific product.
+- [List products](https://docs.storno.ro/api-reference/products/list): Retrieve a paginated list of products with optional filtering.
+
+## API Reference — Proforma Invoices
+
+- [Accept Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/accept): Mark a proforma invoice as accepted by the client
+- [Cancel Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/cancel): Cancel a proforma invoice
+- [Convert Proforma to Invoice](https://docs.storno.ro/api-reference/proforma-invoices/convert): Convert a proforma invoice into a final invoice
+- [Create Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/create): Create a new proforma invoice with line items
+- [Delete Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/delete): Permanently delete a proforma invoice (draft status only)
+- [Get Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/get): Retrieve detailed information for a specific proforma invoice including line items
+- [List Proforma Invoices](https://docs.storno.ro/api-reference/proforma-invoices/list): Retrieve a paginated list of proforma invoices with optional filtering and search
+- [Reject Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/reject): Mark a proforma invoice as rejected by the client
+- [Send Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/send): Mark a proforma invoice as sent to the client
+- [Update Proforma Invoice](https://docs.storno.ro/api-reference/proforma-invoices/update): Update an existing proforma invoice (draft status only)
+
+## API Reference — Receipts
+
+- [Cancel Receipt](https://docs.storno.ro/api-reference/receipts/cancel): Cancel a receipt to void it from fiscal records
+- [Convert Receipt to Invoice](https://docs.storno.ro/api-reference/receipts/convert): Convert a fiscal receipt into a formal invoice
+- [Create Receipt](https://docs.storno.ro/api-reference/receipts/create): Create a new fiscal receipt (bon fiscal)
+- [Delete Receipt](https://docs.storno.ro/api-reference/receipts/delete): Permanently delete a receipt (draft status only)
+- [Download Receipt PDF](https://docs.storno.ro/api-reference/receipts/pdf): Download the PDF representation of a receipt
+- [Get Email Defaults](https://docs.storno.ro/api-reference/receipts/email-defaults): Get pre-filled email content for a receipt
+- [Get Email History](https://docs.storno.ro/api-reference/receipts/email-history): Get email sending history for a receipt
+- [Get Receipt](https://docs.storno.ro/api-reference/receipts/get): Retrieve detailed information for a specific receipt including line items
+- [Issue Receipt](https://docs.storno.ro/api-reference/receipts/issue): Mark a receipt as issued when it is printed on the fiscal cash register
+- [List Receipts](https://docs.storno.ro/api-reference/receipts/list): Retrieve a paginated list of receipts with optional filtering
+- [Restore Receipt](https://docs.storno.ro/api-reference/receipts/restore): Restore a cancelled receipt back to draft status
+- [Send Receipt Email](https://docs.storno.ro/api-reference/receipts/email): Send a receipt to a customer via email with PDF attachment
+- [Update Receipt](https://docs.storno.ro/api-reference/receipts/update): Update an existing receipt (draft status only)
+
+## API Reference — Recurring Invoices
+
+- [Create recurring invoice](https://docs.storno.ro/api-reference/recurring-invoices/create): Create a new recurring invoice template that will automatically generate invoices.
+- [Delete recurring invoice](https://docs.storno.ro/api-reference/recurring-invoices/delete): Permanently delete a recurring invoice template.
+- [Get recurring invoice](https://docs.storno.ro/api-reference/recurring-invoices/get): Retrieve details of a specific recurring invoice including all line items.
+- [Issue recurring invoice now](https://docs.storno.ro/api-reference/recurring-invoices/issue-now): Manually trigger immediate invoice generation from a recurring template.
+- [List recurring invoices](https://docs.storno.ro/api-reference/recurring-invoices/list): Retrieve a paginated list of recurring invoices with optional filtering.
+- [Toggle recurring invoice](https://docs.storno.ro/api-reference/recurring-invoices/toggle): Enable or disable automatic invoice generation for a recurring invoice.
+- [Update recurring invoice](https://docs.storno.ro/api-reference/recurring-invoices/update): Update an existing recurring invoice template.
+
+## API Reference — Reports
+
+- [Balance Analysis](https://docs.storno.ro/api-reference/reports/balance-analysis): 
+- [Sales Analysis Report](https://docs.storno.ro/api-reference/reports/sales-analysis): Generate sales analysis reports for a date range
+- [VAT Report](https://docs.storno.ro/api-reference/reports/vat-report): Generate monthly VAT reports for tax filing
+
+## API Reference — Suppliers
+
+- [Delete supplier](https://docs.storno.ro/api-reference/suppliers/delete): Soft-delete a supplier record.
+- [Get supplier](https://docs.storno.ro/api-reference/suppliers/get): Retrieve detailed information about a specific supplier including invoice history.
+- [List suppliers](https://docs.storno.ro/api-reference/suppliers/list): Retrieve a paginated, alphabetically grouped list of suppliers.
+- [Update supplier](https://docs.storno.ro/api-reference/suppliers/update): Update editable fields of a supplier record.
+
+## API Reference — Vat Rates
+
+- [Create VAT rate](https://docs.storno.ro/api-reference/vat-rates/create): Add a new VAT rate to the company configuration.
+- [Delete VAT rate](https://docs.storno.ro/api-reference/vat-rates/delete): Soft-delete a VAT rate from the company configuration.
+- [List VAT rates](https://docs.storno.ro/api-reference/vat-rates/list): Retrieve all VAT rates configured for the authenticated company.
+- [Update VAT rate](https://docs.storno.ro/api-reference/vat-rates/update): Update an existing VAT rate configuration.
+
+## API Reference — Webhooks
+
+- [Create webhook](https://docs.storno.ro/api-reference/webhooks/create-webhook): Register a new webhook endpoint for the current company
+- [Delete webhook](https://docs.storno.ro/api-reference/webhooks/delete-webhook): Permanently delete a webhook endpoint and all its delivery history
+- [Get webhook](https://docs.storno.ro/api-reference/webhooks/get-webhook): Retrieve details of a single webhook endpoint
+- [Get webhook delivery](https://docs.storno.ro/api-reference/webhooks/get-delivery): Retrieve full details of a single webhook delivery attempt including request and response payloads
+- [List webhook deliveries](https://docs.storno.ro/api-reference/webhooks/list-deliveries): Retrieve a paginated list of delivery attempts for a webhook endpoint
+- [List webhook event types](https://docs.storno.ro/api-reference/webhooks/list-events): Retrieve all available webhook event types that can be subscribed to
+- [List webhooks](https://docs.storno.ro/api-reference/webhooks/list-webhooks): Retrieve all webhook endpoints configured for the current company
+- [Regenerate webhook secret](https://docs.storno.ro/api-reference/webhooks/regenerate-secret): Issue a new signing secret for a webhook endpoint, immediately invalidating the previous one
+- [Test webhook](https://docs.storno.ro/api-reference/webhooks/test-webhook): Send a synchronous test delivery to a webhook endpoint
+- [Update webhook](https://docs.storno.ro/api-reference/webhooks/update-webhook): Update the URL, events, description, or active state of an existing webhook endpoint
+
+## Contributing Guide
+
+- [Contributing Guide](https://docs.storno.ro/contributing-guide): How to contribute to Storno — project setup, coding standards, and guidelines.
+
+## Contributing Guide — Mobile App
+
+- [Common Errors](https://docs.storno.ro/contributing-guide/mobile-app/common-errors): Troubleshooting common issues when developing the Storno mobile app.
+- [Mobile App Architecture](https://docs.storno.ro/contributing-guide/mobile-app/architecture): Overview of the Storno mobile app's architecture, patterns, and conventions.
+- [Mobile App Setup Guide](https://docs.storno.ro/contributing-guide/mobile-app/setup-guide): Set up the Storno mobile app for local development on macOS.
+- [Translation Guidelines](https://docs.storno.ro/contributing-guide/mobile-app/translation-guidelines): How to add or update translations in the Storno mobile app.
+
+## Other
+
+- [Changelog](https://docs.storno.ro/changelog): API version history and breaking changes.
+- [FAQ](https://docs.storno.ro/faq): Frequently asked questions about the Storno.ro API and platform.
