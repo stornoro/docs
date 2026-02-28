@@ -21,6 +21,7 @@ Storno.ro can be deployed on your own servers using Docker. Self-hosted instance
 mkdir storno && cd storno
 curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/docker-compose.yml
 curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/.env.example
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/centrifugo.json
 ```
 
 ### 2. Configure environment
