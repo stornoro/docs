@@ -63,30 +63,28 @@ This starts five containers:
 | `redis` | Redis 7 (cache, queues, locks) | 6379 |
 | `centrifugo` | WebSocket server for real-time updates | 8445 |
 
-### 4. Run database migrations
+### 4. Initialize the database
 
-On first startup, create the database schema:
-
-```bash
-docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-### 5. Generate JWT keypair
+On first startup, create the database schema and mark all migrations as applied:
 
 ```bash
-docker compose exec backend php bin/console lexik:jwt:generate-keypair
+docker compose exec backend php bin/console doctrine:schema:create
+docker compose exec backend php bin/console doctrine:migrations:sync-metadata-storage
+docker compose exec backend php bin/console doctrine:migrations:version --add --all --no-interaction
 ```
 
-### 6. Create the first user
+### 5. Create the first user
 
 ```bash
 docker compose exec backend php bin/console app:user:create \
   --email=admin@yourdomain.com \
   --password=your-password \
-  --role=owner
+  --admin
 ```
 
-### 7. Access the application
+JWT keys are generated automatically on first startup — no manual step needed.
+
+### 6. Access the application
 
 Open `http://localhost:8901` in your browser (or your configured domain) and log in.
 
@@ -245,6 +243,7 @@ To upgrade to the latest version:
 docker compose pull
 docker compose up -d
 docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
+docker compose exec backend php bin/console cache:clear
 ```
 
 ---
