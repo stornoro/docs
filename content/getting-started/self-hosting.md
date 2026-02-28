@@ -19,8 +19,8 @@ Storno.ro can be deployed on your own servers using Docker. Self-hosted instance
 
 ```bash
 mkdir storno && cd storno
-curl -O https://raw.githubusercontent.com/storno/storno/main/deploy/docker-compose.yml
-curl -O https://raw.githubusercontent.com/storno/storno/main/deploy/.env.example
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/docker-compose.yml
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/.env.example
 ```
 
 ### 2. Configure environment
@@ -49,18 +49,18 @@ LICENSE_KEY=your-license-key-here
 ### 3. Start the services
 
 ```bash
-docker compose up -d
+docker compose --profile local-db up -d
 ```
 
 This starts five containers:
 
 | Service | Description | Default Port |
 |---------|-------------|-------------|
-| `backend` | PHP API server (Symfony + Nginx) | 8000 |
-| `frontend` | Nuxt SSR web application | 3000 |
+| `backend` | PHP API server (Symfony + Nginx) | 8900 |
+| `frontend` | Nuxt SSR web application | 8901 |
 | `db` | MySQL 8.0 database | 3306 |
-| `redis` | Redis 7 (cache, queues, locks) | — |
-| `centrifugo` | WebSocket server for real-time updates | 8444 |
+| `redis` | Redis 7 (cache, queues, locks) | 6379 |
+| `centrifugo` | WebSocket server for real-time updates | 8445 |
 
 ### 4. Run database migrations
 
@@ -70,7 +70,13 @@ On first startup, create the database schema:
 docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-### 5. Create the first user
+### 5. Generate JWT keypair
+
+```bash
+docker compose exec backend php bin/console lexik:jwt:generate-keypair
+```
+
+### 6. Create the first user
 
 ```bash
 docker compose exec backend php bin/console app:user:create \
@@ -79,9 +85,9 @@ docker compose exec backend php bin/console app:user:create \
   --role=owner
 ```
 
-### 6. Access the application
+### 7. Access the application
 
-Open `http://localhost:3000` (or your configured domain) and log in.
+Open `http://localhost:8901` in your browser (or your configured domain) and log in.
 
 ---
 
@@ -103,13 +109,13 @@ Open `http://localhost:3000` (or your configured domain) and log in.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BACKEND_PORT` | `8000` | Backend API port |
-| `FRONTEND_PORT` | `3000` | Frontend web port |
-| `CENTRIFUGO_PORT` | `8444` | WebSocket port |
+| `BACKEND_PORT` | `8900` | Backend API port |
+| `FRONTEND_PORT` | `8901` | Frontend web port |
+| `CENTRIFUGO_PORT` | `8445` | WebSocket port |
 | `MYSQL_PORT` | `3306` | MySQL port |
 | `MYSQL_DATABASE` | `storno` | Database name |
 | `MYSQL_USER` | `storno` | Database user |
-| `FRONTEND_URL` | `http://localhost:3000` | Public URL for the frontend |
+| `FRONTEND_URL` | `http://localhost:8901` | Public URL for the frontend |
 | `PUBLIC_API_BASE` | `/api` | How the browser reaches the API |
 | `CORS_ALLOW_ORIGIN` | `localhost` pattern | CORS allowed origins regex |
 | `MAILER_DSN` | `null://null` | SMTP/SES transport DSN |
@@ -170,7 +176,7 @@ server {
 
     # Frontend
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:8901;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -182,7 +188,7 @@ server {
 
     # API
     location /api {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8900;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -215,15 +221,15 @@ CORS_ALLOW_ORIGIN=^https://factura\.yourdomain\.com$
 ```caddyfile
 factura.yourdomain.com {
     handle /api/* {
-        reverse_proxy localhost:8000
+        reverse_proxy localhost:8900
     }
 
     handle /connection/websocket {
-        reverse_proxy localhost:8444
+        reverse_proxy localhost:8445
     }
 
     handle {
-        reverse_proxy localhost:3000
+        reverse_proxy localhost:8901
     }
 }
 ```
@@ -315,7 +321,7 @@ Ensure `PUBLIC_CENTRIFUGO_WS` matches your public URL and that your reverse prox
 
 ```bash
 # Check Centrifugo health
-docker compose exec centrifugo wget -qO- http://localhost:8000/health
+docker compose exec centrifugo wget -qO- http://localhost:8900/health
 ```
 
 ### View application logs
