@@ -65,6 +65,7 @@ All fields are optional — only include the fields you want to update.
 | `clientBalanceOverdue` | string | Overdue client balance amount |
 | `autoApplyVatRules` | boolean | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
 | `vatIncluded` | boolean | When used with `autoApplyVatRules`, sets whether unit prices include VAT on all lines. This ensures correct totals after VAT rules change rates (e.g., reverse charge sets VAT to 0%). Without this, use per-line `vatIncluded` instead. |
+| `ublExtensions` | object | UBL extension fields for advanced e-Factura compliance (see below). Pass `null` to clear. |
 | `lines` | array | Array of invoice line items (replaces all lines) |
 
 ### Invoice line object
@@ -83,6 +84,7 @@ All fields are optional — only include the fields you want to update.
 | `discountPercent` | number | No | Discount percentage |
 | `vatIncluded` | boolean | No | Whether price includes VAT (default: false) |
 | `productCode` | string | No | Product code for reference |
+| `ublExtensions` | object | No | Line-level UBL extensions (see below) |
 
 ### e-Factura BT fields
 
@@ -102,6 +104,29 @@ These optional fields are used for advanced e-Factura (UBL) compliance:
 | `payeeName` | string | Payee name (if different from seller) |
 | `payeeIdentifier` | string | Payee identifier |
 | `payeeLegalRegistrationIdentifier` | string | Payee legal registration identifier |
+
+### UBL extensions (document-level)
+
+The `ublExtensions` object supports UBL XML elements that don't have dedicated invoice fields. All sub-fields are optional. Unknown keys are silently stripped. Pass `null` to clear all extensions.
+
+| Name | Type | Description |
+|------|------|-------------|
+| `invoicePeriod` | object | Billing period: `startDate` (YYYY-MM-DD), `endDate` (YYYY-MM-DD), `descriptionCode` (e.g., "35") |
+| `delivery` | object | Delivery info: `actualDeliveryDate` (YYYY-MM-DD), `deliveryAddress` object with `streetName`, `cityName`, `countrySubentity`, `countryCode` |
+| `allowanceCharges` | array | Document-level allowances/charges (max 20). Each: `chargeIndicator` (bool, false=discount), `amount` (numeric string), `taxCategoryCode` (S/Z/E/AE/K/G/O), `taxRate` (numeric string). Optional: `reasonCode`, `reason`, `baseAmount`, `multiplierFactorNumeric` |
+| `prepaidAmount` | string | Prepaid amount (numeric string >= 0). Reduces PayableAmount in UBL XML |
+| `additionalDocumentReferences` | array | Additional references (max 10). Each: `id` (required, max 200), optional `documentTypeCode`, `documentDescription` |
+
+### UBL extensions (line-level)
+
+Each line item can include a `ublExtensions` object:
+
+| Name | Type | Description |
+|------|------|-------------|
+| `invoicePeriod` | object | Line billing period: `startDate` (YYYY-MM-DD), `endDate` (YYYY-MM-DD) |
+| `allowanceCharges` | array | Line-level allowances/charges (max 10). Each: `chargeIndicator` (bool), `amount` (numeric string). Optional: `reasonCode`, `reason`, `baseAmount`, `multiplierFactorNumeric` |
+| `additionalItemProperties` | array | Item properties (max 20). Each: `name` (max 50 chars), `value` (max 100 chars) |
+| `originCountry` | string | Item origin country (ISO 3166-1 alpha-2, e.g., "DE") |
 
 {% callout type="warning" %}
 When updating `lines`, the entire array is replaced. Include all line items you want to keep, not just the ones you're changing.

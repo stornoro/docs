@@ -26,6 +26,7 @@ The InvoiceLine object represents a single line item on an invoice, proforma, de
 | discountPercent | decimal | Discount percentage |
 | vatIncluded | boolean | Whether unitPrice includes VAT |
 | productCode | string | Product code/SKU |
+| ublExtensions | object | UBL extension fields (invoicePeriod, allowanceCharges, additionalItemProperties, originCountry) |
 | createdAt | datetime | Timestamp when created |
 | updatedAt | datetime | Timestamp of last update |
 

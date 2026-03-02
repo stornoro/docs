@@ -58,6 +58,7 @@ The Invoice object represents both outgoing (issued by the company) and incoming
 | penaltyEnabled | boolean | ✗ | ✓ | Whether late payment penalties are enabled |
 | penaltyPercentPerDay | decimal | ✗ | ✓ | Daily penalty percentage |
 | penaltyGraceDays | integer | ✗ | ✓ | Grace period before penalties apply |
+| ublExtensions | object | ✗ | ✓ | UBL extension fields (invoicePeriod, delivery, allowanceCharges, prepaidAmount, additionalDocumentReferences) |
 | lines | array | ✗ | ✓ | Array of InvoiceLine objects |
 | events | array | ✗ | ✓ | Array of DocumentEvent objects (audit trail) |
 | attachments | array | ✗ | ✓ | Array of file attachments |

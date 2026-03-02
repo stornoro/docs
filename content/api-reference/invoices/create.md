@@ -60,6 +60,7 @@ POST /api/v1/invoices
 | `autoApplyVatRules` | boolean | No | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
 | `vatIncluded` | boolean | No | When used with `autoApplyVatRules`, sets whether unit prices include VAT on all lines. This ensures correct totals after VAT rules change rates (e.g., reverse charge sets VAT to 0%). Without this, use per-line `vatIncluded` instead. |
 | `idempotencyKey` | string | No | Idempotency key to prevent duplicate creation |
+| `ublExtensions` | object | No | UBL extension fields for advanced e-Factura compliance (see below) |
 | `lines` | array | Yes | Array of invoice line items |
 
 ### Collect object
@@ -90,6 +91,7 @@ When provided, creates an immediate payment record on the invoice.
 | `discountPercent` | number | No | Discount percentage |
 | `vatIncluded` | boolean | No | Whether price includes VAT (default: false) |
 | `productCode` | string | No | Product code for reference |
+| `ublExtensions` | object | No | Line-level UBL extensions (see below) |
 
 ### e-Factura BT fields
 
@@ -109,6 +111,33 @@ These optional fields are used for advanced e-Factura (UBL) compliance:
 | `payeeName` | string | Payee name (if different from seller) |
 | `payeeIdentifier` | string | Payee identifier |
 | `payeeLegalRegistrationIdentifier` | string | Payee legal registration identifier |
+
+### UBL extensions (document-level)
+
+The `ublExtensions` object supports UBL XML elements that don't have dedicated invoice fields. All sub-fields are optional. Unknown keys are silently stripped.
+
+| Name | Type | Description |
+|------|------|-------------|
+| `invoicePeriod` | object | Billing period: `startDate` (YYYY-MM-DD), `endDate` (YYYY-MM-DD), `descriptionCode` (e.g., "35") |
+| `delivery` | object | Delivery info: `actualDeliveryDate` (YYYY-MM-DD), `deliveryAddress` object with `streetName`, `cityName`, `countrySubentity`, `countryCode` |
+| `allowanceCharges` | array | Document-level allowances/charges (max 20). Each: `chargeIndicator` (bool, false=discount), `amount` (numeric string), `taxCategoryCode` (S/Z/E/AE/K/G/O), `taxRate` (numeric string). Optional: `reasonCode`, `reason`, `baseAmount`, `multiplierFactorNumeric` |
+| `prepaidAmount` | string | Prepaid amount (numeric string >= 0). Reduces PayableAmount in UBL XML |
+| `additionalDocumentReferences` | array | Additional references (max 10). Each: `id` (required, max 200), optional `documentTypeCode`, `documentDescription` |
+
+{% callout type="info" %}
+Document-level `allowanceCharges` adjust TaxTotal and LegalMonetaryTotal in the generated UBL XML. The stored invoice subtotal/vatTotal/total remain unchanged — the adjustments are computed at XML generation time.
+{% /callout %}
+
+### UBL extensions (line-level)
+
+Each line item can include a `ublExtensions` object:
+
+| Name | Type | Description |
+|------|------|-------------|
+| `invoicePeriod` | object | Line billing period: `startDate` (YYYY-MM-DD), `endDate` (YYYY-MM-DD) |
+| `allowanceCharges` | array | Line-level allowances/charges (max 10). Each: `chargeIndicator` (bool), `amount` (numeric string). Optional: `reasonCode`, `reason`, `baseAmount`, `multiplierFactorNumeric` |
+| `additionalItemProperties` | array | Item properties (max 20). Each: `name` (max 50 chars), `value` (max 100 chars) |
+| `originCountry` | string | Item origin country (ISO 3166-1 alpha-2, e.g., "DE") |
 
 ### Common invoice type codes
 
