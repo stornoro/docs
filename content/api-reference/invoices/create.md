@@ -79,6 +79,8 @@ When provided, creates an immediate payment record on the invoice.
 | `description` | string | Yes | Line item description |
 | `quantity` | number | Yes | Quantity (must be positive, or non-zero for refunds) |
 | `unitPrice` | number | Yes | Unit price (must be non-negative) |
+| `vatRate` | number | No | VAT rate percentage (default: 21.00) |
+| `vatCategoryCode` | string | No | UBL VAT category code (default: `S`). Usually not needed — auto-determined from `vatRate`: 0% rate auto-corrects to `Z`, and zero-rate codes with rate > 0 auto-correct to `S`. Only set explicitly for special categories like `AE` (reverse charge), `E` (exempt), `K` (intra-community), `G` (export). |
 | `vatRateId` | string | No | VAT rate UUID (uses default if not provided) |
 | `unitOfMeasure` | string | No | Unit of measure (e.g., "hours", "pcs", "kg") |
 | `productId` | string | No | Product UUID (optional reference) |

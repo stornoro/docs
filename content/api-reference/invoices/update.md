@@ -62,7 +62,25 @@ All fields are optional — only include the fields you want to update.
 | `showClientBalance` | boolean | Show client balance on invoice |
 | `clientBalanceExisting` | string | Existing client balance amount |
 | `clientBalanceOverdue` | string | Overdue client balance amount |
+| `autoApplyVatRules` | boolean | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
 | `lines` | array | Array of invoice line items (replaces all lines) |
+
+### Invoice line object
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `description` | string | Yes | Line item description |
+| `quantity` | number | Yes | Quantity |
+| `unitPrice` | number | Yes | Unit price |
+| `vatRate` | number | No | VAT rate percentage (default: 21.00) |
+| `vatCategoryCode` | string | No | UBL VAT category code (default: `S`). Usually not needed — auto-determined from `vatRate`: 0% rate auto-corrects to `Z`, and zero-rate codes with rate > 0 auto-correct to `S`. Only set explicitly for special categories like `AE` (reverse charge), `E` (exempt), `K` (intra-community), `G` (export). |
+| `vatRateId` | string | No | VAT rate UUID |
+| `unitOfMeasure` | string | No | Unit of measure (e.g., "hours", "pcs", "kg") |
+| `productId` | string | No | Product UUID (optional reference) |
+| `discount` | number | No | Fixed discount amount |
+| `discountPercent` | number | No | Discount percentage |
+| `vatIncluded` | boolean | No | Whether price includes VAT (default: false) |
+| `productCode` | string | No | Product code for reference |
 
 ### e-Factura BT fields
 
