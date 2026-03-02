@@ -57,6 +57,7 @@ POST /api/v1/invoices
 | `clientBalanceOverdue` | string | No | Overdue client balance amount |
 | `collect` | object | No | Create immediate payment on the invoice (see below) |
 | `autoApplyVatRules` | boolean | No | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
+| `vatIncluded` | boolean | No | When used with `autoApplyVatRules`, sets whether unit prices include VAT on all lines. This ensures correct totals after VAT rules change rates (e.g., reverse charge sets VAT to 0%). Without this, use per-line `vatIncluded` instead. |
 | `idempotencyKey` | string | No | Idempotency key to prevent duplicate creation |
 | `lines` | array | Yes | Array of invoice line items |
 

@@ -63,6 +63,7 @@ All fields are optional — only include the fields you want to update.
 | `clientBalanceExisting` | string | Existing client balance amount |
 | `clientBalanceOverdue` | string | Overdue client balance amount |
 | `autoApplyVatRules` | boolean | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
+| `vatIncluded` | boolean | When used with `autoApplyVatRules`, sets whether unit prices include VAT on all lines. This ensures correct totals after VAT rules change rates (e.g., reverse charge sets VAT to 0%). Without this, use per-line `vatIncluded` instead. |
 | `lines` | array | Array of invoice line items (replaces all lines) |
 
 ### Invoice line object
