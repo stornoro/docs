@@ -111,8 +111,14 @@ Docs: https://docs.storno.ro
 
 ## API Reference — Clients
 
-- [Get client](https://docs.storno.ro/api-reference/clients/get): Retrieve detailed information about a specific client including invoice history.
+- [ANAF lookup](https://docs.storno.ro/api-reference/clients/anaf-lookup): Look up a Romanian company by CUI in the ANAF registry
+- [Bulk delete clients](https://docs.storno.ro/api-reference/clients/bulk-delete): Soft-delete multiple clients at once
+- [Create client](https://docs.storno.ro/api-reference/clients/create): Create a new client manually
+- [Create from registry](https://docs.storno.ro/api-reference/clients/from-registry): Create a client from the ONRC registry with ANAF validation
+- [Delete client](https://docs.storno.ro/api-reference/clients/delete): Soft-delete a client
+- [Get client](https://docs.storno.ro/api-reference/clients/get): Retrieve detailed information about a specific client including document history.
 - [List clients](https://docs.storno.ro/api-reference/clients/list): Retrieve a paginated, alphabetically grouped list of clients.
+- [Update client](https://docs.storno.ro/api-reference/clients/update): Update an existing client's details
 - [VIES lookup](https://docs.storno.ro/api-reference/clients/vies-lookup): Validate a VAT code against the EU VIES system
 
 ## API Reference — Companies

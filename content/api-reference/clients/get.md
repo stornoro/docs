@@ -1,11 +1,11 @@
 ---
 title: Get client
-description: Retrieve detailed information about a specific client including invoice history.
+description: Retrieve detailed information about a specific client including document history.
 ---
 
 # Get client
 
-Retrieves detailed information about a specific client, including summary statistics of their invoice history.
+Retrieves detailed information about a specific client, including paginated invoice history, delivery note history, and receipt history.
 
 ```http
 GET /api/v1/clients/{uuid}
@@ -26,63 +26,34 @@ GET /api/v1/clients/{uuid}
 | `Authorization` | string | Yes | Bearer token for authentication |
 | `X-Company` | string | Yes | UUID of the company context |
 
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | integer | No | Page number for invoice history (default: 1) |
+| `limit` | integer | No | Items per page for invoice history (default: 50, max: 200) |
+
 ## Response
 
-Returns a detailed client object with invoice summary statistics.
+Returns the full client object with document history.
 
 ### Response Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `name` | string | Client name or full name |
-| `type` | string | `company` or `individual` |
-| `cui` | string \| null | Tax identification number (CUI for companies, CNP for individuals) |
-| `tradeRegister` | string \| null | Trade register number |
-| `email` | string \| null | Email address |
-| `phone` | string \| null | Phone number |
-| `address` | string \| null | Street address |
-| `city` | string \| null | City |
-| `county` | string \| null | County |
-| `country` | string | Country code |
-| `postalCode` | string \| null | Postal code |
-| `bankName` | string \| null | Bank name |
-| `bankAccount` | string \| null | Bank account (IBAN) |
-| `invoiceSummary` | object | Summary of invoice statistics |
-| `recentInvoices` | array | Array of recent invoice objects (last 10) |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
-
-### Invoice Summary Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `totalCount` | integer | Total number of invoices |
-| `unpaidCount` | integer | Number of unpaid invoices |
-| `overdueCount` | integer | Number of overdue invoices |
-| `totalRevenue` | number | Total revenue from all invoices |
-| `unpaidAmount` | number | Total unpaid amount |
-| `overdueAmount` | number | Total overdue amount |
-| `averageInvoiceAmount` | number | Average invoice amount |
-| `lastInvoiceDate` | string \| null | ISO 8601 date of most recent invoice |
-
-### Recent Invoice Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `uuid` | string | Invoice UUID |
-| `number` | string | Invoice number |
-| `issueDate` | string | ISO 8601 issue date |
-| `dueDate` | string | ISO 8601 due date |
-| `totalAmount` | number | Total amount |
-| `amountPaid` | number | Amount paid |
-| `status` | string | Invoice status |
-| `currency` | string | Currency code |
+| `client` | object | Full [client object](/objects/client) with all detail fields |
+| `invoiceHistory` | array | Paginated array of outgoing invoices for this client |
+| `invoiceTotal` | integer | Total number of outgoing invoices |
+| `invoiceCount` | integer | Total invoice count |
+| `deliveryNoteHistory` | array | Recent delivery notes (last 5) |
+| `deliveryNoteCount` | integer | Total delivery note count |
+| `receiptHistory` | array | Recent receipts (last 5) |
+| `receiptCount` | integer | Total receipt count |
 
 ## Example Request
 
 ```bash
-curl -X GET 'https://api.storno.ro/api/v1/clients/client-uuid-1' \
+curl -X GET 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345678901' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid'
 ```
@@ -91,84 +62,65 @@ curl -X GET 'https://api.storno.ro/api/v1/clients/client-uuid-1' \
 
 ```json
 {
-  "uuid": "client-uuid-1",
-  "name": "Acme Corporation SRL",
-  "type": "company",
-  "cui": "RO12345678",
-  "tradeRegister": "J40/1234/2020",
-  "email": "contact@acme.ro",
-  "phone": "+40723456789",
-  "address": "Str. Exemplu, Nr. 1",
-  "city": "București",
-  "county": "București",
-  "country": "RO",
-  "postalCode": "010101",
-  "bankName": "BCR",
-  "bankAccount": "RO49AAAA1B31007593840000",
-  "invoiceSummary": {
-    "totalCount": 24,
-    "unpaidCount": 3,
-    "overdueCount": 1,
-    "totalRevenue": 42780.00,
-    "unpaidAmount": 5450.00,
-    "overdueAmount": 1500.00,
-    "averageInvoiceAmount": 1782.50,
-    "lastInvoiceDate": "2026-02-10"
+  "client": {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "company",
+    "name": "Acme Corporation SRL",
+    "cui": "12345678",
+    "cnp": null,
+    "vatCode": "RO12345678",
+    "isVatPayer": true,
+    "registrationNumber": "J40/1234/2020",
+    "address": "Strada Exemplu, nr. 10",
+    "city": "Bucuresti Sectorul 1",
+    "county": "Bucuresti",
+    "country": "RO",
+    "postalCode": "010101",
+    "email": "billing@acme.ro",
+    "phone": "+40 21 123 4567",
+    "bankName": "Banca Transilvania",
+    "bankAccount": "RO49AAAA1B31007593840000",
+    "defaultPaymentTermDays": 30,
+    "contactPerson": "Ion Popescu",
+    "notes": null,
+    "source": "manual",
+    "viesValid": null,
+    "viesValidatedAt": null,
+    "viesName": null,
+    "lastSyncedAt": null,
+    "createdAt": "2025-06-10T09:00:00+02:00",
+    "updatedAt": "2026-02-10T14:30:00+02:00"
   },
-  "recentInvoices": [
+  "invoiceHistory": [
     {
-      "uuid": "invoice-uuid-1",
-      "number": "FAC00245",
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "number": "FAC0245",
       "issueDate": "2026-02-10",
-      "dueDate": "2026-03-12",
-      "totalAmount": 2380.00,
-      "amountPaid": 0.00,
-      "status": "unpaid",
-      "currency": "RON"
-    },
-    {
-      "uuid": "invoice-uuid-2",
-      "number": "FAC00231",
-      "issueDate": "2026-01-15",
-      "dueDate": "2026-02-14",
-      "totalAmount": 1500.00,
-      "amountPaid": 0.00,
-      "status": "overdue",
-      "currency": "RON"
-    },
-    {
-      "uuid": "invoice-uuid-3",
-      "number": "FAC00218",
-      "issueDate": "2025-12-20",
-      "dueDate": "2026-01-19",
-      "totalAmount": 3200.00,
-      "amountPaid": 3200.00,
-      "status": "paid",
-      "currency": "RON"
+      "total": "2380.00",
+      "currency": "RON",
+      "status": "issued",
+      "direction": "outgoing"
     }
   ],
-  "createdAt": "2025-06-10T09:00:00Z",
-  "updatedAt": "2026-02-10T14:30:00Z"
+  "invoiceTotal": 24,
+  "invoiceCount": 24,
+  "deliveryNoteHistory": [],
+  "deliveryNoteCount": 0,
+  "receiptHistory": [],
+  "receiptCount": 0
 }
 ```
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Client not found or doesn't belong to company |
-
-## Important Notes
-
-- Clients in Storno.ro are sync-only and come from ANAF e-Factura system
-- Client data cannot be manually created or edited via API
-- Use the [ANAF sync endpoint](/api-reference/anaf/sync-invoices) to fetch latest client data
-- Invoice summary statistics are calculated in real-time
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Client not found |
 
 ## Related Endpoints
 
 - [List clients](/api-reference/clients/list)
-- [List invoices](/api-reference/invoices/list)
-- [Sync from ANAF](/api-reference/anaf/sync-invoices)
+- [Update client](/api-reference/clients/update)
+- [Delete client](/api-reference/clients/delete)

@@ -11786,15 +11786,487 @@ Events published to channels:
 
 ---
 
+## ANAF lookup
+
+> Look up a Romanian company by CUI in the ANAF registry
+
+URL: https://docs.storno.ro/api-reference/clients/anaf-lookup
+
+# ANAF lookup
+
+Looks up a Romanian company by CUI in the ANAF (National Agency for Fiscal Administration) registry without creating a client. Returns company details that can be used to pre-fill a client creation form.
+
+```http
+GET /api/v1/clients/anaf-lookup
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Company` | string | Yes | UUID of the company context |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `cui` | string | Yes | CUI/CIF to look up (with or without `RO` prefix) |
+
+## Example Request
+
+```bash
+curl -X GET 'https://api.storno.ro/api/v1/clients/anaf-lookup?cui=12345678' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid'
+```
+
+## Response
+
+Returns the company details from ANAF.
+
+```json
+{
+  "data": {
+    "cui": "12345678",
+    "name": "EXEMPLU SRL",
+    "address": "Str. Exemplu, Nr. 10",
+    "city": "Bucuresti Sectorul 1",
+    "county": "Bucuresti",
+    "postalCode": "010101",
+    "phone": "+40211234567",
+    "registrationNumber": "J40/1234/2020",
+    "isVatPayer": true,
+    "vatCode": "RO12345678"
+  }
+}
+```
+
+## Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cui` | string | CUI number (without RO prefix) |
+| `name` | string | Registered company name |
+| `address` | string | Registered street address |
+| `city` | string | City (Bucharest sectors are normalized to UBL format) |
+| `county` | string | County (Bucharest sectors are normalized) |
+| `postalCode` | string \| null | Postal code |
+| `phone` | string \| null | Phone number |
+| `registrationNumber` | string \| null | Trade register number |
+| `isVatPayer` | boolean | Whether the company is registered for VAT |
+| `vatCode` | string \| null | Full VAT code with RO prefix (if VAT payer) |
+
+## Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 404 | CUI not found in ANAF |
+| 422 | CUI is required |
+| 503 | ANAF lookup service unavailable |
+
+## Related Endpoints
+
+- [Create client](/api-reference/clients/create)
+- [Create from registry](/api-reference/clients/from-registry)
+
+---
+
+## Bulk delete clients
+
+> Soft-delete multiple clients at once
+
+URL: https://docs.storno.ro/api-reference/clients/bulk-delete
+
+# Bulk delete clients
+
+Soft-deletes multiple clients in a single request. Each client is processed independently — if some deletions fail (e.g., permission denied), others will still succeed.
+
+```http
+POST /api/v1/clients/bulk-delete
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Company` | string | Yes | UUID of the company context |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Request body
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `ids` | string[] | Yes | Array of client UUIDs to delete (1–100 items) |
+
+## Example Request
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/clients/bulk-delete' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "ids": [
+      "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "c3d4e5f6-a7b8-9012-cdef-123456789012"
+    ]
+  }'
+```
+
+## Response
+
+Returns a summary of the operation.
+
+```json
+{
+  "deleted": 2,
+  "errors": []
+}
+```
+
+### Partial failure
+
+If some clients cannot be deleted, the response includes both the count of successful deletions and an array of errors:
+
+```json
+{
+  "deleted": 1,
+  "errors": [
+    {
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "error": "Access Denied."
+    }
+  ]
+}
+```
+
+## Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Invalid request (empty array, more than 100 IDs) |
+| 401 | Invalid or missing authentication token |
+
+## Related Endpoints
+
+- [Delete client](/api-reference/clients/delete)
+- [List clients](/api-reference/clients/list)
+
+---
+
+## Create client
+
+> Create a new client manually
+
+URL: https://docs.storno.ro/api-reference/clients/create
+
+# Create client
+
+Creates a new client for the specified company. If a client with the same CUI already exists, returns the existing client instead of creating a duplicate.
+
+For foreign EU clients with a VAT code, the system automatically validates the VAT number against the EU VIES system and stores the result.
+
+```http
+POST /api/v1/clients
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Company` | string | Yes | UUID of the company context |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Request body
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | string | Yes | Company name or individual full name |
+| `type` | string | No | Client type: `company` or `individual` (default: `company`) |
+| `cui` | string | No | CUI (tax identification number) for companies |
+| `cnp` | string | No | CNP (personal identification number) for individuals |
+| `vatCode` | string | No | Full VAT code with country prefix (e.g., `RO12345678`, `DE812526315`) |
+| `isVatPayer` | boolean | No | Whether the client is registered for VAT (default: false) |
+| `registrationNumber` | string | Conditional | Company registration number — required for Romanian companies |
+| `address` | string | Yes | Street address |
+| `city` | string | Yes | City name |
+| `county` | string | Conditional | County — required for Romanian clients |
+| `country` | string | No | ISO 3166-1 alpha-2 country code (default: `RO`) |
+| `postalCode` | string | No | Postal/ZIP code |
+| `email` | string | No | Email address |
+| `phone` | string | No | Phone number |
+| `bankName` | string | No | Bank name |
+| `bankAccount` | string | No | Bank account number (IBAN) |
+| `defaultPaymentTermDays` | integer | No | Default payment term in days |
+| `contactPerson` | string | No | Contact person name |
+| `notes` | string | No | Internal notes |
+
+## Example Request
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/clients' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Example GmbH",
+    "type": "company",
+    "vatCode": "DE812526315",
+    "isVatPayer": true,
+    "address": "Musterstrasse 1",
+    "city": "Berlin",
+    "country": "DE",
+    "postalCode": "10115",
+    "email": "billing@example.de"
+  }'
+```
+
+## Response
+
+Returns the created client object with status `201 Created`.
+
+```json
+{
+  "client": {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "company",
+    "name": "Example GmbH",
+    "cui": null,
+    "cnp": null,
+    "vatCode": "DE812526315",
+    "isVatPayer": true,
+    "address": "Musterstrasse 1",
+    "city": "Berlin",
+    "county": null,
+    "country": "DE",
+    "postalCode": "10115",
+    "email": "billing@example.de",
+    "viesValid": true,
+    "viesValidatedAt": "2026-03-02T12:00:00+02:00",
+    "viesName": "EXAMPLE GMBH",
+    "source": "manual",
+    "createdAt": "2026-03-02T12:00:00+02:00"
+  }
+}
+```
+
+### Duplicate CUI handling
+
+If a client with the same CUI already exists for this company, the endpoint returns the existing client with `200 OK` instead of creating a duplicate:
+
+```json
+{
+  "client": { ... },
+  "existing": true
+}
+```
+
+### VIES auto-validation
+
+When a foreign EU client is created with a VAT code, the system automatically validates it against the EU VIES system. The result is stored in:
+- `viesValid` — `true` if valid, `false` if invalid, `null` if not applicable
+- `viesValidatedAt` — timestamp of validation
+- `viesName` — company name as registered in VIES
+
+This only applies to EU member state countries (AT, BE, BG, CY, CZ, DE, DK, EE, EL, ES, FI, FR, HR, HU, IE, IT, LT, LU, LV, MT, NL, PL, PT, SE, SI, SK). Romanian and non-EU clients are not validated.
+
+## Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found |
+| 422 | Validation error (missing required fields) |
+
+## Related Endpoints
+
+- [List clients](/api-reference/clients/list)
+- [Get client](/api-reference/clients/get)
+- [Create from registry](/api-reference/clients/from-registry)
+- [ANAF lookup](/api-reference/clients/anaf-lookup)
+
+---
+
+## Create from registry
+
+> Create a client from the ONRC registry with ANAF validation
+
+URL: https://docs.storno.ro/api-reference/clients/from-registry
+
+# Create from registry
+
+Creates a client by looking up a CUI in the ANAF registry and auto-filling all available details. If a client with the same CUI already exists, returns the existing client instead of creating a duplicate.
+
+This is the recommended way to add Romanian company clients — it ensures all fiscal data (VAT status, registration number, address) is accurate and up to date from official sources.
+
+```http
+POST /api/v1/clients/from-registry
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Company` | string | Yes | UUID of the company context |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Request body
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cui` | string | Yes | CUI/CIF to look up (with or without `RO` prefix) |
+| `name` | string | No | Fallback name if ANAF lookup fails |
+
+## Example Request
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/clients/from-registry' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "cui": "12345678"
+  }'
+```
+
+## Response
+
+Returns the created client with status `201 Created`, along with whether ANAF validation succeeded.
+
+```json
+{
+  "client": {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "company",
+    "name": "EXEMPLU SRL",
+    "cui": "12345678",
+    "vatCode": "RO12345678",
+    "isVatPayer": true,
+    "registrationNumber": "J40/1234/2020",
+    "address": "Str. Exemplu, Nr. 10",
+    "city": "Bucuresti Sectorul 1",
+    "county": "Bucuresti",
+    "country": "RO",
+    "postalCode": "010101",
+    "phone": "+40211234567",
+    "source": "manual",
+    "createdAt": "2026-03-02T12:00:00+02:00"
+  },
+  "anafValidated": true
+}
+```
+
+### Duplicate CUI handling
+
+If a client with the same CUI already exists, returns the existing client with `200 OK`:
+
+```json
+{
+  "client": { ... },
+  "existing": true
+}
+```
+
+### ANAF lookup failure
+
+If the ANAF service is unavailable, the client is still created with the CUI and the fallback `name` (or `"CUI 12345678"` if no name provided). The `anafValidated` field will be `false`.
+
+## Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found |
+| 422 | CUI is required |
+
+## Related Endpoints
+
+- [Create client](/api-reference/clients/create)
+- [ANAF lookup](/api-reference/clients/anaf-lookup)
+- [List clients](/api-reference/clients/list)
+
+---
+
+## Delete client
+
+> Soft-delete a client
+
+URL: https://docs.storno.ro/api-reference/clients/delete
+
+# Delete client
+
+Soft-deletes a client. The client is marked as deleted but remains in the database. Soft-deleted clients are excluded from list queries and cannot be used on new invoices.
+
+```http
+DELETE /api/v1/clients/{uuid}
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uuid` | string | Yes | The UUID of the client |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Company` | string | Yes | UUID of the company context |
+
+## Example Request
+
+```bash
+curl -X DELETE 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345678901' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid'
+```
+
+## Response
+
+Returns `204 No Content` on success.
+
+## Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Client not found |
+
+## Related Endpoints
+
+- [List clients](/api-reference/clients/list)
+- [Bulk delete clients](/api-reference/clients/bulk-delete)
+
+---
+
 ## Get client
 
-> Retrieve detailed information about a specific client including invoice history.
+> Retrieve detailed information about a specific client including document history.
 
 URL: https://docs.storno.ro/api-reference/clients/get
 
 # Get client
 
-Retrieves detailed information about a specific client, including summary statistics of their invoice history.
+Retrieves detailed information about a specific client, including paginated invoice history, delivery note history, and receipt history.
 
 ```http
 GET /api/v1/clients/{uuid}
@@ -11815,63 +12287,34 @@ GET /api/v1/clients/{uuid}
 | `Authorization` | string | Yes | Bearer token for authentication |
 | `X-Company` | string | Yes | UUID of the company context |
 
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | integer | No | Page number for invoice history (default: 1) |
+| `limit` | integer | No | Items per page for invoice history (default: 50, max: 200) |
+
 ## Response
 
-Returns a detailed client object with invoice summary statistics.
+Returns the full client object with document history.
 
 ### Response Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `name` | string | Client name or full name |
-| `type` | string | `company` or `individual` |
-| `cui` | string \| null | Tax identification number (CUI for companies, CNP for individuals) |
-| `tradeRegister` | string \| null | Trade register number |
-| `email` | string \| null | Email address |
-| `phone` | string \| null | Phone number |
-| `address` | string \| null | Street address |
-| `city` | string \| null | City |
-| `county` | string \| null | County |
-| `country` | string | Country code |
-| `postalCode` | string \| null | Postal code |
-| `bankName` | string \| null | Bank name |
-| `bankAccount` | string \| null | Bank account (IBAN) |
-| `invoiceSummary` | object | Summary of invoice statistics |
-| `recentInvoices` | array | Array of recent invoice objects (last 10) |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
-
-### Invoice Summary Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `totalCount` | integer | Total number of invoices |
-| `unpaidCount` | integer | Number of unpaid invoices |
-| `overdueCount` | integer | Number of overdue invoices |
-| `totalRevenue` | number | Total revenue from all invoices |
-| `unpaidAmount` | number | Total unpaid amount |
-| `overdueAmount` | number | Total overdue amount |
-| `averageInvoiceAmount` | number | Average invoice amount |
-| `lastInvoiceDate` | string \| null | ISO 8601 date of most recent invoice |
-
-### Recent Invoice Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `uuid` | string | Invoice UUID |
-| `number` | string | Invoice number |
-| `issueDate` | string | ISO 8601 issue date |
-| `dueDate` | string | ISO 8601 due date |
-| `totalAmount` | number | Total amount |
-| `amountPaid` | number | Amount paid |
-| `status` | string | Invoice status |
-| `currency` | string | Currency code |
+| `client` | object | Full [client object](/objects/client) with all detail fields |
+| `invoiceHistory` | array | Paginated array of outgoing invoices for this client |
+| `invoiceTotal` | integer | Total number of outgoing invoices |
+| `invoiceCount` | integer | Total invoice count |
+| `deliveryNoteHistory` | array | Recent delivery notes (last 5) |
+| `deliveryNoteCount` | integer | Total delivery note count |
+| `receiptHistory` | array | Recent receipts (last 5) |
+| `receiptCount` | integer | Total receipt count |
 
 ## Example Request
 
 ```bash
-curl -X GET 'https://api.storno.ro/api/v1/clients/client-uuid-1' \
+curl -X GET 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345678901' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid'
 ```
@@ -11880,87 +12323,68 @@ curl -X GET 'https://api.storno.ro/api/v1/clients/client-uuid-1' \
 
 ```json
 {
-  "uuid": "client-uuid-1",
-  "name": "Acme Corporation SRL",
-  "type": "company",
-  "cui": "RO12345678",
-  "tradeRegister": "J40/1234/2020",
-  "email": "contact@acme.ro",
-  "phone": "+40723456789",
-  "address": "Str. Exemplu, Nr. 1",
-  "city": "București",
-  "county": "București",
-  "country": "RO",
-  "postalCode": "010101",
-  "bankName": "BCR",
-  "bankAccount": "RO49AAAA1B31007593840000",
-  "invoiceSummary": {
-    "totalCount": 24,
-    "unpaidCount": 3,
-    "overdueCount": 1,
-    "totalRevenue": 42780.00,
-    "unpaidAmount": 5450.00,
-    "overdueAmount": 1500.00,
-    "averageInvoiceAmount": 1782.50,
-    "lastInvoiceDate": "2026-02-10"
+  "client": {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "company",
+    "name": "Acme Corporation SRL",
+    "cui": "12345678",
+    "cnp": null,
+    "vatCode": "RO12345678",
+    "isVatPayer": true,
+    "registrationNumber": "J40/1234/2020",
+    "address": "Strada Exemplu, nr. 10",
+    "city": "Bucuresti Sectorul 1",
+    "county": "Bucuresti",
+    "country": "RO",
+    "postalCode": "010101",
+    "email": "billing@acme.ro",
+    "phone": "+40 21 123 4567",
+    "bankName": "Banca Transilvania",
+    "bankAccount": "RO49AAAA1B31007593840000",
+    "defaultPaymentTermDays": 30,
+    "contactPerson": "Ion Popescu",
+    "notes": null,
+    "source": "manual",
+    "viesValid": null,
+    "viesValidatedAt": null,
+    "viesName": null,
+    "lastSyncedAt": null,
+    "createdAt": "2025-06-10T09:00:00+02:00",
+    "updatedAt": "2026-02-10T14:30:00+02:00"
   },
-  "recentInvoices": [
+  "invoiceHistory": [
     {
-      "uuid": "invoice-uuid-1",
-      "number": "FAC00245",
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "number": "FAC0245",
       "issueDate": "2026-02-10",
-      "dueDate": "2026-03-12",
-      "totalAmount": 2380.00,
-      "amountPaid": 0.00,
-      "status": "unpaid",
-      "currency": "RON"
-    },
-    {
-      "uuid": "invoice-uuid-2",
-      "number": "FAC00231",
-      "issueDate": "2026-01-15",
-      "dueDate": "2026-02-14",
-      "totalAmount": 1500.00,
-      "amountPaid": 0.00,
-      "status": "overdue",
-      "currency": "RON"
-    },
-    {
-      "uuid": "invoice-uuid-3",
-      "number": "FAC00218",
-      "issueDate": "2025-12-20",
-      "dueDate": "2026-01-19",
-      "totalAmount": 3200.00,
-      "amountPaid": 3200.00,
-      "status": "paid",
-      "currency": "RON"
+      "total": "2380.00",
+      "currency": "RON",
+      "status": "issued",
+      "direction": "outgoing"
     }
   ],
-  "createdAt": "2025-06-10T09:00:00Z",
-  "updatedAt": "2026-02-10T14:30:00Z"
+  "invoiceTotal": 24,
+  "invoiceCount": 24,
+  "deliveryNoteHistory": [],
+  "deliveryNoteCount": 0,
+  "receiptHistory": [],
+  "receiptCount": 0
 }
 ```
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Client not found or doesn't belong to company |
-
-## Important Notes
-
-- Clients in Storno.ro are sync-only and come from ANAF e-Factura system
-- Client data cannot be manually created or edited via API
-- Use the [ANAF sync endpoint](/api-reference/anaf/sync-invoices) to fetch latest client data
-- Invoice summary statistics are calculated in real-time
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Client not found |
 
 ## Related Endpoints
 
 - [List clients](/api-reference/clients/list)
-- [List invoices](/api-reference/invoices/list)
-- [Sync from ANAF](/api-reference/anaf/sync-invoices)
+- [Update client](/api-reference/clients/update)
+- [Delete client](/api-reference/clients/delete)
 
 ---
 
@@ -12140,6 +12564,130 @@ If a letter has no clients, it will not appear in the response object.
 
 - [Get client](/api-reference/clients/get)
 - [Sync clients from ANAF](/api-reference/anaf/sync-invoices)
+
+---
+
+## Update client
+
+> Update an existing client's details
+
+URL: https://docs.storno.ro/api-reference/clients/update
+
+# Update client
+
+Updates an existing client. All fields are optional — only include the fields you want to change.
+
+When identity or VAT-related fields are updated (`name`, `cui`, `cnp`, `vatCode`, `isVatPayer`, `country`), the changes are automatically propagated to all **editable invoices from the current month**. This updates the receiver name and CIF on those invoices and reapplies VAT rules (reverse charge / OSS). Past months' invoices are not affected.
+
+When `vatCode` or `country` is changed, the system also re-validates the VAT number against the EU VIES system for foreign EU clients.
+
+```http
+PATCH /api/v1/clients/{uuid}
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uuid` | string | Yes | The UUID of the client |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Company` | string | Yes | UUID of the company context |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Request body
+
+| Name | Type | Description |
+|------|------|-------------|
+| `name` | string | Company name or individual full name |
+| `type` | string | Client type: `company` or `individual` |
+| `cui` | string | CUI (tax identification number) |
+| `cnp` | string | CNP (personal identification number) |
+| `vatCode` | string | Full VAT code with country prefix |
+| `isVatPayer` | boolean | Whether the client is registered for VAT |
+| `registrationNumber` | string | Company registration number |
+| `address` | string | Street address |
+| `city` | string | City name |
+| `county` | string | County |
+| `country` | string | ISO 3166-1 alpha-2 country code |
+| `postalCode` | string | Postal/ZIP code |
+| `email` | string | Email address |
+| `phone` | string | Phone number |
+| `bankName` | string | Bank name |
+| `bankAccount` | string | Bank account number (IBAN) |
+| `defaultPaymentTermDays` | integer | Default payment term in days |
+| `contactPerson` | string | Contact person name |
+| `notes` | string | Internal notes |
+
+## Example Request
+
+```bash
+curl -X PATCH 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345678901' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "vatCode": "DE812526315",
+    "isVatPayer": true,
+    "country": "DE"
+  }'
+```
+
+## Response
+
+Returns the updated client object along with the number of invoices that were automatically updated.
+
+```json
+{
+  "client": {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "company",
+    "name": "Example GmbH",
+    "vatCode": "DE812526315",
+    "isVatPayer": true,
+    "country": "DE",
+    "viesValid": true,
+    "viesValidatedAt": "2026-03-02T12:00:00+02:00",
+    "viesName": "EXAMPLE GMBH",
+    ...
+  },
+  "invoicesUpdated": 3
+}
+```
+
+### Invoice propagation
+
+The `invoicesUpdated` field indicates how many invoices were automatically updated. Propagation only affects invoices that are:
+
+- **Editable** — not cancelled, not sent to ANAF provider, and either draft, rejected, or issued but not yet uploaded to ANAF
+- **Current month** — `issueDate` is in the current calendar month (past months are considered fiscally closed)
+
+For each affected invoice, the system:
+1. Updates `receiverName` and `receiverCif` from the new client data
+2. Reapplies reverse charge / OSS VAT rules on invoice lines
+3. Recalculates invoice totals
+4. Invalidates cached XML (will be regenerated on next PDF/XML request)
+
+## Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Client not found |
+| 422 | Validation error (empty required fields, missing registration number for RO companies) |
+
+## Related Endpoints
+
+- [Get client](/api-reference/clients/get)
+- [VIES lookup](/api-reference/clients/vies-lookup)
+- [Update invoice](/api-reference/invoices/update)
 
 ---
 
