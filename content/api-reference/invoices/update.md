@@ -43,6 +43,7 @@ All fields are optional — only include the fields you want to update.
 | `invoiceTypeCode` | string | UBL invoice type code |
 | `notes` | string | Public notes visible to client |
 | `paymentTerms` | string | Payment terms description |
+| `paymentMethod` | string | Payment method: `bank_transfer`, `cash`, `card`, `cheque`, `other` |
 | `deliveryLocation` | string | Delivery address |
 | `projectReference` | string | Project reference number |
 | `orderNumber` | string | Purchase order number |

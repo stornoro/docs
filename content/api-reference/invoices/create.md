@@ -36,6 +36,7 @@ POST /api/v1/invoices
 | `invoiceTypeCode` | string | No | UBL invoice type code (default: 380) |
 | `notes` | string | No | Public notes visible to client |
 | `paymentTerms` | string | No | Payment terms description |
+| `paymentMethod` | string | No | Payment method: `bank_transfer` (default), `cash`, `card`, `cheque`, `other` |
 | `deliveryLocation` | string | No | Delivery address |
 | `projectReference` | string | No | Project reference number |
 | `orderNumber` | string | No | Purchase order number |
