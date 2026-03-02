@@ -5,7 +5,7 @@ description: Create a new draft invoice
 
 # Create invoice
 
-Creates a new draft invoice for the specified company. The invoice can be edited until it is issued.
+Creates a new draft invoice for the specified company.
 
 ```
 POST /api/v1/invoices
@@ -26,7 +26,9 @@ POST /api/v1/invoices
 | `clientId` | string | No | Client UUID. Either `clientId` or `receiverName` should be provided. |
 | `receiverName` | string | No | Receiver name (when no client entity exists). Either `clientId` or `receiverName` should be provided. |
 | `receiverCif` | string | No | Receiver tax ID / CIF (used with `receiverName`) |
-| `seriesId` | string | No | Invoice series UUID (uses default if not provided) |
+| `documentSeriesId` | string | No | Invoice series UUID (uses default if not provided) |
+| `documentType` | string | No | Document type (e.g., `invoice`, `credit_note`) |
+| `parentDocumentId` | string | No | Parent document UUID (for refunds/credit notes) |
 | `issueDate` | string | Yes | Invoice issue date (ISO 8601: YYYY-MM-DD) |
 | `dueDate` | string | No | Payment due date (ISO 8601: YYYY-MM-DD) |
 | `currency` | string | No | ISO 4217 currency code (default: RON) |
@@ -46,21 +48,37 @@ POST /api/v1/invoices
 | `deputyName` | string | No | Deputy/representative name |
 | `deputyIdentityCard` | string | No | Deputy ID card number |
 | `deputyAuto` | string | No | Deputy vehicle registration |
-| `collect` | boolean | No | Create immediate full payment (default: false) |
-| `penaltyEnabled` | boolean | No | Enable late payment penalty (default: false) |
-| `penaltyPercentPerDay` | number | No | Daily penalty percentage (e.g., 0.05 for 0.05%) |
-| `penaltyGraceDays` | integer | No | Grace period before penalty applies |
 | `language` | string | No | Document language for PDF generation: `ro`, `en`, `de`, `fr` (default: `ro`) |
+| `tvaLaIncasare` | boolean | No | VAT on collection / TVA la încasare (default: false) |
+| `platitorTva` | boolean | No | Whether sender is VAT payer (default: false) |
+| `plataOnline` | boolean | No | Enable online payment via Stripe (default: from company Stripe Connect settings) |
+| `showClientBalance` | boolean | No | Show client balance on invoice (default: false) |
+| `clientBalanceExisting` | string | No | Existing client balance amount |
+| `clientBalanceOverdue` | string | No | Overdue client balance amount |
+| `collect` | object | No | Create immediate payment on the invoice (see below) |
 | `autoApplyVatRules` | boolean | No | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
+| `idempotencyKey` | string | No | Idempotency key to prevent duplicate creation |
 | `lines` | array | Yes | Array of invoice line items |
+
+### Collect object
+
+When provided, creates an immediate payment record on the invoice.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `value` | number | No | Payment amount (defaults to invoice total) |
+| `type` | string | No | Payment method: `bank_transfer`, `cash`, `card`, etc. (default: `bank_transfer`) |
+| `issueDate` | string | No | Payment date (ISO 8601: YYYY-MM-DD) |
+| `documentNumber` | string | No | Payment reference/document number |
+| `mentions` | string | No | Payment notes |
 
 ### Invoice line object
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `description` | string | Yes | Line item description |
-| `quantity` | number | Yes | Quantity |
-| `unitPrice` | number | Yes | Unit price |
+| `quantity` | number | Yes | Quantity (must be positive, or non-zero for refunds) |
+| `unitPrice` | number | Yes | Unit price (must be non-negative) |
 | `vatRateId` | string | No | VAT rate UUID (uses default if not provided) |
 | `unitOfMeasure` | string | No | Unit of measure (e.g., "hours", "pcs", "kg") |
 | `productId` | string | No | Product UUID (optional reference) |
@@ -68,6 +86,25 @@ POST /api/v1/invoices
 | `discountPercent` | number | No | Discount percentage |
 | `vatIncluded` | boolean | No | Whether price includes VAT (default: false) |
 | `productCode` | string | No | Product code for reference |
+
+### e-Factura BT fields
+
+These optional fields are used for advanced e-Factura (UBL) compliance:
+
+| Name | Type | Description |
+|------|------|-------------|
+| `taxPointDate` | string | Tax point date (ISO 8601: YYYY-MM-DD) |
+| `taxPointDateCode` | string | Tax point date code |
+| `buyerReference` | string | Buyer reference |
+| `receivingAdviceReference` | string | Receiving advice reference |
+| `despatchAdviceReference` | string | Despatch advice reference |
+| `tenderOrLotReference` | string | Tender or lot reference |
+| `invoicedObjectIdentifier` | string | Invoiced object identifier |
+| `buyerAccountingReference` | string | Buyer accounting reference |
+| `businessProcessType` | string | Business process type |
+| `payeeName` | string | Payee name (if different from seller) |
+| `payeeIdentifier` | string | Payee identifier |
+| `payeeLegalRegistrationIdentifier` | string | Payee legal registration identifier |
 
 ### Common invoice type codes
 
@@ -135,7 +172,9 @@ const response = await fetch('https://api.storno.ro/api/v1/invoices', {
   })
 });
 
-const invoice = await response.json();
+const data = await response.json();
+// data.invoice — the created invoice
+// data.validation — UBL validation results
 ```
 {% /code-snippet %}
 
@@ -143,45 +182,53 @@ const invoice = await response.json();
 
 ## Response
 
-Returns the created invoice object with status `201 Created`.
+Returns the created invoice object along with UBL validation results, with status `201 Created`.
 
 ```json
 {
-  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "number": "FAC-2024-001",
-  "status": "draft",
-  "direction": "outgoing",
-  "currency": "RON",
-  "exchangeRate": 1.0,
-  "issueDate": "2024-02-15",
-  "dueDate": "2024-03-15",
-  "subtotal": 1000.00,
-  "vatTotal": 190.00,
-  "total": 1190.00,
-  "amountPaid": 0.00,
-  "balance": 1190.00,
-  "notes": "Payment terms: 30 days net",
-  "paymentTerms": "Net 30",
-  "client": {
-    "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
-    "name": "Acme Corporation SRL",
-    "cif": "RO98765432"
+  "invoice": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "number": "DRAFT-a1b2c3d4",
+    "status": "draft",
+    "direction": "outgoing",
+    "currency": "RON",
+    "exchangeRate": 1.0,
+    "issueDate": "2024-02-15",
+    "dueDate": "2024-03-15",
+    "subtotal": 1000.00,
+    "vatTotal": 190.00,
+    "total": 1190.00,
+    "amountPaid": 0.00,
+    "balance": 1190.00,
+    "notes": "Payment terms: 30 days net",
+    "paymentTerms": "Net 30",
+    "client": {
+      "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+      "name": "Acme Corporation SRL",
+      "cif": "RO98765432"
+    },
+    "lines": [
+      {
+        "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+        "description": "Web Development Services",
+        "quantity": 10.0,
+        "unitPrice": 100.00,
+        "unitOfMeasure": "hours",
+        "vatRate": 19.0,
+        "vatAmount": 190.00,
+        "subtotal": 1000.00,
+        "total": 1190.00
+      }
+    ],
+    "createdAt": "2024-02-15T08:30:00Z",
+    "updatedAt": "2024-02-15T08:30:00Z"
   },
-  "lines": [
-    {
-      "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
-      "description": "Web Development Services",
-      "quantity": 10.0,
-      "unitPrice": 100.00,
-      "unitOfMeasure": "hours",
-      "vatRate": 19.0,
-      "vatAmount": 190.00,
-      "subtotal": 1000.00,
-      "total": 1190.00
-    }
-  ],
-  "createdAt": "2024-02-15T08:30:00Z",
-  "updatedAt": "2024-02-15T08:30:00Z"
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "schematronAvailable": true
+  }
 }
 ```
 

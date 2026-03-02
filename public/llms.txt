@@ -220,7 +220,7 @@ Docs: https://docs.storno.ro
 - [List invoices](https://docs.storno.ro/api-reference/invoices/list): Retrieve a paginated list of invoices with optional filtering and sorting
 - [Restore cancelled invoice](https://docs.storno.ro/api-reference/invoices/restore): Restore a cancelled invoice back to draft status
 - [Submit invoice to e-invoice provider](https://docs.storno.ro/api-reference/invoices/submit): Submit an issued invoice to the e-invoice provider
-- [Update invoice](https://docs.storno.ro/api-reference/invoices/update): Update an existing draft invoice
+- [Update invoice](https://docs.storno.ro/api-reference/invoices/update): Update an existing editable invoice
 - [Validate invoice](https://docs.storno.ro/api-reference/invoices/validate): Validate invoice data before issuing or submitting
 - [Verify ANAF signature](https://docs.storno.ro/api-reference/invoices/verify-signature): Verify the digital signature on an ANAF-validated invoice
 
