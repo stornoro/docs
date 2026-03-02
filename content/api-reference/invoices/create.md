@@ -51,6 +51,7 @@ POST /api/v1/invoices
 | `penaltyPercentPerDay` | number | No | Daily penalty percentage (e.g., 0.05 for 0.05%) |
 | `penaltyGraceDays` | integer | No | Grace period before penalty applies |
 | `language` | string | No | Document language for PDF generation: `ro`, `en`, `de`, `fr` (default: `ro`) |
+| `autoApplyVatRules` | boolean | No | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
 | `lines` | array | Yes | Array of invoice line items |
 
 ### Invoice line object

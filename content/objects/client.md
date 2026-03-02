@@ -25,13 +25,16 @@ The Client object represents customers who receive invoices and other documents.
 | clientCode | string | ✓ | ✓ | Custom client code/reference |
 | registrationNumber | string | ✗ | ✓ | Company registration number (număr de înregistrare) |
 | county | string | ✗ | ✓ | County/state |
-| country | string | ✗ | ✓ | Country code (e.g., "RO", "DE") |
+| country | string | ✓ | ✓ | Country code (e.g., "RO", "DE") |
 | postalCode | string | ✗ | ✓ | Postal/ZIP code |
 | phone | string | ✗ | ✓ | Phone number |
 | bankName | string | ✗ | ✓ | Bank name for payments |
 | bankAccount | string | ✗ | ✓ | Bank account number (IBAN) |
 | defaultPaymentTermDays | integer | ✗ | ✓ | Default payment term in days |
 | notes | text | ✗ | ✓ | Internal notes about the client |
+| viesValid | boolean \| null | ✓ | ✓ | VIES validation result for EU clients (`true` = valid, `false` = invalid, `null` = not validated) |
+| viesValidatedAt | datetime \| null | ✗ | ✓ | Timestamp of last VIES validation |
+| viesName | string \| null | ✗ | ✓ | Company name as registered in the VIES system |
 | source | string | ✗ | ✓ | Source: manual, anaf, import |
 | lastSyncedAt | datetime | ✗ | ✓ | Last sync timestamp from e-invoice provider |
 | createdAt | datetime | ✓ | ✓ | Timestamp when created |
@@ -111,5 +114,6 @@ The Client object represents customers who receive invoices and other documents.
 - **vatCode**: Full VAT code with country prefix (RO prefix for Romania)
 - **isVatPayer**: Determines whether VAT is applied on invoices
 - **source**: `manual` (user-created), `anaf` (synced from e-invoice provider), `import` (bulk import)
+- **viesValid**: Automatically set when a foreign EU client is created/updated with a VAT code. Used to determine reverse charge eligibility and OSS applicability.
 - Clients synced from an e-invoice provider have `lastSyncedAt` timestamp
 - Soft-deleted clients have `deletedAt` set but remain in database

@@ -4076,13 +4076,16 @@ The Client object represents customers who receive invoices and other documents.
 | clientCode | string | ✓ | ✓ | Custom client code/reference |
 | registrationNumber | string | ✗ | ✓ | Company registration number (număr de înregistrare) |
 | county | string | ✗ | ✓ | County/state |
-| country | string | ✗ | ✓ | Country code (e.g., "RO", "DE") |
+| country | string | ✓ | ✓ | Country code (e.g., "RO", "DE") |
 | postalCode | string | ✗ | ✓ | Postal/ZIP code |
 | phone | string | ✗ | ✓ | Phone number |
 | bankName | string | ✗ | ✓ | Bank name for payments |
 | bankAccount | string | ✗ | ✓ | Bank account number (IBAN) |
 | defaultPaymentTermDays | integer | ✗ | ✓ | Default payment term in days |
 | notes | text | ✗ | ✓ | Internal notes about the client |
+| viesValid | boolean \| null | ✓ | ✓ | VIES validation result for EU clients (`true` = valid, `false` = invalid, `null` = not validated) |
+| viesValidatedAt | datetime \| null | ✗ | ✓ | Timestamp of last VIES validation |
+| viesName | string \| null | ✗ | ✓ | Company name as registered in the VIES system |
 | source | string | ✗ | ✓ | Source: manual, anaf, import |
 | lastSyncedAt | datetime | ✗ | ✓ | Last sync timestamp from e-invoice provider |
 | createdAt | datetime | ✓ | ✓ | Timestamp when created |
@@ -4162,6 +4165,7 @@ The Client object represents customers who receive invoices and other documents.
 - **vatCode**: Full VAT code with country prefix (RO prefix for Romania)
 - **isVatPayer**: Determines whether VAT is applied on invoices
 - **source**: `manual` (user-created), `anaf` (synced from e-invoice provider), `import` (bulk import)
+- **viesValid**: Automatically set when a foreign EU client is created/updated with a VAT code. Used to determine reverse charge eligibility and OSS applicability.
 - Clients synced from an e-invoice provider have `lastSyncedAt` timestamp
 - Soft-deleted clients have `deletedAt` set but remain in database
 
@@ -12021,6 +12025,7 @@ Returns a paginated object with clients grouped alphabetically.
 | `city` | string \| null | City |
 | `county` | string \| null | County |
 | `country` | string | Country code (default: "RO") |
+| `viesValid` | boolean \| null | VIES validation result for EU clients (`true` = valid, `false` = invalid, `null` = not validated) |
 | `postalCode` | string \| null | Postal code |
 | `bankName` | string \| null | Bank name |
 | `bankAccount` | string \| null | Bank account (IBAN) |
@@ -12135,6 +12140,86 @@ If a letter has no clients, it will not appear in the response object.
 
 - [Get client](/api-reference/clients/get)
 - [Sync clients from ANAF](/api-reference/anaf/sync-invoices)
+
+---
+
+## VIES lookup
+
+> Validate a VAT code against the EU VIES system
+
+URL: https://docs.storno.ro/api-reference/clients/vies-lookup
+
+# VIES lookup
+
+Validates a VAT code against the EU VIES (VAT Information Exchange System) API. Returns whether the VAT number is valid and the registered company name/address. Use this to verify EU intra-community VAT numbers before applying reverse charge.
+
+```http
+GET /api/v1/clients/vies-lookup
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Company` | string | Yes | UUID of the company context |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `vatCode` | string | Yes | Full EU VAT code including country prefix (e.g., `DE123456789`, `FR12345678901`) |
+
+## Example Request
+
+```bash
+curl -X GET 'https://api.storno.ro/api/v1/clients/vies-lookup?vatCode=DE812526315' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid'
+```
+
+## Example Response
+
+```json
+{
+  "data": {
+    "valid": true,
+    "name": "EXAMPLE GMBH",
+    "address": "MUSTERSTRASSE 1, 10115 BERLIN",
+    "countryCode": "DE",
+    "vatNumber": "812526315"
+  }
+}
+```
+
+## Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `valid` | boolean | Whether the VAT number is valid and active |
+| `name` | string \| null | Company name as registered in the VIES system |
+| `address` | string \| null | Registered address |
+| `countryCode` | string | Two-letter EU country code |
+| `vatNumber` | string | VAT number without country prefix |
+
+## Auto-validation
+
+When a foreign EU client is created or updated with a VAT code, the system automatically validates it against VIES. The result is stored in the client's `viesValid`, `viesValidatedAt`, and `viesName` fields. This automatic validation only applies to EU member state country codes — non-EU countries (US, UK, CH, etc.) are skipped.
+
+## Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 422 | Missing or invalid VAT code format |
+| 503 | VIES service unavailable |
+
+## Related Endpoints
+
+- [List clients](/api-reference/clients/list)
+- [Get client](/api-reference/clients/get)
 
 ---
 
@@ -20607,6 +20692,7 @@ POST /api/v1/invoices
 | `penaltyPercentPerDay` | number | No | Daily penalty percentage (e.g., 0.05 for 0.05%) |
 | `penaltyGraceDays` | integer | No | Grace period before penalty applies |
 | `language` | string | No | Document language for PDF generation: `ro`, `en`, `de`, `fr` (default: `ro`) |
+| `autoApplyVatRules` | boolean | No | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
 | `lines` | array | Yes | Array of invoice line items |
 
 ### Invoice line object

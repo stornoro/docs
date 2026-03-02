@@ -58,6 +58,7 @@ Returns a paginated object with clients grouped alphabetically.
 | `city` | string \| null | City |
 | `county` | string \| null | County |
 | `country` | string | Country code (default: "RO") |
+| `viesValid` | boolean \| null | VIES validation result for EU clients (`true` = valid, `false` = invalid, `null` = not validated) |
 | `postalCode` | string \| null | Postal code |
 | `bankName` | string \| null | Bank name |
 | `bankAccount` | string \| null | Bank account (IBAN) |
