@@ -248,6 +248,19 @@ Docs: https://docs.storno.ro
 - [Mark Notification as Read](https://docs.storno.ro/api-reference/notifications/read): Mark a specific notification as read
 - [Unread Notification Count](https://docs.storno.ro/api-reference/notifications/unread-count): Get count of unread notifications
 
+## API Reference — Oauth2
+
+- [Authorization endpoint](https://docs.storno.ro/api-reference/oauth2/authorize): Fetch consent screen data and process user approval or denial of an OAuth2 authorization request.
+- [Create OAuth2 client](https://docs.storno.ro/api-reference/oauth2/create-client): Register a new OAuth2 application to build a third-party integration with Storno.
+- [Get OAuth2 client](https://docs.storno.ro/api-reference/oauth2/get-client): Retrieve a single OAuth2 application by UUID.
+- [List OAuth2 clients](https://docs.storno.ro/api-reference/oauth2/list-clients): Retrieve all registered OAuth2 applications for the current organization.
+- [OAuth2 Provider](https://docs.storno.ro/api-reference/oauth2/overview): Use Storno as an OAuth2 authorization server to build third-party integrations that act on behalf of users.
+- [Revoke OAuth2 client](https://docs.storno.ro/api-reference/oauth2/revoke-client): Permanently revoke an OAuth2 application and all of its issued access and refresh tokens.
+- [Revoke token](https://docs.storno.ro/api-reference/oauth2/revoke-token): Revoke an active OAuth2 access token or refresh token per RFC 7009.
+- [Rotate client secret](https://docs.storno.ro/api-reference/oauth2/rotate-secret): Generate a new client secret for a confidential OAuth2 application, immediately invalidating the previous one.
+- [Token endpoint](https://docs.storno.ro/api-reference/oauth2/token): Exchange an authorization code or refresh token for a new set of OAuth2 tokens.
+- [Update OAuth2 client](https://docs.storno.ro/api-reference/oauth2/update-client): Update an OAuth2 application's configuration, including its redirect URIs, scopes, and display metadata.
+
 ## API Reference — Payments
 
 - [Delete invoice payment](https://docs.storno.ro/api-reference/payments/delete): Delete a recorded payment from an invoice.

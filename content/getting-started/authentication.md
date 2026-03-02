@@ -172,6 +172,24 @@ curl https://api.storno.ro/api/v1/me \
   -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
 ```
 
+## API Keys
+
+For programmatic or long-lived access, you can use API keys instead of JWT tokens. API keys use scoped permissions and are ideal for CI/CD pipelines, scripts, and integrations.
+
+Create an API key via the [Create API token](/api-reference/api-keys/create) endpoint or from the web application under **Settings > API Keys**.
+
+{% callout type="warning" %}
+API keys must be sent **without** the `Bearer` prefix. The `Bearer` prefix is reserved for JWT tokens.
+{% /callout %}
+
+```bash
+curl https://api.storno.ro/api/v1/invoices \
+  -H "Authorization: af_a1b2c3d4e5f6..." \
+  -H "X-Company: 550e8400-e29b-41d4-a716-446655440000"
+```
+
+API keys use the `af_` prefix for easy identification. The key's permissions are intersected with the user's role — both must grant access for a request to succeed. See [API Keys](/api-reference/api-keys/create) for details on creating and managing keys.
+
 ## Refreshing Tokens
 
 JWT tokens expire after a configured period. Use the refresh token to obtain a new JWT without re-authenticating:

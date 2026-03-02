@@ -45,7 +45,7 @@ Returns the updated API token object with a `200 OK` status. The raw token value
 |-------|------|-------------|
 | `id` | string | Unique identifier (UUID) |
 | `name` | string | Updated human-readable name |
-| `tokenPrefix` | string | First 8 characters of the token |
+| `tokenPrefix` | string | First 12 characters of the token |
 | `scopes` | string[] | Updated permission scopes |
 | `lastUsedAt` | string \| null | ISO 8601 timestamp of the most recent successful use |
 | `expireAt` | string \| null | ISO 8601 expiry timestamp, unchanged by this operation |
@@ -70,7 +70,7 @@ curl -X PATCH 'https://api.storno.ro/api/v1/api-tokens/a1b2c3d4-e5f6-7890-abcd-e
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "name": "CI/CD Pipeline (read-only)",
-  "tokenPrefix": "aft_a1b2",
+  "tokenPrefix": "af_a1b2c3d4e",
   "scopes": ["invoice.view", "client.view"],
   "lastUsedAt": "2026-02-17T11:42:00Z",
   "expireAt": "2027-01-01T00:00:00Z",

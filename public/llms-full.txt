@@ -170,6 +170,22 @@ curl https://api.storno.ro/api/v1/me \
   -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
 ```
 
+## API Keys
+
+For programmatic or long-lived access, you can use API keys instead of JWT tokens. API keys use scoped permissions and are ideal for CI/CD pipelines, scripts, and integrations.
+
+Create an API key via the [Create API token](/api-reference/api-keys/create) endpoint or from the web application under **Settings > API Keys**.
+
+API keys must be sent **without** the `Bearer` prefix. The `Bearer` prefix is reserved for JWT tokens.
+
+```bash
+curl https://api.storno.ro/api/v1/invoices \
+  -H "Authorization: af_a1b2c3d4e5f6..." \
+  -H "X-Company: 550e8400-e29b-41d4-a716-446655440000"
+```
+
+API keys use the `af_` prefix for easy identification. The key's permissions are intersected with the user's role — both must grant access for a request to succeed. See [API Keys](/api-reference/api-keys/create) for details on creating and managing keys.
+
 ## Refreshing Tokens
 
 JWT tokens expire after a configured period. Use the refresh token to obtain a new JWT without re-authenticating:
@@ -1076,8 +1092,9 @@ Storno.ro can be deployed on your own servers using Docker. Self-hosted instance
 
 ```bash
 mkdir storno && cd storno
-curl -O https://raw.githubusercontent.com/storno/storno/main/deploy/docker-compose.yml
-curl -O https://raw.githubusercontent.com/storno/storno/main/deploy/.env.example
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/docker-compose.yml
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/.env.example
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/centrifugo.json
 ```
 
 ### 2. Configure environment
@@ -1106,25 +1123,27 @@ LICENSE_KEY=your-license-key-here
 ### 3. Start the services
 
 ```bash
-docker compose up -d
+docker compose --profile local-db up -d
 ```
 
 This starts five containers:
 
 | Service | Description | Default Port |
 |---------|-------------|-------------|
-| `backend` | PHP API server (Symfony + Nginx) | 8000 |
-| `frontend` | Nuxt SSR web application | 3000 |
+| `backend` | PHP API server (Symfony + Nginx) | 8900 |
+| `frontend` | Nuxt SSR web application | 8901 |
 | `db` | MySQL 8.0 database | 3306 |
-| `redis` | Redis 7 (cache, queues, locks) | — |
-| `centrifugo` | WebSocket server for real-time updates | 8444 |
+| `redis` | Redis 7 (cache, queues, locks) | 6379 |
+| `centrifugo` | WebSocket server for real-time updates | 8445 |
 
-### 4. Run database migrations
+### 4. Initialize the database
 
-On first startup, create the database schema:
+On first startup, create the database schema and mark all migrations as applied:
 
 ```bash
-docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
+docker compose exec backend php bin/console doctrine:schema:create
+docker compose exec backend php bin/console doctrine:migrations:sync-metadata-storage
+docker compose exec backend php bin/console doctrine:migrations:version --add --all --no-interaction
 ```
 
 ### 5. Create the first user
@@ -1133,12 +1152,14 @@ docker compose exec backend php bin/console doctrine:migrations:migrate --no-int
 docker compose exec backend php bin/console app:user:create \
   --email=admin@yourdomain.com \
   --password=your-password \
-  --role=owner
+  --admin
 ```
+
+JWT keys are generated automatically on first startup — no manual step needed.
 
 ### 6. Access the application
 
-Open `http://localhost:3000` (or your configured domain) and log in.
+Open `http://localhost:8901` in your browser (or your configured domain) and log in.
 
 ---
 
@@ -1160,13 +1181,13 @@ Open `http://localhost:3000` (or your configured domain) and log in.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BACKEND_PORT` | `8000` | Backend API port |
-| `FRONTEND_PORT` | `3000` | Frontend web port |
-| `CENTRIFUGO_PORT` | `8444` | WebSocket port |
+| `BACKEND_PORT` | `8900` | Backend API port |
+| `FRONTEND_PORT` | `8901` | Frontend web port |
+| `CENTRIFUGO_PORT` | `8445` | WebSocket port |
 | `MYSQL_PORT` | `3306` | MySQL port |
 | `MYSQL_DATABASE` | `storno` | Database name |
 | `MYSQL_USER` | `storno` | Database user |
-| `FRONTEND_URL` | `http://localhost:3000` | Public URL for the frontend |
+| `FRONTEND_URL` | `http://localhost:8901` | Public URL for the frontend |
 | `PUBLIC_API_BASE` | `/api` | How the browser reaches the API |
 | `CORS_ALLOW_ORIGIN` | `localhost` pattern | CORS allowed origins regex |
 | `MAILER_DSN` | `null://null` | SMTP/SES transport DSN |
@@ -1227,7 +1248,7 @@ server {
 
     # Frontend
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:8901;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -1239,7 +1260,7 @@ server {
 
     # API
     location /api {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8900;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -1272,15 +1293,15 @@ CORS_ALLOW_ORIGIN=^https://factura\.yourdomain\.com$
 ```caddyfile
 factura.yourdomain.com {
     handle /api/* {
-        reverse_proxy localhost:8000
+        reverse_proxy localhost:8900
     }
 
     handle /connection/websocket {
-        reverse_proxy localhost:8444
+        reverse_proxy localhost:8445
     }
 
     handle {
-        reverse_proxy localhost:3000
+        reverse_proxy localhost:8901
     }
 }
 ```
@@ -1295,6 +1316,7 @@ To upgrade to the latest version:
 docker compose pull
 docker compose up -d
 docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
+docker compose exec backend php bin/console cache:clear
 ```
 
 ---
@@ -1372,7 +1394,7 @@ Ensure `PUBLIC_CENTRIFUGO_WS` matches your public URL and that your reverse prox
 
 ```bash
 # Check Centrifugo health
-docker compose exec centrifugo wget -qO- http://localhost:8000/health
+docker compose exec centrifugo wget -qO- http://localhost:8900/health
 ```
 
 ### View application logs
@@ -1679,7 +1701,7 @@ URL: https://docs.storno.ro/concepts/architecture
 
 # Architecture
 
-Storno.ro is a monorepo with four main applications and supporting infrastructure services. This page describes how the components fit together.
+Storno.ro is a multi-repo platform with several applications and supporting infrastructure services. This page describes how the components fit together.
 
 ---
 
@@ -1706,14 +1728,16 @@ Storno.ro is a monorepo with four main applications and supporting infrastructur
         └────────────┘
 ```
 
-| Service | Technology | Role |
-|---------|-----------|------|
-| **Backend** | PHP 8.2 + Symfony 7.4 + Nginx | REST API, business logic, async workers |
-| **Frontend** | Nuxt 4 (Vue 3, SSR) | Web application with server-side rendering |
-| **Mobile** | React Native + Expo | iOS and Android mobile app |
-| **MySQL** | 8.0 | Primary database (57 entities) |
-| **Redis** | 7.x | Cache, message queue, rate limiting, locks |
-| **Centrifugo** | v5 | WebSocket server for real-time updates |
+| Service | Repository | Technology | Role |
+|---------|-----------|-----------|------|
+| **Backend** | [stornoro/storno](https://github.com/stornoro/storno) | PHP 8.2 + Symfony 7.4 + Nginx | REST API, business logic, async workers |
+| **Frontend** | [stornoro/storno](https://github.com/stornoro/storno) | Nuxt 4 (Vue 3, SSR) | Web application with server-side rendering |
+| **Mobile** | [stornoro/storno-mobile-app](https://github.com/stornoro/storno-mobile-app) | React Native + Expo | iOS and Android mobile app |
+| **Docs** | [stornoro/docs](https://github.com/stornoro/docs) | Next.js + Markdoc | API documentation |
+| **CLI** | [stornoro/storno-cli](https://github.com/stornoro/storno-cli) | TypeScript (MCP) | CLI tool for AI assistants |
+| **MySQL** | — | 8.0 | Primary database (57 entities) |
+| **Redis** | — | 7.x | Cache, message queue, rate limiting, locks |
+| **Centrifugo** | — | v5 | WebSocket server for real-time updates |
 
 The backend container bundles PHP-FPM, Nginx, Supervisor (worker management), and a Java 17 runtime for UBL XML validation and digital signature verification.
 
@@ -1903,12 +1927,14 @@ Helm chart available with configurable resource limits, persistent volumes, and 
 
 ### CI/CD
 
-GitHub Actions builds Docker images and deploys via SSH with blue-green strategy:
+Each repository has its own GitHub Actions workflow that builds Docker images and deploys via SSH with a blue-green strategy:
 
 1. Build and push images to GHCR
 2. Start new containers on alternate ports
 3. Run health checks
 4. Swap traffic if healthy, rollback if not
+
+Backend and frontend are deployed from the monorepo (`stornoro/storno`). Docs and other services deploy independently from their own repositories.
 
 ---
 
@@ -7562,7 +7588,7 @@ Returns the created token object with a `201 Created` status. The response inclu
 | `id` | string | Unique identifier (UUID) |
 | `name` | string | Human-readable name |
 | `token` | string | The full raw token value — store this securely, it will not be shown again |
-| `tokenPrefix` | string | First 8 characters of the token, used for future identification |
+| `tokenPrefix` | string | First 12 characters of the token, used for future identification |
 | `scopes` | string[] | Permission scopes granted to this token |
 | `lastUsedAt` | string \| null | Always `null` on creation |
 | `expireAt` | string \| null | ISO 8601 expiry timestamp, or `null` if the token never expires |
@@ -7588,8 +7614,8 @@ curl -X POST 'https://api.storno.ro/api/v1/api-tokens' \
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "name": "CI/CD Pipeline",
-  "token": "aft_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
-  "tokenPrefix": "aft_a1b2",
+  "token": "af_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
+  "tokenPrefix": "af_a1b2c3d4e",
   "scopes": ["invoice.view", "invoice.create", "client.view"],
   "lastUsedAt": null,
   "expireAt": "2027-01-01T00:00:00Z",
@@ -7618,7 +7644,7 @@ Common validation errors include:
 ## Important Notes
 
 - The `token` field in the response is the only time the raw token value is ever transmitted — it is stored as a one-way hash server-side
-- Tokens use the `aft_` prefix to make them easily identifiable in source code and logs
+- Tokens use the `af_` prefix to make them easily identifiable in source code and logs
 - There is no upper limit on the number of tokens a user can create, but each token is subject to the same rate limits as interactive sessions
 - Tokens inherit the organization context from the user who created them
 
@@ -7663,7 +7689,7 @@ Returns an array of API token objects sorted by `createdAt` descending.
 |-------|------|-------------|
 | `id` | string | Unique identifier (UUID) |
 | `name` | string | Human-readable name given to the token |
-| `tokenPrefix` | string | First 8 characters of the token, used for identification |
+| `tokenPrefix` | string | First 12 characters of the token, used for identification |
 | `scopes` | string[] | Array of permission scopes granted to this token |
 | `lastUsedAt` | string \| null | ISO 8601 timestamp of the most recent successful use, or `null` if never used |
 | `expireAt` | string \| null | ISO 8601 expiry timestamp, or `null` if the token never expires |
@@ -7684,7 +7710,7 @@ curl -X GET 'https://api.storno.ro/api/v1/api-tokens' \
   {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "CI/CD Pipeline",
-    "tokenPrefix": "aft_a1b2",
+    "tokenPrefix": "af_a1b2c3d4e",
     "scopes": ["invoice.view", "invoice.create", "client.view"],
     "lastUsedAt": "2026-02-17T11:42:00Z",
     "expireAt": "2027-01-01T00:00:00Z",
@@ -7694,7 +7720,7 @@ curl -X GET 'https://api.storno.ro/api/v1/api-tokens' \
   {
     "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
     "name": "Accounting Export Script",
-    "tokenPrefix": "aft_b2c3",
+    "tokenPrefix": "af_b2c3d4e5f",
     "scopes": ["invoice.view", "export.data"],
     "lastUsedAt": null,
     "expireAt": null,
@@ -7951,7 +7977,7 @@ Returns the updated API token object with a `200 OK` status. The raw token value
 |-------|------|-------------|
 | `id` | string | Unique identifier (UUID) |
 | `name` | string | Updated human-readable name |
-| `tokenPrefix` | string | First 8 characters of the token |
+| `tokenPrefix` | string | First 12 characters of the token |
 | `scopes` | string[] | Updated permission scopes |
 | `lastUsedAt` | string \| null | ISO 8601 timestamp of the most recent successful use |
 | `expireAt` | string \| null | ISO 8601 expiry timestamp, unchanged by this operation |
@@ -7976,7 +8002,7 @@ curl -X PATCH 'https://api.storno.ro/api/v1/api-tokens/a1b2c3d4-e5f6-7890-abcd-e
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "name": "CI/CD Pipeline (read-only)",
-  "tokenPrefix": "aft_a1b2",
+  "tokenPrefix": "af_a1b2c3d4e",
   "scopes": ["invoice.view", "client.view"],
   "lastUsedAt": "2026-02-17T11:42:00Z",
   "expireAt": "2027-01-01T00:00:00Z",
@@ -25241,6 +25267,1348 @@ Retrieve the count of unread notifications. This endpoint is optimized for frequ
 
 ---
 
+## Authorization endpoint
+
+> Fetch consent screen data and process user approval or denial of an OAuth2 authorization request.
+
+URL: https://docs.storno.ro/api-reference/oauth2/authorize
+
+# Authorization endpoint
+
+The authorization endpoint handles the interactive consent step of the OAuth2 Authorization Code flow. It exposes two methods on the same path: a `GET` to retrieve the client details needed to render the consent screen, and a `POST` to submit the user's decision.
+
+Both methods require an authenticated browser session (JWT). If the user is not authenticated, they must log in first before being redirected here.
+
+---
+
+## GET — Fetch consent screen data
+
+Returns the OAuth2 client's display information and the requested scopes so that your frontend can render a consent screen for the user.
+
+```http
+GET /api/v1/oauth2/authorize
+```
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `response_type` | string | Yes | Must be `code` |
+| `client_id` | string | Yes | The client's public identifier, prefixed with `storno_cid_` |
+| `redirect_uri` | string | Yes | The URI to redirect to after authorization. Must exactly match one of the client's registered redirect URIs |
+| `scope` | string | Yes | Space-separated list of requested permission scopes |
+| `state` | string | Yes | A random, opaque value generated by your application to prevent CSRF attacks. Returned unchanged in the redirect |
+| `code_challenge` | string | Yes | The PKCE code challenge: `BASE64URL(SHA-256(ASCII(code_verifier)))` |
+| `code_challenge_method` | string | Yes | Must be `S256` |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer JWT from an active browser session |
+
+### Response
+
+Returns `200 OK` with the client's display information and the list of requested scopes.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `clientName` | string | Display name of the OAuth2 application |
+| `clientLogoUrl` | string \| null | Logo URL of the application, or `null` if not set |
+| `clientWebsiteUrl` | string \| null | Website URL of the application, or `null` if not set |
+| `requestedScopes` | string[] | Array of scope values the application is requesting |
+
+### Example Request
+
+```bash
+curl -X GET 'https://api.storno.ro/api/v1/oauth2/authorize?response_type=code&client_id=storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6&redirect_uri=https%3A%2F%2Facme-accounting.com%2Foauth%2Fcallback&scope=invoice.view%20client.view&state=abc123&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
+```
+
+### Example Response
+
+```json
+{
+  "clientName": "Acme Accounting Integration",
+  "clientLogoUrl": "https://acme-accounting.com/logo.png",
+  "clientWebsiteUrl": "https://acme-accounting.com",
+  "requestedScopes": ["invoice.view", "client.view"]
+}
+```
+
+### Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 400 | invalid_request | Missing or invalid query parameters |
+| 401 | unauthorized | The user is not authenticated |
+| 404 | not_found | No active OAuth2 application found for the provided `client_id` |
+
+---
+
+## POST — Submit user decision
+
+Processes the user's approval or denial of the authorization request. Returns a redirect URI that your frontend should redirect the user to.
+
+```http
+POST /api/v1/oauth2/authorize
+```
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer JWT from an active browser session |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `client_id` | string | Yes | The client's public identifier, prefixed with `storno_cid_` |
+| `redirect_uri` | string | Yes | Must exactly match one of the client's registered redirect URIs and the value used in the `GET` request |
+| `scope` | string | Yes | Space-separated list of scopes being authorized (may be a subset of what was originally requested) |
+| `state` | string | Yes | The `state` value from the original `GET` request, returned unchanged in the redirect |
+| `code_challenge` | string | Yes | The PKCE code challenge from the original `GET` request |
+| `code_challenge_method` | string | Yes | Must be `S256` |
+| `approved` | boolean | Yes | `true` if the user approved the request, `false` if they denied it |
+
+### Response
+
+Returns `200 OK` with a `redirect_uri` string that your application must use to redirect the browser.
+
+**On approval:**
+
+```json
+{
+  "redirect_uri": "https://acme-accounting.com/oauth/callback?code=<auth_code>&state=abc123"
+}
+```
+
+**On denial:**
+
+```json
+{
+  "redirect_uri": "https://acme-accounting.com/oauth/callback?error=access_denied&state=abc123"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `redirect_uri` | string | The URI to redirect the user to. Contains either a `code` and `state` on approval, or an `error` and `state` on denial |
+
+### Example Request (Approved)
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/authorize' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "client_id": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "redirect_uri": "https://acme-accounting.com/oauth/callback",
+    "scope": "invoice.view client.view",
+    "state": "abc123",
+    "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+    "code_challenge_method": "S256",
+    "approved": true
+  }'
+```
+
+### Example Response (Approved)
+
+```json
+{
+  "redirect_uri": "https://acme-accounting.com/oauth/callback?code=4%2F0AfJohXlQs8kKpM7nNrZhQ2vWxyz&state=abc123"
+}
+```
+
+### Example Request (Denied)
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/authorize' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "client_id": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "redirect_uri": "https://acme-accounting.com/oauth/callback",
+    "scope": "invoice.view client.view",
+    "state": "abc123",
+    "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+    "code_challenge_method": "S256",
+    "approved": false
+  }'
+```
+
+### Example Response (Denied)
+
+```json
+{
+  "redirect_uri": "https://acme-accounting.com/oauth/callback?error=access_denied&state=abc123"
+}
+```
+
+### Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 400 | invalid_request | Missing or invalid body parameters, or `redirect_uri` does not match a registered URI |
+| 401 | unauthorized | The user is not authenticated |
+| 404 | not_found | No active OAuth2 application found for the provided `client_id` |
+| 422 | validation_error | Requested scopes are not a subset of the client's registered scopes, or the user does not hold the requested permissions |
+
+---
+
+## Important Notes
+
+- The `state` parameter must be validated by your application when handling the redirect — compare the value in the redirect query string against the value you generated before initiating the flow to prevent CSRF attacks
+- Authorization codes are single-use and expire after **10 minutes**. Exchange the code for tokens using the [Token endpoint](/api-reference/oauth2/token) promptly
+- The user may grant a narrower set of scopes than what was requested. The authorization code and resulting access token will reflect only the scopes the user approved
+- `code_challenge_method=S256` is the only supported method. `plain` is not accepted
+
+## Related Endpoints
+
+- [Token endpoint](/api-reference/oauth2/token)
+- [Revoke token](/api-reference/oauth2/revoke-token)
+- [OAuth2 Provider overview](/api-reference/oauth2/overview)
+
+---
+
+## Create OAuth2 client
+
+> Register a new OAuth2 application to build a third-party integration with Storno.
+
+URL: https://docs.storno.ro/api-reference/oauth2/create-client
+
+# Create OAuth2 client
+
+Registers a new OAuth2 application for the current organization. The `clientSecret` is returned **only once** in the creation response and cannot be retrieved again — store it securely immediately after creation. For `public` clients, no `clientSecret` is issued; PKCE is the security mechanism.
+
+This endpoint requires an active browser session (JWT). It cannot be called using an API token or an OAuth2 access token.
+
+```http
+POST /api/v1/oauth2/clients
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer JWT from an active browser session |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Required permission
+
+`oauth2_app.manage`
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Human-readable display name for the application (shown on the consent screen) |
+| `clientType` | string | No | Either `confidential` or `public`. Defaults to `confidential` |
+| `redirectUris` | string[] | Yes | One or more URIs to which Storno may redirect after authorization. Must be valid HTTPS URLs; `http://localhost` and custom URI schemes are also accepted for development |
+| `scopes` | string[] | Yes | Permission scopes the application is allowed to request. Must be valid `Permission` values and a subset of the authenticated user's own permissions |
+| `description` | string | No | Optional description of the application's purpose |
+| `websiteUrl` | string | No | URL of the application's website, displayed on the consent screen |
+| `logoUrl` | string | No | URL of the application's logo image, displayed on the consent screen |
+
+## Response
+
+Returns the created client object with a `201 Created` status. For `confidential` clients, the response includes a `clientSecret` field containing the raw secret value. This field is **not** included in any subsequent response.
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (UUID) |
+| `name` | string | Display name of the application |
+| `description` | string \| null | Application description |
+| `clientId` | string | Public client identifier, prefixed with `storno_cid_` |
+| `clientSecret` | string \| null | The full raw client secret — present only for `confidential` clients, store this securely, it will not be shown again |
+| `clientSecretPrefix` | string \| null | First characters of the client secret for future identification. `null` for `public` clients |
+| `clientType` | string | `confidential` or `public` |
+| `redirectUris` | string[] | Registered redirect URIs |
+| `scopes` | string[] | Permitted scopes |
+| `websiteUrl` | string \| null | Application website URL |
+| `logoUrl` | string \| null | Application logo URL |
+| `isActive` | boolean | Always `true` on creation |
+| `revokedAt` | string \| null | Always `null` on creation |
+| `createdAt` | string | ISO 8601 creation timestamp |
+
+## Example Request
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/clients' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Acme Accounting Integration",
+    "clientType": "confidential",
+    "redirectUris": ["https://acme-accounting.com/oauth/callback"],
+    "scopes": ["invoice.view", "client.view"],
+    "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+    "websiteUrl": "https://acme-accounting.com",
+    "logoUrl": "https://acme-accounting.com/logo.png"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Acme Accounting Integration",
+  "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+  "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "clientSecret": "storno_cs_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "clientSecretPrefix": "storno_cs_a1b2",
+  "clientType": "confidential",
+  "redirectUris": ["https://acme-accounting.com/oauth/callback"],
+  "scopes": ["invoice.view", "client.view"],
+  "websiteUrl": "https://acme-accounting.com",
+  "logoUrl": "https://acme-accounting.com/logo.png",
+  "isActive": true,
+  "revokedAt": null,
+  "createdAt": "2026-01-15T09:00:00Z"
+}
+```
+
+## Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 401 | unauthorized | Invalid or missing authentication token, or token is not a browser session JWT |
+| 403 | forbidden | The authenticated user does not have the `oauth2_app.manage` permission |
+| 422 | validation_error | Invalid input data (see error details) |
+
+### Validation Errors
+
+Common validation errors include:
+
+- Missing `name` field
+- Missing or empty `redirectUris` array
+- One or more `redirectUris` are not valid URLs
+- Missing or empty `scopes` array
+- One or more scope values are not valid `Permission` values
+- One or more scopes exceed the authenticated user's own permissions
+- `clientType` is not `confidential` or `public`
+
+## Important Notes
+
+- The `clientSecret` in the response is the only time the raw secret value is ever transmitted — it is stored as a one-way hash server-side
+- If you lose the `clientSecret`, use [Rotate client secret](/api-reference/oauth2/rotate-secret) to generate a new one; the old secret is immediately invalidated
+- `localhost` redirect URIs and custom URI schemes (e.g. `com.example.app://callback`) are accepted to support local development and native mobile applications
+- The requested `scopes` define the maximum scopes the application may ask for during an authorization flow — users may still grant a narrower subset on the consent screen
+- This endpoint requires a browser session JWT. API tokens and OAuth2 access tokens are not accepted, preventing automated creation of OAuth2 applications
+
+## Related Endpoints
+
+- [List OAuth2 clients](/api-reference/oauth2/list-clients)
+- [Get OAuth2 client](/api-reference/oauth2/get-client)
+- [Update OAuth2 client](/api-reference/oauth2/update-client)
+- [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+- [Rotate client secret](/api-reference/oauth2/rotate-secret)
+
+---
+
+## Get OAuth2 client
+
+> Retrieve a single OAuth2 application by UUID.
+
+URL: https://docs.storno.ro/api-reference/oauth2/get-client
+
+# Get OAuth2 client
+
+Returns a single OAuth2 application belonging to the current organization, identified by its UUID. The `clientSecret` value is never included in this response.
+
+```http
+GET /api/v1/oauth2/clients/{uuid}
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uuid` | string | Yes | The UUID of the OAuth2 application to retrieve |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Organization` | string | No | Organization UUID. Defaults to the authenticated user's active organization |
+
+### Required permission
+
+`oauth2_app.view`
+
+## Response
+
+Returns the OAuth2Client object with a `200 OK` status.
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (UUID) |
+| `name` | string | Human-readable display name of the application |
+| `description` | string \| null | Optional description of the application's purpose |
+| `clientId` | string | Public client identifier, prefixed with `storno_cid_` |
+| `clientSecretPrefix` | string \| null | First characters of the client secret for identification. `null` for `public` clients |
+| `clientType` | string | `confidential` or `public` |
+| `redirectUris` | string[] | Registered redirect URIs |
+| `scopes` | string[] | Permission scopes the application is allowed to request |
+| `websiteUrl` | string \| null | Application website URL |
+| `logoUrl` | string \| null | Application logo URL |
+| `isActive` | boolean | Whether the application can currently initiate new authorization flows |
+| `revokedAt` | string \| null | ISO 8601 timestamp of revocation, or `null` if still active |
+| `createdAt` | string | ISO 8601 creation timestamp |
+
+## Example Request
+
+```bash
+curl -X GET 'https://api.storno.ro/api/v1/oauth2/clients/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+
+## Example Response
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Acme Accounting Integration",
+  "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+  "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "clientSecretPrefix": "storno_cs_a1b2",
+  "clientType": "confidential",
+  "redirectUris": ["https://acme-accounting.com/oauth/callback"],
+  "scopes": ["invoice.view", "client.view"],
+  "websiteUrl": "https://acme-accounting.com",
+  "logoUrl": "https://acme-accounting.com/logo.png",
+  "isActive": true,
+  "revokedAt": null,
+  "createdAt": "2026-01-15T09:00:00Z"
+}
+```
+
+## Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 401 | unauthorized | Invalid or missing authentication token |
+| 403 | forbidden | The authenticated user does not have the `oauth2_app.view` permission |
+| 404 | not_found | OAuth2 application not found, or belongs to a different organization |
+
+## Important Notes
+
+- The full `clientSecret` is never returned by this endpoint — only `clientSecretPrefix` is exposed for identification
+- Revoked applications are still retrievable via this endpoint; check `revokedAt` to determine the application's status
+
+## Related Endpoints
+
+- [List OAuth2 clients](/api-reference/oauth2/list-clients)
+- [Create OAuth2 client](/api-reference/oauth2/create-client)
+- [Update OAuth2 client](/api-reference/oauth2/update-client)
+- [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+- [Rotate client secret](/api-reference/oauth2/rotate-secret)
+
+---
+
+## List OAuth2 clients
+
+> Retrieve all registered OAuth2 applications for the current organization.
+
+URL: https://docs.storno.ro/api-reference/oauth2/list-clients
+
+# List OAuth2 clients
+
+Returns all OAuth2 applications registered by the current organization. Results are sorted by creation date, newest first. The `clientSecret` value is never included in list or detail responses — it is only returned once at creation time or after a secret rotation.
+
+```http
+GET /api/v1/oauth2/clients
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer token for authentication |
+| `X-Organization` | string | No | Organization UUID. Defaults to the authenticated user's active organization |
+
+### Required permission
+
+`oauth2_app.view`
+
+## Response
+
+Returns a `{ data: [...] }` object containing an array of OAuth2Client objects.
+
+### OAuth2Client object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (UUID) |
+| `name` | string | Human-readable display name of the application |
+| `description` | string \| null | Optional longer description of the application's purpose |
+| `clientId` | string | Public client identifier, prefixed with `storno_cid_` |
+| `clientSecretPrefix` | string | First characters of the client secret, used for identification without exposing the full value |
+| `clientType` | string | Either `confidential` or `public` |
+| `redirectUris` | string[] | Registered redirect URIs allowed during the authorization flow |
+| `scopes` | string[] | Permission scopes the application is allowed to request |
+| `websiteUrl` | string \| null | URL of the application's website, shown on the consent screen |
+| `logoUrl` | string \| null | URL of the application's logo image, shown on the consent screen |
+| `isActive` | boolean | Whether the application can currently initiate new authorization flows |
+| `revokedAt` | string \| null | ISO 8601 timestamp of when the application was revoked, or `null` if still active |
+| `createdAt` | string | ISO 8601 creation timestamp |
+
+## Example Request
+
+```bash
+curl -X GET 'https://api.storno.ro/api/v1/oauth2/clients' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+
+## Example Response
+
+```json
+{
+  "data": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Acme Accounting Integration",
+      "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+      "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+      "clientSecretPrefix": "storno_cs_a1b2",
+      "clientType": "confidential",
+      "redirectUris": ["https://acme-accounting.com/oauth/callback"],
+      "scopes": ["invoice.view", "client.view"],
+      "websiteUrl": "https://acme-accounting.com",
+      "logoUrl": "https://acme-accounting.com/logo.png",
+      "isActive": true,
+      "revokedAt": null,
+      "createdAt": "2026-01-15T09:00:00Z"
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Mobile Expense Tracker",
+      "description": null,
+      "clientId": "storno_cid_b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7",
+      "clientSecretPrefix": "storno_cs_b2c3",
+      "clientType": "public",
+      "redirectUris": ["com.example.expensetracker://oauth/callback"],
+      "scopes": ["invoice.view", "export.data"],
+      "websiteUrl": null,
+      "logoUrl": null,
+      "isActive": true,
+      "revokedAt": null,
+      "createdAt": "2025-11-20T14:30:00Z"
+    }
+  ]
+}
+```
+
+## Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 401 | unauthorized | Invalid or missing authentication token |
+| 403 | forbidden | The authenticated user does not have the `oauth2_app.view` permission |
+
+## Important Notes
+
+- Both active and revoked applications are returned; filter on `revokedAt` or `isActive` to show only active clients
+- The full `clientSecret` value is never exposed after creation — only `clientSecretPrefix` is included for identification
+- Applications belong to the organization, not to an individual user; all members with the appropriate permission can view them
+
+## Related Endpoints
+
+- [Create OAuth2 client](/api-reference/oauth2/create-client)
+- [Get OAuth2 client](/api-reference/oauth2/get-client)
+- [Update OAuth2 client](/api-reference/oauth2/update-client)
+- [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+- [Rotate client secret](/api-reference/oauth2/rotate-secret)
+
+---
+
+## OAuth2 Provider
+
+> Use Storno as an OAuth2 authorization server to build third-party integrations that act on behalf of users.
+
+URL: https://docs.storno.ro/api-reference/oauth2/overview
+
+# OAuth2 Provider
+
+Storno implements the OAuth2 Authorization Code flow with mandatory PKCE (Proof Key for Code Exchange) support. Third-party applications can request delegated access to a user's Storno account with explicit user consent, without ever handling the user's password.
+
+## When to use OAuth2 vs API tokens
+
+| Scenario | Recommended approach |
+|----------|----------------------|
+| You are building an integration used by many different Storno users | OAuth2 |
+| You are scripting against your own account | API token |
+| You need the user to explicitly approve a set of permissions | OAuth2 |
+| You need long-lived programmatic access with no user interaction | API token |
+
+## Authorization Code + PKCE flow
+
+```
+1. Your app generates a code_verifier and code_challenge (S256)
+2. Your app redirects the user to Storno's authorization page
+3. The user reviews the requested scopes and approves or denies
+4. Storno redirects back to your redirect_uri with an authorization code
+5. Your app exchanges the code for an access token and refresh token
+6. Your app calls Storno API endpoints using the access token as a Bearer token
+7. When the access token expires, your app exchanges the refresh token for a new pair
+```
+
+### Step-by-step
+
+**1. Generate PKCE parameters**
+
+Generate a cryptographically random `code_verifier` (43–128 URL-safe characters) and compute the `code_challenge`:
+
+```
+code_challenge = BASE64URL(SHA-256(ASCII(code_verifier)))
+```
+
+**2. Redirect the user to the consent screen**
+
+```
+GET https://app.storno.ro/oauth2/authorize
+  ?response_type=code
+  &client_id=storno_cid_a1b2c3d4e5f6...
+  &redirect_uri=https://yourapp.com/oauth/callback
+  &scope=invoice.view%20client.view
+  &state=random_csrf_token
+  &code_challenge=<base64url_sha256_of_verifier>
+  &code_challenge_method=S256
+```
+
+**3. Handle the redirect callback**
+
+On approval, Storno redirects to:
+
+```
+https://yourapp.com/oauth/callback?code=<auth_code>&state=<your_state>
+```
+
+On denial:
+
+```
+https://yourapp.com/oauth/callback?error=access_denied&state=<your_state>
+```
+
+**4. Exchange the code for tokens**
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/token' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "grant_type": "authorization_code",
+    "code": "<auth_code>",
+    "redirect_uri": "https://yourapp.com/oauth/callback",
+    "client_id": "storno_cid_a1b2c3d4e5f6...",
+    "client_secret": "storno_cs_...",
+    "code_verifier": "<original_verifier>"
+  }'
+```
+
+**5. Call API endpoints with the access token**
+
+```bash
+curl 'https://api.storno.ro/api/v1/invoices' \
+  -H 'Authorization: Bearer storno_oat_...'
+```
+
+**6. Refresh when the access token expires**
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/token' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "grant_type": "refresh_token",
+    "refresh_token": "storno_ort_...",
+    "client_id": "storno_cid_a1b2c3d4e5f6...",
+    "client_secret": "storno_cs_..."
+  }'
+```
+
+## Token prefixes
+
+| Token | Prefix | Description |
+|-------|--------|-------------|
+| Access token | `storno_oat_` | Short-lived token for API calls |
+| Refresh token | `storno_ort_` | Long-lived token used to obtain new access tokens |
+| Client ID | `storno_cid_` | Public identifier for your OAuth2 application |
+| Client secret | `storno_cs_` | Secret credential for confidential clients |
+
+## Token lifetimes
+
+| Token | Lifetime |
+|-------|----------|
+| Authorization code | 10 minutes |
+| Access token | 1 hour |
+| Refresh token | 30 days |
+
+## Scopes
+
+OAuth2 scopes reuse the same `Permission` values used by API tokens. A user can only grant scopes that they themselves hold — the consent screen will only show scopes the authorizing user has. For the full scope list see [List available scopes](/api-reference/api-keys/scopes).
+
+Common scopes:
+
+| Scope | Description |
+|-------|-------------|
+| `invoice.view` | Read invoices |
+| `invoice.create` | Create new invoices |
+| `invoice.edit` | Edit existing invoices |
+| `client.view` | Read clients |
+| `client.create` | Create new clients |
+| `export.data` | Export data |
+
+## Client types
+
+| Type | Description |
+|------|-------------|
+| `confidential` | Server-side applications that can securely store a client secret |
+| `public` | Client-side or mobile applications that cannot keep a secret (PKCE is the security mechanism) |
+
+## Security model
+
+- **PKCE is mandatory** for all clients. `S256` is the only supported `code_challenge_method`
+- Tokens are stored as SHA-256 hashes server-side — the raw value is only transmitted once
+- Refresh tokens are rotated on every use. If a revoked refresh token is replayed, the entire token family is immediately revoked
+- Authorization codes are single-use and expire after 10 minutes
+- The token exchange endpoint (`/api/v1/oauth2/token`) is rate-limited to 20 requests per minute per client
+
+## Related endpoints
+
+- [List OAuth2 clients](/api-reference/oauth2/list-clients)
+- [Create OAuth2 client](/api-reference/oauth2/create-client)
+- [Get OAuth2 client](/api-reference/oauth2/get-client)
+- [Update OAuth2 client](/api-reference/oauth2/update-client)
+- [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+- [Rotate client secret](/api-reference/oauth2/rotate-secret)
+- [Authorization endpoint](/api-reference/oauth2/authorize)
+- [Token endpoint](/api-reference/oauth2/token)
+- [Revoke token](/api-reference/oauth2/revoke-token)
+
+---
+
+## Revoke OAuth2 client
+
+> Permanently revoke an OAuth2 application and all of its issued access and refresh tokens.
+
+URL: https://docs.storno.ro/api-reference/oauth2/revoke-client
+
+# Revoke OAuth2 client
+
+Permanently revokes an OAuth2 application and **all** access tokens and refresh tokens that were issued under it. All affected tokens stop working immediately. This operation cannot be undone — create a new application if access needs to be re-established.
+
+This endpoint requires an active browser session (JWT). It cannot be called using an API token or an OAuth2 access token.
+
+```http
+DELETE /api/v1/oauth2/clients/{uuid}
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uuid` | string | Yes | The UUID of the OAuth2 application to revoke |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer JWT from an active browser session |
+
+### Required permission
+
+`oauth2_app.manage`
+
+## Response
+
+Returns a `204 No Content` status with no response body on success.
+
+## Example Request
+
+```bash
+curl -X DELETE 'https://api.storno.ro/api/v1/oauth2/clients/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
+```
+
+## Example Response
+
+```http
+HTTP/1.1 204 No Content
+```
+
+## Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 401 | unauthorized | Invalid or missing authentication token, or token is not a browser session JWT |
+| 403 | forbidden | The authenticated user does not have the `oauth2_app.manage` permission |
+| 404 | not_found | OAuth2 application not found, or belongs to a different organization |
+
+## Important Notes
+
+- Revocation is immediate and cascades to **all** tokens — every access token and refresh token ever issued for this application stops working at the moment this call completes
+- Third-party applications that currently hold valid tokens for this client will receive `401 Unauthorized` on their next API call
+- Revocation is permanent; there is no unrevoke operation. Create a new OAuth2 application and have users re-authorize if access is needed again
+- Revoking an already-revoked application returns `204 No Content` without error, making this operation idempotent
+- This endpoint requires a browser session JWT. API tokens and OAuth2 access tokens are not accepted, preventing automated revocation of OAuth2 applications
+- To disable an application temporarily without revoking tokens, use [Update OAuth2 client](/api-reference/oauth2/update-client) and set `isActive` to `false`
+
+## Related Endpoints
+
+- [List OAuth2 clients](/api-reference/oauth2/list-clients)
+- [Get OAuth2 client](/api-reference/oauth2/get-client)
+- [Create OAuth2 client](/api-reference/oauth2/create-client)
+- [Update OAuth2 client](/api-reference/oauth2/update-client)
+- [Revoke token](/api-reference/oauth2/revoke-token)
+
+---
+
+## Revoke token
+
+> Revoke an active OAuth2 access token or refresh token per RFC 7009.
+
+URL: https://docs.storno.ro/api-reference/oauth2/revoke-token
+
+# Revoke token
+
+Revokes an active OAuth2 access token or refresh token. This is a public endpoint — no `Authorization` header is required. The client authenticates using `client_id` and `client_secret` in the request body.
+
+Per [RFC 7009](https://datatracker.ietf.org/doc/html/rfc7009), this endpoint always returns `200 OK` regardless of whether the token was found or already revoked. This prevents token enumeration attacks.
+
+```http
+POST /api/v1/oauth2/revoke
+```
+
+## Request
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `token` | string | Yes | The access token (`storno_oat_...`) or refresh token (`storno_ort_...`) to revoke |
+| `token_type_hint` | string | No | A hint about the token type to speed up lookup. Either `access_token` or `refresh_token`. If omitted, Storno will attempt to detect the type automatically |
+| `client_id` | string | Yes | The client's public identifier, prefixed with `storno_cid_` |
+| `client_secret` | string | Confidential only | The client secret for `confidential` clients. Omit for `public` clients |
+
+## Response
+
+Always returns `200 OK` with an empty body, per RFC 7009.
+
+## Example Request — Revoking an access token
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/revoke' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "token": "storno_oat_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+    "token_type_hint": "access_token",
+    "client_id": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "client_secret": "storno_cs_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+  }'
+```
+
+## Example Request — Revoking a refresh token
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/revoke' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "token": "storno_ort_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8",
+    "token_type_hint": "refresh_token",
+    "client_id": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "client_secret": "storno_cs_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+  }'
+```
+
+## Example Response
+
+```http
+HTTP/1.1 200 OK
+```
+
+## Errors
+
+This endpoint returns `200 OK` even for unknown or already-revoked tokens, per RFC 7009. The only error condition that returns a non-200 response is invalid client authentication.
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 400 | invalid_client | The `client_id` does not exist, or the `client_secret` is incorrect for a `confidential` client |
+
+## Important Notes
+
+- **RFC 7009 compliance** — a `200 OK` response does not confirm that the token was valid or found. It only confirms that the token will not be accepted for API calls going forward, regardless of its prior state
+- **Revoking a refresh token** cascades to the access token that was issued alongside it. The associated access token is also invalidated immediately. The reverse is not true — revoking an access token does not invalidate the corresponding refresh token
+- **Logout flows** — when implementing user logout in your application, revoke both the access token and the refresh token to ensure clean session termination. Present the `token_type_hint` for each call to speed up server-side lookup
+- The `token_type_hint` is advisory only — if the hint does not match the actual token type, Storno will still find and revoke the correct token by searching both token stores
+
+## Related Endpoints
+
+- [Token endpoint](/api-reference/oauth2/token)
+- [Authorization endpoint](/api-reference/oauth2/authorize)
+- [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+- [OAuth2 Provider overview](/api-reference/oauth2/overview)
+
+---
+
+## Rotate client secret
+
+> Generate a new client secret for a confidential OAuth2 application, immediately invalidating the previous one.
+
+URL: https://docs.storno.ro/api-reference/oauth2/rotate-secret
+
+# Rotate client secret
+
+Generates a new `clientSecret` for a `confidential` OAuth2 application. The previous secret is immediately invalidated — any token exchange requests still using it will fail. The new raw secret value is returned **only once** in this response; store it securely immediately.
+
+This endpoint is only available for `confidential` clients. `public` clients do not have a client secret.
+
+This endpoint requires an active browser session (JWT). It cannot be called using an API token or an OAuth2 access token.
+
+```http
+POST /api/v1/oauth2/clients/{uuid}/rotate-secret
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uuid` | string | Yes | The UUID of the OAuth2 application whose secret should be rotated |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer JWT from an active browser session |
+
+### Required permission
+
+`oauth2_app.manage`
+
+## Response
+
+Returns the updated OAuth2Client object with a `200 OK` status. The response includes a `clientSecret` field containing the new raw secret value. This field is **not** included in any subsequent response.
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (UUID) |
+| `name` | string | Display name of the application |
+| `description` | string \| null | Application description |
+| `clientId` | string | Public client identifier (unchanged) |
+| `clientSecret` | string | The full raw new client secret — store this securely, it will not be shown again |
+| `clientSecretPrefix` | string | Updated prefix of the new client secret |
+| `clientType` | string | Always `confidential` for this operation |
+| `redirectUris` | string[] | Registered redirect URIs (unchanged) |
+| `scopes` | string[] | Permitted scopes (unchanged) |
+| `websiteUrl` | string \| null | Application website URL (unchanged) |
+| `logoUrl` | string \| null | Application logo URL (unchanged) |
+| `isActive` | boolean | Active status (unchanged) |
+| `revokedAt` | string \| null | Revocation timestamp (unchanged) |
+| `createdAt` | string | ISO 8601 creation timestamp (unchanged) |
+
+## Example Request
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/clients/a1b2c3d4-e5f6-7890-abcd-ef1234567890/rotate-secret' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
+```
+
+## Example Response
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Acme Accounting Integration",
+  "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+  "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "clientSecret": "storno_cs_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8",
+  "clientSecretPrefix": "storno_cs_z9y8",
+  "clientType": "confidential",
+  "redirectUris": ["https://acme-accounting.com/oauth/callback"],
+  "scopes": ["invoice.view", "client.view"],
+  "websiteUrl": "https://acme-accounting.com",
+  "logoUrl": "https://acme-accounting.com/logo.png",
+  "isActive": true,
+  "revokedAt": null,
+  "createdAt": "2026-01-15T09:00:00Z"
+}
+```
+
+## Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 401 | unauthorized | Invalid or missing authentication token, or token is not a browser session JWT |
+| 403 | forbidden | The authenticated user does not have the `oauth2_app.manage` permission, or the application is a `public` client |
+| 404 | not_found | OAuth2 application not found, or belongs to a different organization |
+
+## Important Notes
+
+- The old `clientSecret` stops working the moment this call returns — update your application's configuration before rotating if you need zero-downtime rollover
+- The new `clientSecret` in the response is the only time the raw value is ever transmitted — it is stored as a one-way hash server-side
+- Rotating the secret does **not** revoke existing access tokens or refresh tokens; those remain valid until they expire or are individually revoked
+- Existing refresh tokens will stop working when they next attempt to use the old secret for client authentication during a token exchange
+- This operation cannot be performed on `public` clients, which have no client secret
+- This endpoint requires a browser session JWT. API tokens and OAuth2 access tokens are not accepted
+
+## Related Endpoints
+
+- [List OAuth2 clients](/api-reference/oauth2/list-clients)
+- [Get OAuth2 client](/api-reference/oauth2/get-client)
+- [Create OAuth2 client](/api-reference/oauth2/create-client)
+- [Update OAuth2 client](/api-reference/oauth2/update-client)
+- [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+
+---
+
+## Token endpoint
+
+> Exchange an authorization code or refresh token for a new set of OAuth2 tokens.
+
+URL: https://docs.storno.ro/api-reference/oauth2/token
+
+# Token endpoint
+
+Exchanges credentials for access and refresh tokens. This is a public endpoint — no `Authorization` header is required. Client authentication is performed via `client_id` and `client_secret` in the request body (for confidential clients).
+
+Two grant types are supported: `authorization_code` for the initial token exchange after user authorization, and `refresh_token` for obtaining a new token pair after the access token expires.
+
+```http
+POST /api/v1/oauth2/token
+```
+
+This endpoint is rate-limited to **20 requests per minute** per client in production.
+
+---
+
+## Grant type: authorization_code
+
+Exchanges a single-use authorization code (obtained from the [Authorization endpoint](/api-reference/oauth2/authorize)) for an access token and refresh token.
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `grant_type` | string | Yes | Must be `authorization_code` |
+| `code` | string | Yes | The authorization code received in the redirect from the authorization endpoint |
+| `redirect_uri` | string | Yes | Must exactly match the `redirect_uri` used in the authorization request |
+| `client_id` | string | Yes | The client's public identifier, prefixed with `storno_cid_` |
+| `client_secret` | string | Confidential only | The client secret for `confidential` clients. Omit for `public` clients |
+| `code_verifier` | string | Yes | The original PKCE code verifier. Storno will verify `SHA-256(code_verifier)` matches the `code_challenge` from the authorization request |
+
+### Response
+
+Returns `200 OK` with the token set.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `access_token` | string | Short-lived access token, prefixed with `storno_oat_`. Valid for 1 hour |
+| `refresh_token` | string | Long-lived refresh token, prefixed with `storno_ort_`. Valid for 30 days |
+| `token_type` | string | Always `Bearer` |
+| `expires_in` | number | Lifetime of the access token in seconds. Always `3600` |
+| `scope` | string | Space-separated list of scopes granted by the user |
+
+### Example Request
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/token' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "grant_type": "authorization_code",
+    "code": "4/0AfJohXlQs8kKpM7nNrZhQ2vWxyz",
+    "redirect_uri": "https://acme-accounting.com/oauth/callback",
+    "client_id": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "client_secret": "storno_cs_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+    "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "access_token": "storno_oat_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "refresh_token": "storno_ort_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "invoice.view client.view"
+}
+```
+
+### Validation
+
+The following checks are performed before issuing tokens:
+
+- The authorization code has not expired (codes are valid for 10 minutes)
+- The authorization code has not already been used (codes are single-use)
+- The `redirect_uri` matches the URI used when the code was issued
+- The `client_id` matches the client that requested the code
+- The `client_secret` is valid (confidential clients only)
+- The `code_verifier` produces the correct `code_challenge` via `SHA-256`
+
+---
+
+## Grant type: refresh_token
+
+Exchanges a valid refresh token for a new access token and a new refresh token. Refresh tokens are rotated on every use — the old refresh token is invalidated immediately.
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `grant_type` | string | Yes | Must be `refresh_token` |
+| `refresh_token` | string | Yes | A valid, unused refresh token prefixed with `storno_ort_` |
+| `client_id` | string | Yes | The client's public identifier, prefixed with `storno_cid_` |
+| `client_secret` | string | Confidential only | The client secret for `confidential` clients. Omit for `public` clients |
+
+### Response
+
+Returns `200 OK` with a new token set. The structure is identical to the `authorization_code` response.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `access_token` | string | New access token, prefixed with `storno_oat_`. Valid for 1 hour |
+| `refresh_token` | string | New refresh token, prefixed with `storno_ort_`. Valid for 30 days. The old refresh token is now invalid |
+| `token_type` | string | Always `Bearer` |
+| `expires_in` | number | Lifetime of the new access token in seconds. Always `3600` |
+| `scope` | string | Space-separated list of granted scopes (unchanged from original authorization) |
+
+### Example Request
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/oauth2/token' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "grant_type": "refresh_token",
+    "refresh_token": "storno_ort_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8",
+    "client_id": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "client_secret": "storno_cs_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "access_token": "storno_oat_c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
+  "refresh_token": "storno_ort_w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8t7s6r5",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "invoice.view client.view"
+}
+```
+
+---
+
+## Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 400 | invalid_request | Missing or malformed request parameters |
+| 400 | invalid_grant | The authorization code or refresh token is invalid, expired, already used, or does not belong to the provided `client_id` |
+| 400 | invalid_client | The `client_id` does not exist or the `client_secret` is incorrect |
+| 400 | unsupported_grant_type | The `grant_type` is not `authorization_code` or `refresh_token` |
+| 400 | invalid_scope | Requested scopes are not a subset of the authorized scopes |
+| 429 | rate_limited | Too many requests — the client has exceeded 20 requests per minute |
+
+## Security Notes
+
+- **Refresh token rotation** — every successful refresh produces a new refresh token and immediately invalidates the old one. Do not attempt to use the same refresh token twice
+- **Token family revocation** — if a previously revoked refresh token is presented to this endpoint, Storno treats this as a replay attack and immediately revokes the **entire token family**, invalidating all active access and refresh tokens for that authorization. The associated client application should prompt the user to re-authorize
+- **PKCE verification** — for `authorization_code` grants, `code_verifier` is mandatory and verified using S256. Requests without a valid `code_verifier` are rejected even if the code itself is valid
+- Authorization codes are **single-use**. Presenting a code a second time returns `invalid_grant` and may trigger additional security measures
+
+## Related Endpoints
+
+- [Authorization endpoint](/api-reference/oauth2/authorize)
+- [Revoke token](/api-reference/oauth2/revoke-token)
+- [OAuth2 Provider overview](/api-reference/oauth2/overview)
+
+---
+
+## Update OAuth2 client
+
+> Update an OAuth2 application's configuration, including its redirect URIs, scopes, and display metadata.
+
+URL: https://docs.storno.ro/api-reference/oauth2/update-client
+
+# Update OAuth2 client
+
+Updates an existing OAuth2 application. This is a partial update — only the fields included in the request body are changed. Fields omitted from the body are left unchanged.
+
+This endpoint requires an active browser session (JWT). It cannot be called using an API token or an OAuth2 access token.
+
+```http
+PATCH /api/v1/oauth2/clients/{uuid}
+```
+
+## Request
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uuid` | string | Yes | The UUID of the OAuth2 application to update |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer JWT from an active browser session |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Required permission
+
+`oauth2_app.manage`
+
+### Body Parameters
+
+All parameters are optional, but at least one must be provided.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | string | New human-readable display name for the application |
+| `description` | string \| null | Updated description of the application's purpose. Pass `null` to clear |
+| `redirectUris` | string[] | Replacement set of allowed redirect URIs. Replaces the entire existing list |
+| `scopes` | string[] | Replacement set of permitted scopes. Must be valid `Permission` values and a subset of the authenticated user's own permissions. Replaces the entire existing list |
+| `isActive` | boolean | Set to `false` to disable the application without revoking it. Disabled applications cannot initiate new authorization flows but existing tokens remain valid |
+| `websiteUrl` | string \| null | Updated application website URL. Pass `null` to clear |
+| `logoUrl` | string \| null | Updated application logo URL. Pass `null` to clear |
+
+## Response
+
+Returns the updated OAuth2Client object with a `200 OK` status. The `clientSecret` is never included in this response.
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (UUID) |
+| `name` | string | Updated display name |
+| `description` | string \| null | Updated description |
+| `clientId` | string | Public client identifier (unchanged) |
+| `clientSecretPrefix` | string \| null | First characters of the client secret (unchanged) |
+| `clientType` | string | `confidential` or `public` (cannot be changed after creation) |
+| `redirectUris` | string[] | Updated redirect URIs |
+| `scopes` | string[] | Updated permitted scopes |
+| `websiteUrl` | string \| null | Updated website URL |
+| `logoUrl` | string \| null | Updated logo URL |
+| `isActive` | boolean | Updated active status |
+| `revokedAt` | string \| null | ISO 8601 revocation timestamp, or `null` if still active |
+| `createdAt` | string | ISO 8601 creation timestamp (unchanged) |
+
+## Example Request
+
+```bash
+curl -X PATCH 'https://api.storno.ro/api/v1/oauth2/clients/a1b2c3d4-e5f6-7890-abcd-ef1234567890' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Acme Accounting Integration v2",
+    "redirectUris": [
+      "https://acme-accounting.com/oauth/callback",
+      "https://acme-accounting.com/oauth/callback-v2"
+    ],
+    "scopes": ["invoice.view", "invoice.create", "client.view"]
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Acme Accounting Integration v2",
+  "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+  "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "clientSecretPrefix": "storno_cs_a1b2",
+  "clientType": "confidential",
+  "redirectUris": [
+    "https://acme-accounting.com/oauth/callback",
+    "https://acme-accounting.com/oauth/callback-v2"
+  ],
+  "scopes": ["invoice.view", "invoice.create", "client.view"],
+  "websiteUrl": "https://acme-accounting.com",
+  "logoUrl": "https://acme-accounting.com/logo.png",
+  "isActive": true,
+  "revokedAt": null,
+  "createdAt": "2026-01-15T09:00:00Z"
+}
+```
+
+## Errors
+
+| Status Code | Error Code | Description |
+|-------------|------------|-------------|
+| 401 | unauthorized | Invalid or missing authentication token, or token is not a browser session JWT |
+| 403 | forbidden | The authenticated user does not have the `oauth2_app.manage` permission |
+| 404 | not_found | OAuth2 application not found, or belongs to a different organization |
+| 422 | validation_error | Invalid input data (see error details) |
+
+### Validation Errors
+
+Common validation errors include:
+
+- No fields provided for update
+- One or more `redirectUris` are not valid URLs
+- One or more scope values are not valid `Permission` values
+- One or more scopes exceed the authenticated user's own permissions
+- `name` is an empty string
+
+## Important Notes
+
+- Updating `redirectUris` or `scopes` replaces the full list — it is not an additive operation. Send the complete desired set
+- The `clientType` cannot be changed after creation. Revoke and recreate the client if a different type is needed
+- Setting `isActive` to `false` prevents new authorization flows but does **not** invalidate existing tokens. To immediately revoke all tokens, use [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+- Narrowing the `scopes` list does not immediately revoke tokens that were issued with broader scopes; those tokens will continue to work until they expire or are individually revoked
+- This endpoint requires a browser session JWT. API tokens and OAuth2 access tokens are not accepted
+
+## Related Endpoints
+
+- [List OAuth2 clients](/api-reference/oauth2/list-clients)
+- [Get OAuth2 client](/api-reference/oauth2/get-client)
+- [Create OAuth2 client](/api-reference/oauth2/create-client)
+- [Revoke OAuth2 client](/api-reference/oauth2/revoke-client)
+- [Rotate client secret](/api-reference/oauth2/rotate-secret)
+
+---
+
 ## Delete invoice payment
 
 > Delete a recorded payment from an invoice.
@@ -34996,13 +36364,13 @@ Welcome to the Storno contributing guide. This section covers everything you nee
 
 ## Project Overview
 
-Storno is a full-stack e-invoicing platform consisting of:
+Storno is a full-stack e-invoicing platform split across multiple repositories:
 
-- **Backend** — Laravel API (`backend/src/`)
-- **Frontend** — Web application (`frontend/`)
-- **Mobile** — React Native / Expo app (`mobile/`)
-- **CLI** — MCP-compatible CLI tool (`storno-cli/`)
-- **Docs** — API documentation (`docs/`)
+- **[stornoro/storno](https://github.com/stornoro/storno)** — Monorepo containing backend (Symfony 7.4 API), frontend (Nuxt), and deploy configs
+- **[stornoro/storno-mobile-app](https://github.com/stornoro/storno-mobile-app)** — React Native / Expo mobile app
+- **[stornoro/storno-cli](https://github.com/stornoro/storno-cli)** — MCP-compatible CLI tool
+- **[stornoro/docs](https://github.com/stornoro/docs)** — API documentation (Next.js + Markdoc)
+- **[stornoro/status](https://github.com/stornoro/status)** — Uptime monitoring (Upptime)
 
 ## Getting Started
 
@@ -35025,14 +36393,14 @@ Write concise commit messages that focus on _why_ the change was made, not just 
 
 ## Full-Stack Parity
 
-When making changes that affect plans, features, types, or i18n labels, **always update all platforms**:
+When making changes that affect plans, features, types, or i18n labels, **always update all platforms** across their respective repositories:
 
-1. **Backend** (`backend/src/`)
-2. **Frontend** (`frontend/app/` + `frontend/i18n/`)
-3. **Mobile** (`mobile/src/` + `mobile/app/`)
-4. **Docs** (`docs/`)
+1. **Backend** — `stornoro/storno` → `backend/src/`
+2. **Frontend** — `stornoro/storno` → `frontend/app/` + `frontend/i18n/`
+3. **Mobile** — `stornoro/storno-mobile-app` → `src/` + `app/`
+4. **Docs** — `stornoro/docs` → `content/`
 
-When adding new API endpoints to the backend, also add corresponding MCP tools to `storno-cli/src/tools/`.
+When adding new API endpoints to the backend, also add corresponding MCP tools to `stornoro/storno-cli` → `src/tools/`.
 
 ## Coding Standards
 
@@ -35988,7 +37356,7 @@ Authenticated requests allow up to 50,000 requests with a refill rate of 500 per
 
 ### Can I use API keys instead of JWT tokens?
 
-Yes. Create scoped API keys via [API Keys](/api-reference/api-keys/create) for programmatic access. API keys don't expire but can be revoked instantly. Include the key as a Bearer token: `Authorization: Bearer sk_...`
+Yes. Create scoped API keys via [API Keys](/api-reference/api-keys/create) for programmatic access. API keys can optionally have an expiration date and can be revoked instantly. Include the key directly in the `Authorization` header (without the `Bearer` prefix): `Authorization: af_...`
 
 ### How does pagination work?
 

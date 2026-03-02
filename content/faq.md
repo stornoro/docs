@@ -41,7 +41,7 @@ Authenticated requests allow up to 50,000 requests with a refill rate of 500 per
 
 ### Can I use API keys instead of JWT tokens?
 
-Yes. Create scoped API keys via [API Keys](/api-reference/api-keys/create) for programmatic access. API keys don't expire but can be revoked instantly. Include the key as a Bearer token: `Authorization: Bearer sk_...`
+Yes. Create scoped API keys via [API Keys](/api-reference/api-keys/create) for programmatic access. API keys can optionally have an expiration date and can be revoked instantly. Include the key directly in the `Authorization` header (without the `Bearer` prefix): `Authorization: af_...`
 
 ### How does pagination work?
 

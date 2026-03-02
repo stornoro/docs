@@ -29,7 +29,7 @@ Returns an array of API token objects sorted by `createdAt` descending.
 |-------|------|-------------|
 | `id` | string | Unique identifier (UUID) |
 | `name` | string | Human-readable name given to the token |
-| `tokenPrefix` | string | First 8 characters of the token, used for identification |
+| `tokenPrefix` | string | First 12 characters of the token, used for identification |
 | `scopes` | string[] | Array of permission scopes granted to this token |
 | `lastUsedAt` | string \| null | ISO 8601 timestamp of the most recent successful use, or `null` if never used |
 | `expireAt` | string \| null | ISO 8601 expiry timestamp, or `null` if the token never expires |
@@ -50,7 +50,7 @@ curl -X GET 'https://api.storno.ro/api/v1/api-tokens' \
   {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "CI/CD Pipeline",
-    "tokenPrefix": "aft_a1b2",
+    "tokenPrefix": "af_a1b2c3d4e",
     "scopes": ["invoice.view", "invoice.create", "client.view"],
     "lastUsedAt": "2026-02-17T11:42:00Z",
     "expireAt": "2027-01-01T00:00:00Z",
@@ -60,7 +60,7 @@ curl -X GET 'https://api.storno.ro/api/v1/api-tokens' \
   {
     "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
     "name": "Accounting Export Script",
-    "tokenPrefix": "aft_b2c3",
+    "tokenPrefix": "af_b2c3d4e5f",
     "scopes": ["invoice.view", "export.data"],
     "lastUsedAt": null,
     "expireAt": null,

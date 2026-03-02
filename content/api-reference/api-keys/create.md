@@ -41,7 +41,7 @@ Returns the created token object with a `201 Created` status. The response inclu
 | `id` | string | Unique identifier (UUID) |
 | `name` | string | Human-readable name |
 | `token` | string | The full raw token value — store this securely, it will not be shown again |
-| `tokenPrefix` | string | First 8 characters of the token, used for future identification |
+| `tokenPrefix` | string | First 12 characters of the token, used for future identification |
 | `scopes` | string[] | Permission scopes granted to this token |
 | `lastUsedAt` | string \| null | Always `null` on creation |
 | `expireAt` | string \| null | ISO 8601 expiry timestamp, or `null` if the token never expires |
@@ -67,8 +67,8 @@ curl -X POST 'https://api.storno.ro/api/v1/api-tokens' \
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "name": "CI/CD Pipeline",
-  "token": "aft_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
-  "tokenPrefix": "aft_a1b2",
+  "token": "af_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
+  "tokenPrefix": "af_a1b2c3d4e",
   "scopes": ["invoice.view", "invoice.create", "client.view"],
   "lastUsedAt": null,
   "expireAt": "2027-01-01T00:00:00Z",
@@ -97,7 +97,7 @@ Common validation errors include:
 ## Important Notes
 
 - The `token` field in the response is the only time the raw token value is ever transmitted — it is stored as a one-way hash server-side
-- Tokens use the `aft_` prefix to make them easily identifiable in source code and logs
+- Tokens use the `af_` prefix to make them easily identifiable in source code and logs
 - There is no upper limit on the number of tokens a user can create, but each token is subject to the same rate limits as interactive sessions
 - Tokens inherit the organization context from the user who created them
 
