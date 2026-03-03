@@ -15,7 +15,55 @@ The Storno CLI is a [Model Context Protocol (MCP)](https://modelcontextprotocol.
 - Multi-company support with context switching
 - File uploads and binary downloads (PDF, XML, exports)
 
-## Installation
+## Hosted Server (recommended)
+
+The fastest way to get started — no installation, no API keys. Storno hosts a public MCP server at **https://mcp.storno.ro/mcp** with OAuth authentication.
+
+Visit **[mcp.storno.ro](https://mcp.storno.ro)** for setup instructions and a one-click "Add to Claude" button.
+
+### Claude (claude.ai)
+
+1. Copy the URL: `https://mcp.storno.ro/mcp`
+2. Go to [claude.ai/settings/connectors](https://claude.ai/settings/connectors)
+3. Click "Add" and paste the URL
+4. Authorize via OAuth
+
+### Claude Code
+
+```bash
+claude mcp add storno --transport http https://mcp.storno.ro/mcp
+```
+
+### Cursor / Windsurf
+
+```json
+{
+  "mcpServers": {
+    "storno": {
+      "url": "https://mcp.storno.ro/mcp"
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "storno": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.storno.ro/mcp"]
+    }
+  }
+}
+```
+
+## Self-hosted / Token-based Setup
+
+For self-hosted Storno instances or if you prefer using JWT tokens directly.
+
+### Installation
 
 ```bash
 npm install -g storno-cli
@@ -23,7 +71,7 @@ npm install -g storno-cli
 
 Requires Node.js 20 or later.
 
-## Configuration
+### Configuration
 
 The CLI uses environment variables for authentication and configuration:
 
@@ -50,9 +98,9 @@ Set `STORNO_EMAIL` and `STORNO_PASSWORD`. The server authenticates automatically
 
 Call the `auth_login` tool from your AI assistant with your credentials.
 
-## IDE Setup
+### IDE Setup
 
-### Claude Code / Claude Desktop
+#### Claude Code / Claude Desktop
 
 Add to your MCP configuration (`~/.claude/claude_desktop_config.json` or project `.mcp.json`):
 
@@ -70,7 +118,7 @@ Add to your MCP configuration (`~/.claude/claude_desktop_config.json` or project
 }
 ```
 
-### Cursor
+#### Cursor
 
 Add to `.cursor/mcp.json` in your project:
 
@@ -88,7 +136,7 @@ Add to `.cursor/mcp.json` in your project:
 }
 ```
 
-### Windsurf
+#### Windsurf
 
 Add to your Windsurf MCP settings:
 
