@@ -46,6 +46,8 @@ POST /api/v1/clients
 | `defaultPaymentTermDays` | integer | No | Default payment term in days |
 | `contactPerson` | string | No | Contact person name |
 | `notes` | string | No | Internal notes |
+| `idNumber` | string | No | Client identification number (personal ID, passport, etc.) |
+| `currency` | string | No | Preferred currency for this client (ISO 4217: EUR, USD, RON, etc.) |
 
 ## Example Request
 

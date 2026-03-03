@@ -54,6 +54,8 @@ PATCH /api/v1/clients/{uuid}
 | `defaultPaymentTermDays` | integer | Default payment term in days |
 | `contactPerson` | string | Contact person name |
 | `notes` | string | Internal notes |
+| `idNumber` | string | Client identification number (personal ID, passport, etc.) |
+| `currency` | string | Preferred currency for this client (ISO 4217: EUR, USD, RON, etc.) |
 
 ## Example Request
 
