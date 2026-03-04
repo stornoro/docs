@@ -40,6 +40,34 @@ Creates a new delivery note in draft status. Delivery notes document the physica
 | `internalNote` | string | No | Internal note (not visible to client) |
 | `lines` | array | Yes | Array of line items (minimum 1 item) |
 
+### e-Transport Fields
+
+These fields are required for ANAF e-Transport submission. They can be set at creation time or updated later before submission.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `etransportOperationType` | number | No | Operation type: `10` (intra-EU acquisition), `12` (intra-EU delivery), `20` (domestic transaction), `30` (TTN — domestic transport document), `40` (import), `50` (export), `60` (goods not released for circulation) |
+| `etransportPostIncident` | boolean | No | Post-incident declaration (after the transport was completed) |
+| `etransportVehicleNumber` | string | No | Vehicle registration number (3-20 uppercase alphanumeric chars per BR-031, e.g., `"BC01ABC"`) |
+| `etransportTrailer1` | string | No | First trailer registration number |
+| `etransportTrailer2` | string | No | Second trailer registration number |
+| `etransportTransporterCountry` | string | No | Transporter country code (ISO 3166-1 alpha-2). Must be `"RO"` for TTN (opType 30) per BR-005 |
+| `etransportTransporterCode` | string | No | Transporter CUI/CIF (numeric only, e.g., `"31385365"`). Must match ANAF format per BR-002 |
+| `etransportTransporterName` | string | No | Transporter legal name |
+| `etransportTransportDate` | string | No | Transport start date (YYYY-MM-DD) |
+| `etransportStartCounty` | number | No | Start county code (1-52 per ANAF nomenclature, e.g., `4`=Bacau, `40`=Bucuresti). Required per BR-210 |
+| `etransportStartLocality` | string | No | Start locality name (2-100 chars per BR-214) |
+| `etransportStartStreet` | string | No | Start street name (2-100 chars per BR-215) |
+| `etransportStartNumber` | string | No | Start street number |
+| `etransportStartOtherInfo` | string | No | Start additional address info |
+| `etransportStartPostalCode` | string | No | Start postal code |
+| `etransportEndCounty` | number | No | End county code (1-52). Required per BR-211 |
+| `etransportEndLocality` | string | No | End locality name (2-100 chars) |
+| `etransportEndStreet` | string | No | End street name (2-100 chars) |
+| `etransportEndNumber` | string | No | End street number |
+| `etransportEndOtherInfo` | string | No | End additional address info |
+| `etransportEndPostalCode` | string | No | End postal code |
+
 ### Line Item Object
 
 | Field | Type | Required | Description |
@@ -50,6 +78,12 @@ Creates a new delivery note in draft status. Delivery notes document the physica
 | `vatRateId` | string | Yes | UUID of the VAT rate |
 | `unitOfMeasure` | string | No | Unit of measure (e.g., piece, kg, hour) |
 | `productId` | string | No | UUID of related product |
+| `tariffCode` | string | No | 8-digit HS/CN tariff code (e.g., `"84131100"`). Required for e-Transport per BR-206 |
+| `purposeCode` | number | No | Purpose code. For TTN (opType 30): `101` (commercial), `704`, `705`, `9901` (other) per BR-070 |
+| `unitOfMeasureCode` | string | No | UN/ECE Rec 20 unit code (e.g., `"H87"`=piece, `"KGM"`=kg, `"SET"`=set, `"MTR"`=meter) |
+| `netWeight` | string | No | Net weight in kg as decimal (e.g., `"120.00"`). Required for e-Transport per BR-207 |
+| `grossWeight` | string | No | Gross weight in kg as decimal (e.g., `"140.00"`) |
+| `valueWithoutVat` | string | No | Line value without VAT as decimal (e.g., `"15000.00"`). Required for e-Transport per BR-208 |
 
 ## Request
 
@@ -327,6 +361,52 @@ const data = await response.json();
     { description: "Cement bags", quantity: 100, unitPrice: 25, ... },
     { description: "Steel bars", quantity: 50, unitPrice: 120, ... },
     { description: "Paint buckets", quantity: 20, unitPrice: 45, ... }
+  ]
+}
+```
+
+### e-Transport Ready (TTN Domestic)
+```javascript
+{
+  clientId: "750e8400...",
+  issueDate: "2026-03-04",
+  dueDate: "2026-04-04",
+  currency: "RON",
+  deliveryLocation: "Depozit Bacau, Str. Industriei 15",
+  deputyName: "Vasile Popescu",
+  deputyIdentityCard: "BC123456",
+  deputyAuto: "BC01ABC",
+  // e-Transport header
+  etransportOperationType: 30,
+  etransportVehicleNumber: "BC01ABC",
+  etransportTransporterCountry: "RO",
+  etransportTransporterCode: "31385365",
+  etransportTransporterName: "UNIVERSAL EQUIPMENT PROJECTS SRL",
+  etransportTransportDate: "2026-03-04",
+  // Route start
+  etransportStartCounty: 4,
+  etransportStartLocality: "Bacau",
+  etransportStartStreet: "Str. Nicolae Balcescu 5 B",
+  etransportStartNumber: "5B",
+  etransportStartPostalCode: "600001",
+  // Route end
+  etransportEndCounty: 40,
+  etransportEndLocality: "SECTOR6",
+  etransportEndStreet: "Sos. Virtutii 148",
+  etransportEndNumber: "148",
+  etransportEndPostalCode: "060784",
+  lines: [
+    {
+      description: "Echipament hidraulic EH-200",
+      quantity: 2, unitPrice: 15000,
+      vatRateId: "...",
+      tariffCode: "84131100",
+      purposeCode: 101,
+      unitOfMeasureCode: "H87",
+      netWeight: "240.00",
+      grossWeight: "280.00",
+      valueWithoutVat: "30000.00"
+    }
   ]
 }
 ```

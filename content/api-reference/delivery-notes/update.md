@@ -48,6 +48,34 @@ All fields from the create endpoint can be updated. The entire delivery note is 
 | `internalNote` | string | No | Internal note |
 | `lines` | array | Yes | Array of line items (replaces all existing lines) |
 
+### e-Transport Fields
+
+All e-Transport fields from the [Create endpoint](/api-reference/delivery-notes/create#e-transport-fields) are accepted. Key fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `etransportOperationType` | number | No | Operation type (10, 12, 20, 30, 40, 50, 60) |
+| `etransportVehicleNumber` | string | No | Vehicle registration (3-20 uppercase alphanumeric) |
+| `etransportTransporterCountry` | string | No | Transporter country code (e.g., "RO") |
+| `etransportTransporterCode` | string | No | Transporter CUI/CIF (numeric only) |
+| `etransportTransporterName` | string | No | Transporter legal name |
+| `etransportTransportDate` | string | No | Transport start date (YYYY-MM-DD) |
+| `etransportPostIncident` | boolean | No | Post-incident declaration |
+| `etransportTrailer1` | string | No | First trailer registration |
+| `etransportTrailer2` | string | No | Second trailer registration |
+| `etransportStartCounty` | number | No | Start county code (1-52) |
+| `etransportStartLocality` | string | No | Start locality (2-100 chars) |
+| `etransportStartStreet` | string | No | Start street (2-100 chars) |
+| `etransportStartNumber` | string | No | Start street number |
+| `etransportStartOtherInfo` | string | No | Start additional info |
+| `etransportStartPostalCode` | string | No | Start postal code |
+| `etransportEndCounty` | number | No | End county code (1-52) |
+| `etransportEndLocality` | string | No | End locality (2-100 chars) |
+| `etransportEndStreet` | string | No | End street (2-100 chars) |
+| `etransportEndNumber` | string | No | End street number |
+| `etransportEndOtherInfo` | string | No | End additional info |
+| `etransportEndPostalCode` | string | No | End postal code |
+
 ### Line Item Object
 
 | Field | Type | Required | Description |
@@ -59,6 +87,12 @@ All fields from the create endpoint can be updated. The entire delivery note is 
 | `vatRateId` | string | Yes | UUID of the VAT rate |
 | `unitOfMeasure` | string | No | Unit of measure |
 | `productId` | string | No | UUID of related product |
+| `tariffCode` | string | No | 8-digit HS/CN tariff code (required for e-Transport, BR-206) |
+| `purposeCode` | number | No | Purpose code (for TTN: 101, 704, 705, 9901 per BR-070) |
+| `unitOfMeasureCode` | string | No | UN/ECE Rec 20 code (e.g., "H87", "KGM", "SET") |
+| `netWeight` | string | No | Net weight in kg (required for e-Transport, BR-207) |
+| `grossWeight` | string | No | Gross weight in kg |
+| `valueWithoutVat` | string | No | Value without VAT (required for e-Transport, BR-208) |
 
 ## Request
 
