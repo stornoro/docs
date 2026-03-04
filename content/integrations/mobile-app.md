@@ -83,6 +83,10 @@ The app connects to Centrifugo WebSocket for live updates:
 - Payment recordings reflect immediately
 - Company data changes sync across devices
 
+### Self-hosted instances
+
+The mobile app derives the WebSocket URL automatically from the server host (e.g. `https://factura.yourdomain.com` → `wss://factura.yourdomain.com/connection/websocket`). No additional configuration is needed — just ensure your reverse proxy forwards WebSocket upgrades on `/connection/websocket`. See [Self-Hosting](/getting-started/self-hosting#websocket-not-connecting) for details.
+
 ## Push Notifications
 
 Register your device to receive push notifications for:

@@ -31,7 +31,7 @@ Docs: https://docs.storno.ro
 
 ## Integrations
 
-- [CLI / MCP Server](https://docs.storno.ro/integrations/cli): Use the Storno.ro MCP server to manage invoices through AI assistants like Claude Code, Cursor, and Windsurf. Hosted at https://mcp.storno.ro/mcp with OAuth authentication.
+- [CLI / MCP Server](https://docs.storno.ro/integrations/cli): Use the Storno.ro MCP server to manage invoices through AI assistants like Claude Code, Cursor, and Windsurf.
 - [Mobile App](https://docs.storno.ro/integrations/mobile-app): Manage invoices, clients, and e-invoice submissions on the go with the Storno.ro mobile app for iOS and Android.
 - [Stripe App](https://docs.storno.ro/integrations/stripe-app): Automatically create e-invoices from Stripe payments using the Storno.ro Stripe marketplace app.
 

@@ -116,6 +116,7 @@ Open `http://localhost:8901` in your browser (or your configured domain) and log
 | `MYSQL_USER` | `storno` | Database user |
 | `FRONTEND_URL` | `http://localhost:8901` | Public URL for the frontend |
 | `PUBLIC_API_BASE` | `/api` | How the browser reaches the API |
+| `PUBLIC_CENTRIFUGO_WS` | `wss://app.storno.ro/connection/websocket` | Public WebSocket URL for real-time updates. Used by the frontend and returned to the mobile app via `/health`. Must be reachable from end-user devices. |
 | `CORS_ALLOW_ORIGIN` | `localhost` pattern | CORS allowed origins regex |
 | `MAILER_DSN` | `null://null` | SMTP/SES transport DSN |
 | `MAIL_FROM` | `noreply@storno.ro` | Sender email address |
@@ -317,12 +318,19 @@ docker compose logs db
 
 ### WebSocket not connecting
 
-Ensure `PUBLIC_CENTRIFUGO_WS` matches your public URL and that your reverse proxy forwards WebSocket upgrades correctly.
+The mobile app derives the WebSocket URL automatically from the server host (e.g. `https://factura.yourdomain.com` → `wss://factura.yourdomain.com/connection/websocket`). The frontend uses `PUBLIC_CENTRIFUGO_WS`.
 
-```bash
-# Check Centrifugo health
-docker compose exec centrifugo wget -qO- http://localhost:8900/health
-```
+1. **Ensure your reverse proxy** forwards WebSocket upgrades on `/connection/websocket` to the Centrifugo container (see the Nginx/Caddy examples above).
+
+2. **Set `PUBLIC_CENTRIFUGO_WS`** in your `.env` for the frontend:
+   ```bash
+   PUBLIC_CENTRIFUGO_WS=wss://factura.yourdomain.com/connection/websocket
+   ```
+
+3. **Check Centrifugo** is running:
+   ```bash
+   docker compose logs centrifugo
+   ```
 
 ### View application logs
 
