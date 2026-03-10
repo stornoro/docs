@@ -48,62 +48,6 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
-
-            DEPLOY_DIR=/storage/www/storno
-            DOCKER_NETWORK="storno_storno"
-
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            cd "$DEPLOY_DIR"
-            export COMPOSE_PROFILES=saas
-            docker compose pull docs
-
-            # ── Zero-downtime deploy ─────────────────────────────
-            BACKUP_NAME="storno-docs-green"
-            CURRENT_ID=$(docker compose ps -q docs 2>/dev/null || true)
-
-            if [ -z "$CURRENT_ID" ]; then
-              docker compose up -d --no-deps docs
-              sleep 5
-            else
-              ENV_FILE="/tmp/storno-docs-env"
-              docker inspect "$CURRENT_ID" --format '{{range .Config.Env}}{{println .}}{{end}}' > "$ENV_FILE"
-              NEW_IMAGE=$(docker compose config --images 2>/dev/null | grep -i docs | head -1)
-
-              docker stop "$BACKUP_NAME" 2>/dev/null || true
-              docker rm "$BACKUP_NAME" 2>/dev/null || true
-
-              if docker run -d \
-                --name "$BACKUP_NAME" \
-                --network "$DOCKER_NETWORK" \
-                --env-file "$ENV_FILE" \
-                -p "127.0.0.1:8913:3000" \
-                --restart no \
-                "$NEW_IMAGE"; then
-
-                # Wait for backup health
-                for i in $(seq 1 60); do
-                  curl -sf http://127.0.0.1:8913/ >/dev/null 2>&1 && break
-                  sleep 1
-                done
-
-                docker compose stop docs
-                docker compose up -d --no-deps docs
-
-                # Wait for main health
-                for i in $(seq 1 60); do
-                  curl -sf http://127.0.0.1:8903/ >/dev/null 2>&1 && break
-                  sleep 1
-                done
-
-                docker stop "$BACKUP_NAME" 2>/dev/null || true
-                docker rm "$BACKUP_NAME" 2>/dev/null || true
-              else
-                docker compose up -d --no-deps --force-recreate docs
-              fi
-
-              rm -f "$ENV_FILE"
-            fi
-
-            docker image prune -f
-            echo "[DEPLOY] Docs deployed successfully!"
+            cd /storage/www/storno
+            ./deploy/deploy.sh docs
