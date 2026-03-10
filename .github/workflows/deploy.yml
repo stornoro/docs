@@ -52,7 +52,7 @@ jobs:
             DEPLOY_DIR=/storage/www/storno
             DOCKER_NETWORK="storno_storno"
 
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             cd "$DEPLOY_DIR"
             export COMPOSE_PROFILES=saas
