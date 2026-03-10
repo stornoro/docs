@@ -9,6 +9,10 @@ endpoint: /api/v1/invoices
 
 Creates a new credit note that reverses or partially reverses an original invoice. Credit notes are created using the same endpoint as invoices but with `isCreditNote: true` and a reference to the parent invoice.
 
+{% callout type="info" %}
+Credit notes are not the only way to issue refunds. You can also create a regular invoice with negative quantities — no `parentDocumentId` or `isCreditNote` flag needed. See the [Refund an invoice](/api-reference/invoices/refund) guide for a comparison of both approaches.
+{% /callout %}
+
 ## Headers
 
 | Name | Type | Required | Description |
