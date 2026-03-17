@@ -17,6 +17,8 @@ Frontend → POST https://agent.storno.ro:17394/proxy → local agent uses curl 
 Frontend → POST /agent-result → backend processes ANAF response
 ```
 
+Only `cerere` (submission) and `listaMesaje` (status listing) require mTLS via the agent. `descarcare` (recipisa download) only needs a Bearer token and is handled server-side automatically.
+
 ## Local Agent
 
 The Storno ANAF Agent runs locally on `https://agent.storno.ro:17394` and provides these endpoints:
@@ -75,8 +77,7 @@ Prepares a declaration for agent-based submission. Returns the XML content, ANAF
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `operation` | string | No | `submit` (default), `listMessages`, or `download` |
-| `downloadId` | string | No | ANAF download ID (required for `operation=download`) |
+| `operation` | string | No | `submit` (default) or `listMessages` |
 
 ### Request
 
