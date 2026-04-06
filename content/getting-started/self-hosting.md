@@ -247,6 +247,12 @@ CENTRIFUGO_ALLOWED_ORIGINS=https://app.storno.ro
 To upgrade to the latest version:
 
 ```bash
+make update
+```
+
+Or manually:
+
+```bash
 docker compose pull
 docker compose up -d
 docker compose exec backend php bin/console doctrine:migrations:migrate --no-interaction
