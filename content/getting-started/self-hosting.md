@@ -145,17 +145,19 @@ Your license key connects your self-hosted instance to your Storno.ro subscripti
 
 ### License Sync Command
 
-The license is validated automatically, but you can also run it manually:
+The license is validated automatically every 6 hours, but you can also run it manually:
 
 ```bash
 docker compose exec backend php bin/console app:license:sync
 ```
 
-For automated validation, add a cron job (recommended every 6 hours):
-
+{% callout type="warning" %}
+**After changing `LICENSE_KEY` in your `.env`**, you must restart the backend and run the sync command for the new key to take effect:
 ```bash
-0 */6 * * * cd /path/to/storno && docker compose exec -T backend php bin/console app:license:sync
+docker compose restart backend
+docker compose exec -T backend php bin/console app:license:sync
 ```
+{% /callout %}
 
 ---
 
@@ -165,13 +167,12 @@ For production, place a reverse proxy (Nginx, Caddy, Traefik) in front of the se
 
 ### Nginx Example
 
+**Step 1:** Create an HTTP-only config at `/etc/nginx/sites-available/storno.conf`:
+
 ```nginx
 server {
-    listen 443 ssl http2;
-    server_name factura.yourdomain.com;
-
-    ssl_certificate /etc/letsencrypt/live/factura.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/factura.yourdomain.com/privkey.pem;
+    listen 80;
+    server_name app.storno.ro;
 
     # Frontend
     location / {
@@ -197,7 +198,7 @@ server {
 
     # WebSocket
     location /connection/websocket {
-        proxy_pass http://127.0.0.1:8444;
+        proxy_pass http://127.0.0.1:8445;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -206,31 +207,38 @@ server {
 }
 ```
 
-Update your `.env` to match:
+Enable the site:
 
 ```bash
-FRONTEND_URL=https://factura.yourdomain.com
-PUBLIC_API_BASE=https://factura.yourdomain.com/api
-CORS_ALLOW_ORIGIN=^https://factura\.yourdomain\.com$
+ln -s /etc/nginx/sites-available/storno.conf /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
 ```
 
-### Caddy Example
+**Step 2:** Install SSL with Certbot (Let's Encrypt). Certbot will automatically modify the nginx config to add HTTPS (port 443) and redirect HTTP to HTTPS:
 
-```caddyfile
-factura.yourdomain.com {
-    handle /api/* {
-        reverse_proxy localhost:8900
-    }
+```bash
+# Install certbot (Ubuntu/Debian)
+apt install certbot python3-certbot-nginx
 
-    handle /connection/websocket {
-        reverse_proxy localhost:8445
-    }
+# Obtain certificate and auto-configure nginx for SSL
+certbot --nginx -d app.storno.ro
 
-    handle {
-        reverse_proxy localhost:8901
-    }
-}
+# Verify auto-renewal
+certbot renew --dry-run
 ```
+
+**Step 3:** Update your `.env` to match:
+
+```bash
+FRONTEND_URL=https://app.storno.ro
+PUBLIC_API_BASE=https://app.storno.ro/api
+CORS_ALLOW_ORIGIN=^https://app\.storno\.ro$
+CENTRIFUGO_ALLOWED_ORIGINS=https://app.storno.ro
+```
+
+{% callout type="note" %}
+`PUBLIC_API_BASE` is your `FRONTEND_URL` + `/api` — it is NOT a separate subdomain. The nginx config above proxies `/api` requests to the backend container.
+{% /callout %}
 
 ---
 

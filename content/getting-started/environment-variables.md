@@ -17,6 +17,8 @@ Complete reference for configuring a Storno.ro deployment. All variables are set
 | `APP_ENV` | No | `dev` | Environment: `dev`, `prod`, or `test` |
 | `DATABASE_URL` | Yes | — | MySQL connection string, e.g. `mysql://user:pass@127.0.0.1:3306/storno` |
 | `FRONTEND_URL` | Yes | — | Frontend URL for CORS origins and email links, e.g. `https://app.storno.ro` |
+| `PUBLIC_API_BASE` | Yes | — | How the browser reaches the API. For single-domain setups this is `FRONTEND_URL` + `/api` (e.g. `https://app.storno.ro/api`), NOT a separate subdomain. |
+| `CORS_ALLOW_ORIGIN` | No | localhost | CORS allowed origins regex. Must match your `FRONTEND_URL`. Example: `^https://app\.storno\.ro$` |
 
 ## Authentication
 
@@ -26,15 +28,16 @@ Complete reference for configuring a Storno.ro deployment. All variables are set
 | `REGISTRATION_ENABLED` | No | `1` | Set to `0` to disable public registration |
 | `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID for Google Sign-In. In Docker Compose, this single value is mapped to `OAUTH_GOOGLE_CLIENT_ID` (backend) and `NUXT_PUBLIC_GOOGLE_CLIENT_ID` (frontend) automatically. |
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret. Mapped to `OAUTH_GOOGLE_CLIENT_SECRET` (backend) in Docker Compose. |
-| `TURNSTILE_SECRET_KEY` | No | — | Cloudflare Turnstile secret key for bot protection on login/register |
+| `TURNSTILE_SECRET_KEY` | No | — | Cloudflare Turnstile secret key for bot protection on login/register. If empty, captcha validation is skipped. |
+| `TURNSTILE_SITE_KEY` | No | — | Cloudflare Turnstile site key. If empty, a test key is used (always passes). Get keys from [Cloudflare dashboard](https://dash.cloudflare.com/?to=/:account/turnstile). |
 
 ## ANAF / e-Factura
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OAUTH_ANAF_CLIENT_ID` | No | — | ANAF OAuth client ID for e-Factura API access |
+| `OAUTH_ANAF_CLIENT_ID` | No | — | ANAF OAuth client ID for e-Factura API access. Register at [ANAF API portal](https://www.anaf.ro/anaf/internet/ANAF/servicii_online/inreg_api). |
 | `OAUTH_ANAF_CLIENT_SECRET` | No | — | ANAF OAuth client secret |
-| `OAUTH_ANAF_CLIENT_REDIRECT_URI` | No | — | OAuth callback URL registered with ANAF |
+| `OAUTH_ANAF_CLIENT_REDIRECT_URI` | No | — | OAuth callback URL registered with ANAF. Must be `https://<your-domain>/auth/callback/anaf/` (e.g. `https://app.storno.ro/auth/callback/anaf/`). |
 | `REDIRECT_AFTER_OAUTH` | No | — | Frontend URL to redirect to after ANAF OAuth flow |
 
 ## Email
