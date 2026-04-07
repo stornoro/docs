@@ -121,6 +121,11 @@ Open `http://localhost:8901` in your browser (or your configured domain) and log
 | `MAIL_FROM` | `noreply@storno.ro` | Sender email address |
 | `GOOGLE_CLIENT_ID` | — | Google OAuth client ID (optional). Mapped to both backend and frontend containers. |
 | `GOOGLE_CLIENT_SECRET` | — | Google OAuth client secret (optional). Mapped to the backend container. |
+| `STORAGE_DRIVER` | `aws.storage` | File storage backend: `local.storage` or `aws.storage` |
+| `AWS_S3_BUCKET` | — | S3 bucket name (only if `STORAGE_DRIVER=aws.storage`) |
+| `AWS_DEFAULT_REGION` | `us-east-1` | AWS region (only if `STORAGE_DRIVER=aws.storage`) |
+| `AWS_ACCESS_KEY_ID` | — | AWS access key (only if `STORAGE_DRIVER=aws.storage`) |
+| `AWS_SECRET_ACCESS_KEY` | — | AWS secret key (only if `STORAGE_DRIVER=aws.storage`) |
 | `LICENSE_SERVER_URL` | `https://app.storno.ro` | License validation server (do not change) |
 
 ---
