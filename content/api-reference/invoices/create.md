@@ -59,7 +59,7 @@ POST /api/v1/invoices
 | `collect` | object | No | Create immediate payment on the invoice (see below) |
 | `autoApplyVatRules` | boolean | No | Auto-apply EU VAT rules: reverse charge (0% VAT) for VIES-valid EU clients, OSS destination country VAT rate for non-VIES EU clients (default: false) |
 | `vatIncluded` | boolean | No | When used with `autoApplyVatRules`, sets whether unit prices include VAT on all lines. This ensures correct totals after VAT rules change rates (e.g., reverse charge sets VAT to 0%). Without this, use per-line `vatIncluded` instead. |
-| `idempotencyKey` | string | No | Idempotency key to prevent duplicate creation |
+| `idempotencyKey` | string | No | Stable key that lets you safely retry a failed request — see [Idempotency](#idempotency) |
 | `ublExtensions` | object | No | UBL extension fields for advanced e-Factura compliance (see below) |
 | `lines` | array | Yes | Array of invoice line items |
 
@@ -139,6 +139,46 @@ Each line item can include a `ublExtensions` object:
 | `additionalItemProperties` | array | Item properties (max 20). Each: `name` (max 50 chars), `value` (max 100 chars) |
 | `originCountry` | string | Item origin country (ISO 3166-1 alpha-2, e.g., "DE") |
 
+### Idempotency
+
+Network failures, timeouts, and 5xx errors can leave a client unsure whether the invoice was actually created. Naive retry logic produces duplicate drafts. Storno offers two protections:
+
+#### 1. Explicit idempotency key (recommended)
+
+Include `idempotencyKey` in the request body. The same key sent in a future request returns the original invoice instead of creating a new one.
+
+**The key must be:**
+- **Stable per logical operation.** Same Stripe payment intent, same shopping-cart checkout, same external order ID → same key, every retry.
+- **Unique within your namespace.** Prefix with your service name to avoid collisions: `stripe:pi_3TNpEhHy...`, `paddle:txn_01H...`, `myapp:order_42`.
+- **Up to 255 characters.** Use the underlying transaction ID and you'll be safe.
+
+```json
+{
+  "clientId": "...",
+  "currency": "USD",
+  "lines": [...],
+  "idempotencyKey": "stripe:pi_3TNpEhHyDIBD6PSZ1ZnXYN4I"
+}
+```
+
+| Outcome | Status | Behaviour |
+|---|---|---|
+| First call | `201 Created` | Invoice created, key recorded |
+| Retry with same key | `201 Created` | The original invoice is returned (same body, same `id`, same `createdAt`); no new row is inserted. Detect a retry on your side by storing/comparing the returned `id` |
+| Retry with different key | `201 Created` | A new invoice is created — keys must match across retries |
+
+The `idempotency_key` column has a unique index — you cannot accidentally have two invoices with the same key.
+
+#### 2. Fuzzy fallback (when no key is provided)
+
+If your client doesn't send an `idempotencyKey` and a draft for the same `(company, client, currency, total)` was created in the **last hour**, that existing draft is returned instead of creating a new one. This catches retry storms from clients that don't yet support idempotency keys.
+
+The fuzzy fallback only matches DRAFT invoices and only within a 60-minute window. It will not interfere with legitimate "create two similar drafts back-to-back" workflows once an hour has passed, and it never affects already-issued invoices.
+
+#### Best practice
+
+Always send an `idempotencyKey` — it's the safest, most explicit, and survives the 60-minute fuzzy window. Use the underlying business identifier (Stripe payment intent ID, your order ID) prefixed with your service name.
+
 ### Common invoice type codes
 
 - `380` - Commercial invoice (default)
@@ -164,6 +204,7 @@ curl -X POST https://api.storno.ro/api/v1/invoices \
     "currency": "RON",
     "notes": "Payment terms: 30 days net",
     "paymentTerms": "Net 30",
+    "idempotencyKey": "myapp:order_42",
     "lines": [
       {
         "description": "Web Development Services",
@@ -193,6 +234,8 @@ const response = await fetch('https://api.storno.ro/api/v1/invoices', {
     currency: 'RON',
     notes: 'Payment terms: 30 days net',
     paymentTerms: 'Net 30',
+    // Same key on every retry of this logical operation — see Idempotency section
+    idempotencyKey: 'myapp:order_42',
     lines: [
       {
         description: 'Web Development Services',
