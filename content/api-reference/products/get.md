@@ -44,6 +44,8 @@ Returns a detailed product object.
 | `vatRate` | number | Default VAT percentage |
 | `unitOfMeasure` | string | Default unit of measure |
 | `color` | string \| null | Optional hex colour swatch (e.g. `"#1e40af"`) shown on the POS product grid. When null, mobile clients fall back to a deterministic palette derived from the product UUID. |
+| `category` | object \| null | Optional [product category](/api-reference/product-categories/list) — `{ id, name, color, sortOrder }`. Used as fallback swatch and grid grouping on the POS. |
+| `sgrAmount` | string \| null | Romanian SGR (Sistem Garantie-Returnare) deposit per unit, e.g. `"0.50"` for plastic beverage bottles. Null when the product is not SGR-eligible. The deposit is VAT-exempt and appears as a separate auto-managed line on POS receipts. |
 | `isActive` | boolean | Whether product is active |
 | `usageStats` | object | Product usage statistics |
 | `createdAt` | string | ISO 8601 creation timestamp |
