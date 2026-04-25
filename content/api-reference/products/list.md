@@ -56,6 +56,7 @@ Returns a paginated list of product objects.
 | `vatRateId` | string | Default VAT rate UUID |
 | `vatRate` | number | Default VAT percentage |
 | `unitOfMeasure` | string | Default unit of measure |
+| `color` | string \| null | Optional hex colour swatch (e.g. `"#1e40af"`) shown on the POS product grid. |
 | `isActive` | boolean | Whether product is active |
 | `usageCount` | integer | Number of times used in invoices |
 | `createdAt` | string | ISO 8601 creation timestamp |

@@ -43,6 +43,7 @@ Returns a detailed product object.
 | `vatRateId` | string | Default VAT rate UUID |
 | `vatRate` | number | Default VAT percentage |
 | `unitOfMeasure` | string | Default unit of measure |
+| `color` | string \| null | Optional hex colour swatch (e.g. `"#1e40af"`) shown on the POS product grid. When null, mobile clients fall back to a deterministic palette derived from the product UUID. |
 | `isActive` | boolean | Whether product is active |
 | `usageStats` | object | Product usage statistics |
 | `createdAt` | string | ISO 8601 creation timestamp |

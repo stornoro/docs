@@ -33,10 +33,13 @@ All parameters are optional, but at least one must be provided.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `iban` | string | International Bank Account Number |
+| `type` | string | `bank` or `cash`. Switching type after creation is allowed but should be avoided once movements exist. |
+| `iban` | string \| null | International Bank Account Number. Nullable for `cash` accounts. |
 | `bankName` | string \| null | Name of the bank |
 | `currency` | string | Currency code (ISO 4217) |
 | `isDefault` | boolean | Set as default account for this currency |
+| `openingBalance` | number | Initial cash-on-hand. Once a value > 0 has been persisted it locks — further changes are rejected; correct via cash movements instead. |
+| `openingBalanceDate` | string | Date the opening balance was taken (YYYY-MM-DD). Required when `openingBalance` is being set for the first time. |
 
 ## Response
 

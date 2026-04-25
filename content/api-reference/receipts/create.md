@@ -16,6 +16,7 @@ Creates a new fiscal receipt (bon fiscal) in draft status. Receipts document poi
 | `Authorization` | string | Yes | Bearer token for authentication |
 | `X-Company` | string | Yes | Company UUID to scope the request |
 | `Content-Type` | string | Yes | Must be `application/json` |
+| `Idempotency-Key` | string | No | Client-generated unique key. Repeat submissions with the same key return the originally created receipt instead of creating a duplicate. Equivalent to passing `idempotencyKey` in the body. |
 
 ## Request Body
 
@@ -35,6 +36,7 @@ Creates a new fiscal receipt (bon fiscal) in draft status. Receipts document poi
 | `clientId` | string | No | UUID of a linked Client object |
 | `notes` | string | No | Public notes on the receipt |
 | `internalNote` | string | No | Internal note (not printed on receipt) |
+| `idempotencyKey` | string | No | Client-generated unique key for retry-safe submissions. Same effect as the `Idempotency-Key` header; the header takes precedence if both are sent. Up to 255 chars. |
 | `lines` | array | Yes | Array of line items (minimum 1 item) |
 
 ### Line Item Object
@@ -326,6 +328,21 @@ const data = await response.json();
   customerCif: 'RO12345678'
   // linked to existing Client — enables clean invoice conversion
 }
+```
+
+## Idempotency
+
+Send a unique `Idempotency-Key` header (or `idempotencyKey` body field) when retrying receipt creation in scenarios where the original response was lost — for example, a network timeout mid-request or a queued offline POS sale. The backend records the key on the receipt; subsequent submissions with the same key return the originally-created receipt instead of inserting a duplicate.
+
+The key is a free-form string up to 255 characters; UUIDs are recommended. Keys are unique across the entire `receipt` table, so use a high-entropy generator.
+
+```bash {% title="Idempotent retry" %}
+curl -X POST https://api.storno.ro/api/v1/receipts \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "X-Company: company-uuid-here" \
+  -H "Idempotency-Key: pos-1761417321-7k3xq2v9" \
+  -H "Content-Type: application/json" \
+  -d '{ ... receipt body ... }'
 ```
 
 ## Next Steps

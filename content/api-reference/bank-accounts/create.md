@@ -25,10 +25,13 @@ POST /api/v1/bank-accounts
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `iban` | string | Yes | International Bank Account Number (must be valid IBAN format) |
-| `bankName` | string | No | Name of the bank |
+| `type` | string | No | Account type: `bank` (default) or `cash`. A company can have at most one `cash` account; it represents the physical till that backs the POS / cash-register reports. |
+| `iban` | string | Conditional | International Bank Account Number. Required for `bank` accounts; ignored / nullable for `cash` accounts. |
+| `bankName` | string | No | Name of the bank (typically only set for `bank` accounts). |
 | `currency` | string | No | Currency code (ISO 4217, default: "RON") |
 | `isDefault` | boolean | No | Set as default account for this currency (default: false) |
+| `openingBalance` | number | No | Starting balance recorded for the account. Required to enable cash-register reporting on `cash` accounts; once set, locks and can only be modified via forward-going cash movements. Must be ≥ 0. |
+| `openingBalanceDate` | string | No | Date the opening balance was taken (YYYY-MM-DD). Required when `openingBalance` is provided. |
 
 ## Response
 
@@ -46,6 +49,21 @@ curl -X POST 'https://api.storno.ro/api/v1/bank-accounts' \
     "bankName": "ING Bank",
     "currency": "RON",
     "isDefault": false
+  }'
+```
+
+### Cash account example
+
+```bash
+curl -X POST 'https://api.storno.ro/api/v1/bank-accounts' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'X-Company: company-uuid' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "type": "cash",
+    "currency": "RON",
+    "openingBalance": 250.00,
+    "openingBalanceDate": "2026-04-25"
   }'
 ```
 
