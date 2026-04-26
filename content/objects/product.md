@@ -20,6 +20,9 @@ The Product object represents goods or services that can be added to invoices, p
 | vatRate | decimal | ✓ | ✓ | VAT rate percentage (e.g., 19.00, 9.00, 5.00) |
 | isService | boolean | ✓ | ✓ | True if service, false if physical product |
 | isActive | boolean | ✓ | ✓ | Whether the product is active and available |
+| color | string \| null | ✓ | ✓ | Optional hex colour swatch (e.g. `"#1e40af"`) shown on the POS product grid. When null, mobile clients fall back to a deterministic palette derived from the product UUID. |
+| category | object \| null | ✓ | ✓ | Optional [ProductCategory](/objects/product-category) reference — `{ id, name, color, sortOrder }`. Used as fallback swatch and grid grouping on the POS. |
+| sgrAmount | string \| null | ✓ | ✓ | Romanian SGR (Sistem Garantie-Returnare) deposit per unit, e.g. `"0.50"` for plastic beverage bottles. Null when the product is not SGR-eligible. The deposit is VAT-exempt and appears as a separate auto-managed line on POS receipts. |
 | description | text | ✗ | ✓ | Detailed description |
 | vatCategoryCode | string | ✗ | ✓ | VAT category code for ANAF (e.g., "S", "Z", "E") |
 | source | string | ✗ | ✓ | Source: manual, anaf, import |
@@ -110,3 +113,11 @@ The Product object represents goods or services that can be added to invoices, p
 - **source**: `manual` (user-created), `anaf` (synced from e-Factura), `import` (bulk import)
 - Products synced from ANAF have `lastSyncedAt` timestamp
 - Soft-deleted products have `deletedAt` set but remain in database
+
+## POS fields
+
+`color`, `category`, and `sgrAmount` are POS-specific and have no effect on regular invoice flows.
+
+- **color**: 6-digit hex swatch (with `#` prefix). Drives the tile colour on the mobile POS product grid.
+- **category**: Optional FK to [ProductCategory](/objects/product-category). Drives the category quick-filter chips above the POS grid; when `color` is null, the category colour is used as the swatch fallback.
+- **sgrAmount**: Romanian SGR deposit (Sistem Garantie-Returnare). Decimal stored as string (e.g. `"0.50"`). When non-null, the POS auto-appends a separate VAT-exempt line for the deposit on each sale. Cancelling or refunding the parent line cancels/refunds the deposit line in lockstep.

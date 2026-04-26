@@ -13,7 +13,7 @@ The Receipt object represents a fiscal receipt (bon fiscal) issued from a cash r
 |-----------|------|---------|-----------|-------------|
 | id | UUID | ✓ | ✓ | Unique identifier |
 | number | string | ✓ | ✓ | Receipt number (e.g., "BON-2024-001") |
-| status | ReceiptStatus | ✓ | ✓ | Status: draft, issued, invoiced, cancelled |
+| status | ReceiptStatus | ✓ | ✓ | Status: draft, issued, invoiced, cancelled, refunded, partially_refunded |
 | currency | string | ✓ | ✓ | 3-letter currency code (e.g., "RON", "EUR") |
 | issueDate | date | ✓ | ✓ | Date the receipt was issued (YYYY-MM-DD) |
 | subtotal | decimal | ✓ | ✓ | Subtotal before VAT |
@@ -34,6 +34,9 @@ The Receipt object represents a fiscal receipt (bon fiscal) issued from a cash r
 | notes | text | ✗ | ✓ | Notes about the receipt |
 | internalNote | text | ✗ | ✓ | Internal notes (not visible to customer) |
 | convertedInvoice | object | ✗ | ✓ | Reference to converted invoice (if status is invoiced) |
+| refundOf | object \| null | ✓ | ✓ | If this receipt is a refund, slim `{id, number}` reference to the parent receipt being refunded. Null on regular receipts. |
+| refundedBy | array | ✗ | ✓ | Array of slim `{id, number}` references to active refund receipts issued against this receipt. Cancelled refunds are excluded. Empty array when nothing has been refunded. |
+| idempotencyKey | string \| null | ✗ | ✓ | Unique idempotency key (max 255 chars). Set via the `Idempotency-Key` HTTP header (preferred) or the `idempotencyKey` body field on `POST /receipts`. Repeat submissions with the same key return the originally-created receipt instead of duplicating. |
 | issuedAt | datetime | ✗ | ✓ | Timestamp when issued |
 | cancelledAt | datetime | ✗ | ✓ | Timestamp when cancelled |
 | lines | array | ✗ | ✓ | Array of ReceiptLine objects |
@@ -146,6 +149,21 @@ The Receipt object represents a fiscal receipt (bon fiscal) issued from a cash r
 2. **Issued**: Receipt is printed and handed to the customer
 3. **Invoiced**: Customer requested a formal invoice; receipt was converted to an invoice
 4. **Cancelled**: Receipt was voided (requires a cancellation receipt to be issued on the cash register)
+5. **Partially refunded**: One or more refund receipts have been issued against this receipt, but at least one line still has remaining unrefunded quantity
+6. **Refunded**: All line quantities have been refunded; no further refunds can be issued
+
+## Refunds
+
+A refund receipt is a counter-receipt that mirrors the parent's lines as negative quantities and inverts the payment amounts. Issue one with `POST /receipts/{uuid}/refund`. The body accepts an optional `lineSelections` array of `{ position, quantity }` for partial refunds; omit it to refund the whole receipt.
+
+- Multiple partial refunds against the same parent are allowed until each line's quantity pool is exhausted.
+- Cancelling a refund (via `POST /receipts/{uuid}/cancel`) releases its quantities back to the pool.
+- The refund inherits `internalNote`, `cashRegisterName`, `fiscalNumber`, and customer fiscal data from the parent.
+- Refund PDFs render with a `BON DE RAMBURSARE` header (translated to `REFUND RECEIPT` / etc. per locale) instead of `BON FISCAL`.
+
+## Idempotency
+
+To make POS retries safe across flaky networks, send an `Idempotency-Key` header on `POST /receipts`. The first request with a given key creates the receipt; subsequent requests with the same key return the original receipt without creating a duplicate. The same key may also be supplied as a body field `idempotencyKey`, but the HTTP header takes precedence when both are present.
 
 ## Payment Method Breakdown
 
