@@ -11,7 +11,8 @@ Available on the [Stripe App Marketplace](https://marketplace.stripe.com/).
 
 ## Features
 
-- **Automatic e-invoice creation** from Stripe invoices and payments
+- **Automatic e-invoice creation** from Stripe invoices, payments, and subscriptions
+- **Credit note creation** from Stripe refunds
 - **Customer matching** — links Stripe customers to Storno.ro clients by CIF, email, or name
 - **Provider submission** — submit invoices to the e-invoice provider directly from the Stripe dashboard
 - **Status tracking** — monitor invoice lifecycle (draft, issued, sent to provider, validated, rejected)
@@ -46,6 +47,42 @@ When viewing a Stripe payment, the app shows:
 - **Create e-invoice** button if no invoice exists yet
 - **Retry at provider** button for rejected invoices
 - Provider error details for failed submissions
+
+### Stripe Invoice Detail
+
+When viewing a Stripe invoice, the app shows:
+
+- Invoice amount and status
+- Linked Storno.ro e-invoice with full status pipeline visualization (Draft → Issued → Sent to provider → Validated)
+- **Create e-invoice** button if no linked Storno.ro invoice exists yet
+- **Retry at provider** button for rejected invoices
+
+### Refund Detail
+
+When viewing a Stripe refund, the app shows:
+
+- Refund amount, currency, status, and reason
+- Linked Storno.ro credit note (factura de storno) with status
+- **Create credit note** button if no linked credit note exists yet
+- If the original payment has no parent e-invoice in Storno.ro, the app explains why the credit note cannot be created
+
+### Subscription Detail
+
+When viewing a Stripe subscription, the app shows:
+
+- Subscription plan, amount, interval, and status
+- A list of all billing cycles (Stripe invoices), each showing the period, amount, Stripe invoice status, and linked Storno.ro invoice status
+- **Create e-invoice** button per cycle for cycles that have not yet been invoiced
+
+## Settings
+
+The settings panel shows:
+
+- Connection status badge (connected / disconnected)
+- Connected company name and CIF
+- User who authorized the connection and when
+- Auto mode toggle
+- Disconnect button with confirmation step
 
 ## Setup
 
@@ -89,15 +126,24 @@ When a match is found, the app displays the full client details and invoice hist
    - Creates a draft invoice with the line items from Stripe
    - Issues the invoice (generates XML and PDF)
    - Submits to the e-invoice provider
-3. If auto mode is off, you can trigger this manually from the payment detail view
+3. If auto mode is off, you can trigger this manually from the payment detail view, the Stripe invoice detail view, or per billing cycle in the subscription detail view
+
+### Credit Note Flow
+
+When a Stripe refund exists for a payment that has a linked Storno.ro invoice, the app can create a credit note (factura de storno):
+
+1. Open the refund in your Stripe dashboard
+2. The app checks whether a linked credit note already exists in Storno.ro
+3. If not, click **Create credit note** — the app resolves the refund → charge → Stripe invoice → parent Storno.ro invoice chain and creates a credit note
+4. The credit note is then submitted to the e-invoice provider following the same status pipeline as regular invoices
 
 ### Status Pipeline
 
-Invoices progress through these statuses:
+Invoices and credit notes progress through these statuses:
 
 ```
 Draft → Issued → Sent to provider → Validated
-                                → Rejected (retry available)
+                                 → Rejected (retry available)
 ```
 
 The app shows the current status with color-coded badges and provides retry functionality for rejected invoices.
@@ -121,11 +167,13 @@ The app requires these Stripe permissions:
 | Permission | Purpose |
 |------------|---------|
 | `customer_read` | Match Stripe customers with Storno.ro clients |
-| `charge_read` | View charges for invoice linking |
+| `charge_read` | View charges for invoice linking and credit note creation |
 | `payment_intent_read` | Display payment statuses |
 | `invoice_read` | Create e-invoices from Stripe invoices |
+| `subscription_read` | View subscription billing cycles |
+| `refund_read` | View refunds for credit note creation |
 | `secret_write` | Securely store authentication tokens |
 
 ## Disconnecting
 
-To disconnect your Storno.ro account, go to the app settings and click **Disconnect**. This revokes the authentication tokens and clears all stored credentials from Stripe's secret store.
+To disconnect your Storno.ro account, go to the app settings and click **Disconnect**. You will be asked to confirm before the action is taken. This revokes the authentication tokens and clears all stored credentials from Stripe's secret store.
