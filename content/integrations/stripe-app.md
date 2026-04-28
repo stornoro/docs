@@ -63,7 +63,7 @@ Install the Storno.ro app from the Stripe App Marketplace.
 
 ### 3. Select a company
 
-After connecting, choose which Storno.ro company to use for invoice creation. The dropdown shows all your companies with their CIF numbers.
+During the consent step you choose which Storno.ro company to authorize. The dropdown shows every company accessible to you under the active organization. The authorization is scoped to that single company — to switch to a different company, disconnect and reconnect from the Stripe extension settings.
 
 ### 4. Enable auto mode (optional)
 
@@ -108,7 +108,7 @@ The app uses the OAuth 2.0 Device Authorization Grant ([RFC 8628](https://datatr
 
 1. The app calls `POST /api/v1/stripe-app/oauth/device` to receive a `device_code` (long, opaque, polled by the app) and a `user_code` (short, displayed only as a fallback)
 2. The app opens `https://app.storno.ro/stripe-link?code={user_code}` in a new tab
-3. The user signs in to Storno.ro and approves the request via `POST /api/v1/stripe-app/oauth/approve`
+3. The user signs in to Storno.ro, selects which company to authorize, and approves the request via `POST /api/v1/stripe-app/oauth/approve` (body: `user_code`, `company_id`, `approve: true`). The server verifies that the user has access to the requested company before recording the grant.
 4. The app polls `POST /api/v1/stripe-app/token` with `grant_type=device_code` until it receives access and refresh tokens
 5. Tokens are stored in Stripe's encrypted secret store (scoped per user)
 6. Tokens auto-refresh on expiration
