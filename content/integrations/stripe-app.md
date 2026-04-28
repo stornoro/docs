@@ -56,9 +56,10 @@ Install the Storno.ro app from the Stripe App Marketplace.
 ### 2. Connect your account
 
 1. Open the app settings in your Stripe dashboard
-2. Click the link to open Storno.ro and get a 6-character linking code
-3. Enter the code in the app
-4. The app exchanges the code for authentication tokens stored securely in Stripe's secret store
+2. Click **Connect Storno.ro** — the app initiates an OAuth 2.0 device authorization flow and opens a Storno.ro consent page in a new tab
+3. Sign in to Storno.ro if needed and click **Authorize**
+4. The app polls Storno.ro and finishes the connection automatically — no codes to type by hand
+5. Authentication tokens are stored securely in Stripe's per-user secret store
 
 ### 3. Select a company
 
@@ -103,14 +104,15 @@ The app shows the current status with color-coded badges and provides retry func
 
 ## Authentication
 
-The app uses a secure linking code flow:
+The app uses the OAuth 2.0 Device Authorization Grant ([RFC 8628](https://datatracker.ietf.org/doc/html/rfc8628)):
 
-1. The app generates a temporary 6-character code through Storno.ro
-2. You enter the code in the Stripe app settings
-3. The code is exchanged for JWT tokens
-4. Tokens are stored in Stripe's encrypted secret store (scoped per user)
-5. Tokens auto-refresh on expiration
-6. On 401 responses, the app automatically clears tokens and prompts re-authentication
+1. The app calls `POST /api/v1/stripe-app/oauth/device` to receive a `device_code` (long, opaque, polled by the app) and a `user_code` (short, displayed only as a fallback)
+2. The app opens `https://app.storno.ro/stripe-link?code={user_code}` in a new tab
+3. The user signs in to Storno.ro and approves the request via `POST /api/v1/stripe-app/oauth/approve`
+4. The app polls `POST /api/v1/stripe-app/token` with `grant_type=device_code` until it receives access and refresh tokens
+5. Tokens are stored in Stripe's encrypted secret store (scoped per user)
+6. Tokens auto-refresh on expiration
+7. On 401 responses, the app automatically clears tokens and prompts re-authentication
 
 ### Stripe Permissions
 
