@@ -64,6 +64,7 @@ Returns flat JSON with user profile, organization, memberships, and subscription
   "lastName": "Doe",
   "phone": "+40721234567",
   "timezone": "Europe/Bucharest",
+  "respectQuietHours": true,
   "emailConfirmed": true,
   "createdAt": "2026-01-15T10:30:00Z",
   "updatedAt": "2026-02-16T09:15:00Z",
@@ -113,6 +114,7 @@ Returns flat JSON with user profile, organization, memberships, and subscription
 | `lastName` | string | User's last name |
 | `phone` | string | User's phone number |
 | `timezone` | string | User's timezone (IANA format) |
+| `respectQuietHours` | boolean | When true, push notifications are skipped between 22:00 and 08:00 in the user's timezone |
 | `emailConfirmed` | boolean | Whether email has been confirmed |
 | `createdAt` | string | Account creation timestamp (ISO 8601) |
 | `updatedAt` | string | Last profile update timestamp (ISO 8601) |
@@ -139,6 +141,7 @@ Update the authenticated user's profile information.
 | `lastName` | string | No | User's last name |
 | `phone` | string | No | Phone number (E.164 format recommended) |
 | `timezone` | string | No | Timezone (IANA format, e.g., "Europe/Bucharest") |
+| `respectQuietHours` | boolean | No | Mute push notifications during quiet hours (22:00–08:00 user-local) |
 | `preferences` | object | No | User preferences object |
 | `password` | string | No | New password (requires `currentPassword`) |
 | `currentPassword` | string | No | Current password (required when changing password) |
@@ -252,6 +255,7 @@ Returns the updated user profile in the same format as `GET /api/v1/me`.
   "lastName": "Smith",
   "phone": "+40721234567",
   "timezone": "Europe/Bucharest",
+  "respectQuietHours": true,
   "emailConfirmed": true,
   "createdAt": "2026-01-15T10:30:00Z",
   "updatedAt": "2026-02-16T10:45:00Z",

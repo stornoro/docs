@@ -47,7 +47,13 @@ Retrieve user notifications with pagination support.
         "amount": 11900.00
       },
       "isRead": false,
-      "createdAt": "2026-02-16T10:30:00Z"
+      "createdAt": "2026-02-16T10:30:00Z",
+      "push": {
+        "attempted": true,
+        "sentAt": "2026-02-16T10:30:01Z",
+        "error": null,
+        "skippedReason": null
+      }
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440001",
@@ -59,7 +65,13 @@ Retrieve user notifications with pagination support.
         "cif": "12345678"
       },
       "isRead": true,
-      "createdAt": "2026-02-16T09:00:00Z"
+      "createdAt": "2026-02-16T09:00:00Z",
+      "push": {
+        "attempted": false,
+        "sentAt": null,
+        "error": null,
+        "skippedReason": "quiet_hours"
+      }
     }
   ],
   "total": 47,
@@ -90,6 +102,15 @@ Retrieve user notifications with pagination support.
 | data | object | Additional notification data (type-specific) |
 | isRead | boolean | Whether notification has been read |
 | createdAt | string | ISO 8601 timestamp |
+| push | object | Push delivery diagnostics (see below) |
+
+#### Push Delivery Object
+| Field | Type | Description |
+|-------|------|-------------|
+| attempted | boolean | Whether the backend tried to push to FCM/APNs |
+| sentAt | string\|null | ISO 8601 timestamp of the first successful device delivery |
+| error | string\|null | Last error from FCM/relay if all attempts failed |
+| skippedReason | string\|null | `quiet_hours` (muted overnight) or `no_devices` (no registered devices) |
 
 ### Notification Types
 
