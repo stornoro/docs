@@ -89,7 +89,7 @@ When called with both `?platform=ios&version=1.0.0` (or via the `X-App-Version` 
 
 | Tier | Meaning |
 |------|---------|
-| `blocking` | Client `version` is below `min`. The client must render a non-dismissible "must update" screen and refuse to render the rest of the app until the user updates. Server enforcement (HTTP `426 Upgrade Required`) lands in a follow-up. |
+| `blocking` | Client `version` is below `min`. The client must render a non-dismissible "must update" screen and refuse to render the rest of the app until the user updates. The server **also enforces this** — see "Server enforcement" below. |
 | `recommended` | Client `version` is at or above `min` but below `latest`. The client should render a dismissible "update available" prompt. |
 | `ok` | Client is at or above `latest`. Render nothing. |
 | `unknown` | Platform was supplied but no `version` was passed. Render nothing. |
@@ -117,3 +117,23 @@ When called with both `?platform=ios&version=1.0.0` (or via the `X-App-Version` 
     `gate.message` (localised) underneath. Persist the dismissed `latest`
     so the prompt does not re-fire until a newer build is published.
   - `ok` / `unknown` → render nothing.
+
+### Server enforcement
+
+A Symfony event subscriber rejects any incoming request from a mobile client whose
+reported version is below `min` with **HTTP `426 Upgrade Required`** and the same
+`tier` / `min` / `latest` / `storeUrl` / `message` payload as the gate object.
+This stops a stale client that ignores its in-app blocker from continuing to call
+the API.
+
+A request is gated when both `X-Platform` (one of `ios`, `android`, `huawei`)
+and `X-App-Version` are present. Web traffic, server-to-server calls and any
+client that does not set both headers pass through unchanged.
+
+The following paths are **always reachable**, even when the client is below `min`,
+so the user can still update + re-authenticate:
+
+- `GET /api/v1/version` — fetch the gate
+- `POST /api/auth` and `POST /api/auth/refresh` — log in / refresh
+- `POST /api/v1/telemetry` — phone home from a blocked build
+- `GET /api/v1/system/health` — health probes
