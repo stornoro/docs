@@ -118,6 +118,27 @@ When called with both `?platform=ios&version=1.0.0` (or via the `X-App-Version` 
     so the prompt does not re-fire until a newer build is published.
   - `ok` / `unknown` → render nothing.
 
+### Notification fan-out
+
+When the admin endpoint `PUT /api/v1/admin/version-overrides/{platform}` is
+called with `"notify": true` in the body, the server dispatches a
+`BroadcastVersionGateMessage` after persisting the override. The handler:
+
+1. Queries telemetry for every user who has reported activity on the platform
+   in the last 30 days (matched by `(user_id, platform, app_version)`).
+2. For each user, resolves the tier against the new effective `min`/`latest`.
+3. Creates an in-app `Notification` with a tier-appropriate title and body (uses
+   the server-supplied `messageOverride[locale]` if present, else falls back to
+   the bundled `notifications.<locale>.yaml` strings).
+4. The notification fans out automatically to Centrifugo (real-time bell
+   refresh) and the push transport via the existing
+   `SendExternalNotificationMessage` pipeline. Push delivery respects the
+   user's `respectQuietHours` flag — except for `blocking` tier, which is
+   delivered regardless.
+
+Pass `"notify": false` (or omit) to update the override silently (typos,
+rollbacks, no-op corrections). The flag is per-call, not persisted.
+
 ### Server enforcement
 
 A Symfony event subscriber rejects any incoming request from a mobile client whose
