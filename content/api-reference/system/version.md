@@ -23,6 +23,7 @@ GET /api/v1/version
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | platform | string | No | One of `ios`, `android`, `huawei`. When supplied, the response includes a flat `client` object with the matching mobile platform's metadata so callers don't need to branch. |
+| version | string | No | The current client version (e.g. `1.4.2`). Only honoured when `platform` is also set. The server uses it to compute an upgrade `tier` so the client doesn't have to compare versions itself. Build metadata (`+build.42`) is stripped before comparison. The same value can be supplied via the `X-App-Version` request header instead — the query param wins if both are present. |
 
 ### Response
 
@@ -69,6 +70,30 @@ When called with `?platform=ios` the response also includes:
 }
 ```
 
+When called with both `?platform=ios&version=1.0.0` (or via the `X-App-Version` header), the response also includes a `gate` object with the resolved upgrade tier so the client does not need to compare versions:
+
+```json
+{
+  "gate": {
+    "tier": "blocking",
+    "min": "1.2.0",
+    "latest": "1.5.0",
+    "storeUrl": "https://apps.apple.com/app/storno-ro/id6761785908",
+    "releaseNotesUrl": null,
+    "message": { "ro": "Actualizare critica de securitate.", "en": "Critical security update." }
+  }
+}
+```
+
+#### `gate.tier` values
+
+| Tier | Meaning |
+|------|---------|
+| `blocking` | Client `version` is below `min`. The client must render a non-dismissible "must update" screen and refuse to render the rest of the app until the user updates. Server enforcement (HTTP `426 Upgrade Required`) lands in a follow-up. |
+| `recommended` | Client `version` is at or above `min` but below `latest`. The client should render a dismissible "update available" prompt. |
+| `ok` | Client is at or above `latest`. Render nothing. |
+| `unknown` | Platform was supplied but no `version` was passed. Render nothing. |
+
 ### Field reference
 
 | Field | Description |
@@ -83,10 +108,12 @@ When called with `?platform=ios` the response also includes:
 
 ### Recommended client behavior
 
-- Cold-start and on app foreground, GET this endpoint with `?platform=`.
-- Compare `current` vs `client.latest` (semver). If older, show a dismissible
-  "Update available" prompt with a button that opens `storeUrl`.
-- Compare `current` vs `client.min`. If older, the prompt is still
-  dismissible but should clearly mark the update as required.
-- Persist the last dismissed `latest` value so the soft prompt only fires
-  again when a newer version is released.
+- Cold-start and on app foreground, GET this endpoint with `?platform=` and the
+  current client version (either as `?version=` or via the `X-App-Version` header).
+- Switch on `gate.tier`:
+  - `blocking` → render a full-screen blocker. Only action is the Update
+    button (opens `storeUrl`). Do not render the rest of the navigator.
+  - `recommended` → render a dismissible modal with the Update button and
+    `gate.message` (localised) underneath. Persist the dismissed `latest`
+    so the prompt does not re-fire until a newer build is published.
+  - `ok` / `unknown` → render nothing.
