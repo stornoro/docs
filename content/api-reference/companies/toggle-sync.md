@@ -48,36 +48,22 @@ const company = await response.json();
 
 ## Response
 
+The endpoint returns the new sync state, not the full company resource. Read
+the full company via `GET /api/v1/companies/{uuid}` if you need the rest.
+
 ```json
 {
-  "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "name": "SRL Example Company",
-  "cif": "12345678",
-  "registrationNumber": "J40/1234/2020",
-  "vatPayer": true,
-  "vatCode": "RO12345678",
-  "address": "Strada Exemplu, Nr. 10",
-  "city": "Bucuresti",
-  "state": "Bucuresti",
-  "country": "Romania",
-  "sector": "Sector 1",
-  "phone": "+40721234567",
-  "email": "contact@example.ro",
-  "bankName": "Banca Transilvania",
-  "bankAccount": "RO49AAAA1B31007593840000",
-  "bankBic": "BTRLRO22",
-  "defaultCurrency": "RON",
   "syncEnabled": true,
-  "lastSyncedAt": null,
-  "syncDaysBack": 30,
-  "efacturaDelayHours": 24,
-  "archiveEnabled": true,
-  "archiveRetentionYears": 10,
-  "tokenStatus": {
-    "hasToken": true,
-    "isValid": true,
-    "expiresAt": "2026-03-16T10:30:00Z"
-  }
+  "message": "Sync enabled"
+}
+```
+
+When sync was previously enabled the same call disables it:
+
+```json
+{
+  "syncEnabled": false,
+  "message": "Sync disabled"
 }
 ```
 
@@ -85,8 +71,8 @@ const company = await response.json();
 
 | Code | Description |
 |------|-------------|
-| 400 | Bad Request - No valid ANAF token exists for this company |
-| 401 | Unauthorized - Invalid or missing token |
-| 403 | Forbidden - No access to this company |
-| 404 | Not Found - Company does not exist |
+| 401 | Unauthorized — invalid or missing JWT |
+| 403 | Forbidden — caller lacks `COMPANY_EDIT` on the target company |
+| 404 | Not Found — company UUID does not exist |
+| 422 | Unprocessable Entity — attempted to **enable** sync but the company has no valid ANAF OAuth token. Response body: `{ "error": "...", "messageKey": "ERR_SYNC_ENABLE_NO_TOKEN" }`. Connect via the ANAF OAuth flow first (`POST /api/v1/anaf/token-links`) and try again. |
 | 500 | Internal server error |
