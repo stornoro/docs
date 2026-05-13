@@ -16,7 +16,7 @@ The POS is built entirely on top of the public API — every action a cashier ta
 | [Product](/objects/product) | Sellable item shown on the grid. `color`, `category`, and `sgrAmount` are the POS-specific fields. |
 | [ProductCategory](/objects/product-category) | Optional grouping shown as a chip strip above the grid. Tap a chip to filter the grid. |
 | [Receipt](/objects/receipt) | The fiscal document produced by every sale or refund. |
-| [Cash Register Movements](/api-reference/cash-register/list-movements) | Deposits, withdrawals, and adjustments to the till. Required for the daily Z-report. |
+| [Cash Register Movements](/api-reference/cash-register/movements-list) | Deposits, withdrawals, and adjustments to the till. Required for the daily Z-report. |
 
 ## Sale flow
 

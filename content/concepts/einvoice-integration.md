@@ -141,7 +141,7 @@ For B2B, Factur-X XML is generated and embedded in PDF/A-3 for direct exchange.
 
 ### Romania (ANAF)
 
-ANAF configuration is managed through the dedicated ANAF token system (not through `einvoice-config`). See [ANAF Integration](./anaf-integration.md).
+ANAF configuration is managed through the dedicated ANAF token system (not through `einvoice-config`). See [ANAF Integration](./anaf-integration).
 
 However, ANAF submissions can also be triggered through the unified endpoint:
 

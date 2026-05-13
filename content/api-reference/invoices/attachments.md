@@ -253,7 +253,4 @@ Files are served from a CDN for optimal performance.
 
 ## Related endpoints
 
-- [Upload attachment](/api-reference/invoices/upload-attachment) - Upload a file
-- [List attachments](/api-reference/invoices/get) - Get attachment metadata
-- [Delete attachment](/api-reference/invoices/delete-attachment) - Remove a file
-- [Get invoice details](/api-reference/invoices/get) - View all attachments
+- [Get invoice details](/api-reference/invoices/get) - View all attachments and their metadata
