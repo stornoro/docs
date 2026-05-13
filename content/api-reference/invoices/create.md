@@ -111,6 +111,8 @@ These optional fields are used for advanced e-Factura (UBL) compliance:
 | `payeeName` | string | Payee name (if different from seller) |
 | `payeeIdentifier` | string | Payee identifier |
 | `payeeLegalRegistrationIdentifier` | string | Payee legal registration identifier |
+| `payeeBankAccount` | string | IBAN where payment should be sent — sourced from `PaymentMeans/PayeeFinancialAccount/ID` on synced e-Factura invoices, used by the quick-pay QR flow |
+| `payeeBankName` | string | Bank name from `PaymentMeans/PayeeFinancialAccount/FinancialInstitutionBranch/Name` |
 
 ### UBL extensions (document-level)
 
