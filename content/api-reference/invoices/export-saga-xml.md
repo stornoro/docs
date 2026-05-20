@@ -34,6 +34,7 @@ Both `*-saga-xml` payment endpoints accept per-export chart-of-accounts override
 
 | Name | Default | Description |
 |------|---------|-------------|
+| `currency` | — | Optional ISO 4217 filter (`RON`, `USD`, `EUR`, …). When set, only payments in that currency are exported, the file name is suffixed with `_<CCY>`, and the per-currency overrides from `saga.currencyAccounts.<CCY>` are applied on top of the RON defaults. When omitted, all payments are bundled in a single file with the RON account map (legacy behaviour — use the ZIP endpoint for clean per-currency splitting). |
 | `accountCash` | stored setting / `5311` | Cont used for `cash` (TipDocument `Chitanta`). |
 | `accountBank` | stored setting / `5121` | Cont used for `bank_transfer` (TipDocument `OP`). |
 | `accountCard` | stored setting / `5125.2` | Cont used for `card` (TipDocument `Card`). SAGA requires a leaf analytic — `5125` alone is not postable. |

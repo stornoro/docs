@@ -29,7 +29,11 @@ GET /api/v1/accounting-export/settings
     "accountBank":      "5121",
     "accountCard":      "5125.2",
     "accountClients":   "4111",
-    "accountSuppliers": "4011"
+    "accountSuppliers": "4011",
+    "currencyAccounts": {
+      "USD": { "cash": "5314", "bank": "5124", "card": "5125.1" },
+      "EUR": { "cash": "",     "bank": "",     "card": "5125.3" }
+    }
   },
   "winmentor": {
     "bankName":     "",
@@ -40,7 +44,7 @@ GET /api/v1/accounting-export/settings
 }
 ```
 
-Missing keys fall back to the defaults shown above (in particular `accountCard` defaults to the SAGA-postable analytic `5125.2`, not the synthetic `5125`).
+Missing keys fall back to the defaults shown above (in particular `accountCard` defaults to the SAGA-postable analytic `5125.2`, not the synthetic `5125`). `currencyAccounts` is an open-ended map keyed by ISO 4217 currency code; any empty per-currency field falls back to the corresponding RON account. The receipts/payments exporter splits the SAGA XML output by currency whenever non-RON payments exist (see [`POST /accounting-export/zip`](/api-reference/accounting-export/zip)).
 
 ## Update settings
 

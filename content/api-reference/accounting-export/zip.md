@@ -36,6 +36,7 @@ POST /api/v1/accounting-export/zip
 | `exportAccounts` | boolean | `true` | Also emit `conturi_cli_*.xml` and `conturi_frn_*.xml` (account assignment files). |
 | `exportBnr` | boolean | `false` | Include `curs_bnr_*.xml` with the current BNR FX rates. |
 | `accounts` | object | — | Per-export chart-of-accounts overrides. Missing keys fall back to the company’s stored SAGA settings; explicit values win for this export only. |
+| `currencyAccounts` | object | — | Per-currency overrides for foreign-currency receipts/payments. Each key is an upper-case ISO 4217 code (`USD`, `EUR`, …) and maps to `{ cash, bank, card }`. Merged on top of the stored `saga.currencyAccounts` setting. |
 
 ### `options.accounts`
 
@@ -46,6 +47,28 @@ POST /api/v1/accounting-export/zip
 | `card` | `5125.2` | Card analytic. **SAGA rejects a synthetic `5125`** — always use a leaf analytic such as `5125.2`. |
 | `clients` | `4111` | Used inside `conturi_cli_*.xml` when `exportAccounts` is true. |
 | `suppliers` | `4011` | Used inside `conturi_frn_*.xml` when `exportAccounts` is true. |
+
+### `options.currencyAccounts`
+
+Map keyed by currency code:
+
+```json
+"currencyAccounts": {
+  "USD": { "cash": "5314", "bank": "5124", "card": "5125.1" },
+  "EUR": { "cash": "",     "bank": "",     "card": "5125.3" }
+}
+```
+
+Any individual field left empty falls back to the corresponding RON default (`accounts.cash` / `accounts.bank` / `accounts.card`). The map is merged on top of the stored `saga.currencyAccounts` setting, so per-export overrides only need to send the keys that change.
+
+### Per-currency file splitting
+
+When receipts (or payments) span multiple currencies, the exporter splits them into one SAGA XML file per currency and uses the matching account map:
+
+- All-RON receipts → `inc_<date>.xml` (legacy filename, unchanged).
+- Mixed RON/USD → `inc_<date>_RON.xml` + `inc_<date>_USD.xml`.
+
+Same rule for `plt_<date>*.xml`. This is necessary because SAGA’s `<Suma>` element has no currency tag — a single file is always imported under one currency analytic.
 
 ## Example request
 
@@ -89,8 +112,8 @@ The archive contains:
 - `frn_<date>.xml` — suppliers
 - `art_<date>.xml` — products
 - `F_<CIF>_multiple_<date>.xml` — outgoing invoices
-- `inc_<date>.xml` — receipts (incasari) on outgoing invoices
-- `plt_<date>.xml` — payments (plati) on incoming invoices
+- `inc_<date>.xml` — receipts (incasari) on outgoing invoices (or `inc_<date>_<CCY>.xml` per currency when receipts span multiple currencies)
+- `plt_<date>.xml` — payments (plati) on incoming invoices (or `plt_<date>_<CCY>.xml` per currency)
 - `conturi_cli_<date>.xml`, `conturi_frn_<date>.xml` — when `exportAccounts=true`
 - `curs_bnr_<date>.xml` — when `exportBnr=true`
 
