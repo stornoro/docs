@@ -128,6 +128,7 @@ Everything in Professional, plus:
 | Companies | Unlimited |
 | Users per organization | Unlimited |
 | Realtime notifications | Yes |
+| White-label branding | Yes |
 | Self-hosting license | Yes |
 | Priority support | Yes |
 
