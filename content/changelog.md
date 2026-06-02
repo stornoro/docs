@@ -7,6 +7,12 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-06-02
+
+### Changed
+
+- **Stripe App refunds** — refunding a Stripe payment now issues a storno reversal of the original e-invoice (negated quantities, inheriting the original series, document type, and per-line VAT rates) instead of a synthetic single-line credit note. A full refund reverses the whole invoice; a partial refund reverses proportionally. Surfaced in the app's **Payment Detail → Refunds** section.
+
 ## 2026-04-26 — v2.7.0
 
 ### Added
