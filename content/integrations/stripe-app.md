@@ -7,7 +7,7 @@ description: Automatically create e-invoices from Stripe payments using the Stor
 
 The Storno.ro Stripe app brings e-invoicing directly into your Stripe dashboard. Primarily designed for Romanian e-Factura compliance, it automatically creates e-invoices from Stripe payments and submits them to the e-invoice provider, eliminating manual data entry.
 
-Available on the [Stripe App Marketplace](https://marketplace.stripe.com/).
+Available on the [Stripe App Marketplace](https://marketplace.stripe.com/apps/storno).
 
 ## Features
 
@@ -82,7 +82,7 @@ The settings panel shows:
 
 ### 1. Install the app
 
-Install the Storno.ro app from the Stripe App Marketplace.
+Install the Storno.ro app from the [Stripe App Marketplace](https://marketplace.stripe.com/apps/storno).
 
 ### 2. Connect your account
 
