@@ -17,6 +17,7 @@ The PDF Template Config object controls how PDFs are generated for a company's i
   "fontFamily": "DejaVu Sans",
   "showLogo": true,
   "showBankInfo": true,
+  "showVatInRon": true,
   "footerText": null,
   "customCss": null
 }
@@ -32,6 +33,7 @@ The PDF Template Config object controls how PDFs are generated for a company's i
 | `fontFamily` | string\|null | CSS font family for the PDF. Default: `DejaVu Sans` |
 | `showLogo` | boolean | Whether to display the company logo. Default: `true` |
 | `showBankInfo` | boolean | Whether to display bank account information. Default: `true` |
+| `showVatInRon` | boolean | Whether to display the VAT amount converted to RON on foreign-currency invoices. Default: `true`. Required by Romanian Fiscal Code art. 319 (20) j for RON VAT payers issuing in foreign currency; has no effect on RON invoices. |
 | `footerText` | string\|null | Custom footer text displayed at the bottom of documents |
 | `customCss` | string\|null | Custom CSS styles injected into the PDF template |
 

@@ -38,6 +38,7 @@ curl https://api.storno.ro/api/v1/pdf-template-config \
   "fontFamily": "DejaVu Sans",
   "showLogo": true,
   "showBankInfo": true,
+  "showVatInRon": true,
   "footerText": null,
   "customCss": null
 }
@@ -53,6 +54,7 @@ curl https://api.storno.ro/api/v1/pdf-template-config \
 | `fontFamily` | string\|null | CSS font family used in PDFs |
 | `showLogo` | boolean | Whether the company logo is displayed |
 | `showBankInfo` | boolean | Whether bank account info is displayed |
+| `showVatInRon` | boolean | Whether the VAT amount in RON is displayed on foreign-currency invoices (Fiscal Code art. 319 (20) j) |
 | `footerText` | string\|null | Custom footer text |
 | `customCss` | string\|null | Custom CSS injected into the template |
 

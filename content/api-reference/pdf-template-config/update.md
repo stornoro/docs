@@ -30,6 +30,7 @@ PUT /api/v1/pdf-template-config
 | `fontFamily` | string\|null | No | CSS font family (e.g., `"DejaVu Sans"`, `"Roboto"`) |
 | `showLogo` | boolean | No | Display company logo on PDFs (default: `true`) |
 | `showBankInfo` | boolean | No | Display bank account info on PDFs (default: `true`) |
+| `showVatInRon` | boolean | No | Display the VAT amount converted to RON on foreign-currency invoices (default: `true`). Required by Romanian Fiscal Code art. 319 (20) j for RON VAT payers; no effect on RON invoices. |
 | `footerText` | string\|null | No | Custom footer text. Set to `null` to remove. |
 | `customCss` | string\|null | No | Custom CSS styles. Set to `null` to remove. |
 
@@ -61,6 +62,7 @@ Returns the updated configuration object.
   "fontFamily": "DejaVu Sans",
   "showLogo": true,
   "showBankInfo": true,
+  "showVatInRon": true,
   "footerText": "Thank you for your business!",
   "customCss": null
 }
