@@ -90,7 +90,7 @@ Each notification type has three channel preferences:
 | invoicePaid | Invoice marked as paid |
 | syncCompleted | E-Factura sync finished successfully |
 | syncFailed | E-Factura sync failed |
-| tokenExpiring | ANAF token expiring within 7 days |
+| tokenExpiring | ANAF token needs manual re-authorization (no refresh token: 7 days before expiry; auto-refresh not succeeding: 2 days) |
 | tokenExpired | ANAF token has expired |
 | paymentOverdue | Invoice payment is overdue |
 | invitationReceived | Invited to join organization |
