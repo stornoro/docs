@@ -7,7 +7,7 @@ description: Update an existing client's details
 
 Updates an existing client. All fields are optional — only include the fields you want to change.
 
-When identity or VAT-related fields are updated (`name`, `cui`, `cnp`, `vatCode`, `isVatPayer`, `country`), the changes are automatically propagated to all **editable invoices from the current month**. This updates the receiver name and CIF on those invoices and reapplies VAT rules (reverse charge / OSS). Past months' invoices are not affected.
+When identity or VAT-related fields are updated (`name`, `cui`, `cnp`, `vatCode`, `isVatPayer`, `country`), the changes are automatically propagated to all **editable invoices from the current month**. This updates the receiver name and CIF on those invoices and reapplies VAT rules (reverse charge / OSS). Past months' invoices are not affected — to also update older unsent invoices, use [Sync invoices with client data](/api-reference/clients/sync-invoices), or [Sync invoice with client data](/api-reference/invoices/sync-client) for a single invoice.
 
 When `vatCode` or `country` is changed, the system also re-validates the VAT number against the EU VIES system for foreign EU clients.
 
