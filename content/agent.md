@@ -78,11 +78,26 @@ A small always-on Linux box with the token plugged in is the practical way for a
 
 Never test a PIN by guessing: tokens lock after a few wrong attempts and need the PUK from the vendor application.
 
+## Automatic monitoring (unattended SPV sync)
+
+Since agent 1.7.0 the agent can check the SPV inbox on its own, without the web app being open. Enable it under **Company → ANAF → Monitorizare SPV automată** after selecting the certificate and entering the PIN:
+
+1. Storno creates a dedicated API key limited to the `declaration.view` and `declaration.submit` scopes.
+2. The browser hands the key, the PIN and the certificate id to the agent on `127.0.0.1`.
+3. The agent keeps the two secrets in the operating system's secure store (macOS Keychain, Windows DPAPI, Linux libsecret, or a `0600` file when none is available) and writes only the schedule to `~/.storno-agent/monitor.json`.
+4. Every *N* hours (1 to 24, default 6) the agent lists the last 60 days of SPV messages with the certificate, sends them to Storno, and fetches the PDFs Storno does not have yet. New somații and decisions trigger the usual push/email notifications.
+
+The computer must be on and the token plugged in. After consecutive failures the interval backs off (up to 24 h) and the last error is shown on the ANAF page. **Sincronizează acum** runs a cycle immediately, **Dezactivează** removes the entry, deletes the secrets and revokes the API key.
+
+For an office, put the token in a small always-on machine (a Linux box works, see the Linux section) and enable monitoring there for every company the certificate is enrolled for.
+
+Agent endpoints used by the web app: `GET /monitor` (status), `POST /monitor` (enroll), `POST /monitor/{companyId}/run`, `DELETE /monitor/{companyId}`. They accept only requests from `app.storno.ro` carrying the `X-Storno-Agent: 1` header.
+
 ## Security
 
 - Binds to `127.0.0.1` only; CORS restricted to `app.storno.ro`.
 - Only `webserviced.anaf.ro` and `epatrim.anaf.ro` can be reached through it.
-- The PIN is kept in memory for the current session only and is redacted from logs.
+- The PIN is kept in memory for the current session only and is redacted from logs. With automatic monitoring enabled it is stored in the OS secure store (Keychain / DPAPI / libsecret) together with the scoped API key; disabling monitoring deletes both.
 - The bundled `agent.storno.ro` certificate serves loopback traffic exclusively.
 
 ## Troubleshooting
