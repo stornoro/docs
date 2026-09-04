@@ -49,7 +49,7 @@ curl -X POST https://api.storno.ro/api/v1/spv/requests/prepare \
 }
 ```
 
-Types with `wsSupported: false` (C168, certificates, decisions and notices, the SAF-T pilot D300) exist only in the SPV website form: ANAF's web service answers `tip raport= … necunoscut`, so `prepare` rejects them with `422` before anything reaches ANAF.
+Types with `wsSupported: false` (C168, certificates, decisions and notices, the SAF-T pilot D300) are not implemented by ANAF's web service (`tip raport= … necunoscut`). For them `prepare` returns `channel: "web"` and a `form` object; the agent (1.7.4+) logs in with the certificate and submits the SPV website form (`www.anaf.ro/SNMD/solicitari.xhtml`), then answers in the same `{id_solicitare, titlu}` shape. Types the service implements return `channel: "ws"` and `anafUrl`.
 
 Parameters by type (from ANAF's documentation): `an` for yearly forms and reports (Bilant anual, Istoric declaratii, D101, D205, D212 …); `an` + `luna` for monthly forms (D300, D390, D394, D100, D112; D208 accepts 6 or 12); `numar_inregistrare` for `Duplicat Recipisa` (e.g. `INTERNT-100000123-2026`); `an` + `motiv` for `Adeverinte Venit` (reason must match ANAF's list exactly); `cui_pui` optionally for fișa rol of a branch; `an` + `lunai` + `lunas` for `Neconcordante D394`. Validation errors return `422` with a Romanian message.
 
