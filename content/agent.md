@@ -78,6 +78,62 @@ A small always-on Linux box with the token plugged in is the practical way for a
 
 Never test a PIN by guessing: tokens lock after a few wrong attempts and need the PUK from the vendor application.
 
+## Signing PDFs
+
+Since agent 1.7.6 the agent also signs ordinary PDF files with the qualified certificate: contracts, offers, sworn statements, declarations produced by DUKIntegrator, anything a partner or an authority wants signed electronically. Nothing leaves your computer: the file is hashed locally, the token signs the hash, the signature is embedded in a copy of the PDF.
+
+What you get is a PAdES signature (`adbe.pkcs7.detached`, SHA-256) with the qualified certificate embedded. It verifies in Adobe Reader, `pdfsig`, the ANAF portal and any eIDAS validator. There is no timestamp and one signature per run: sign a signed file again to add a second signature (a co-signer, for instance).
+
+### From an AI assistant (MCP)
+
+With the `storno-cli` MCP server running on the same computer as the agent (Claude Desktop, Claude Code, Cursor and so on with the stdio transport) the assistant has the tools `agent_certificates` and `agent_sign_pdf`. A typical request:
+
+> Sign every PDF in ~/Contracte/2026-09 with my certificate, put the signed copies in ~/Contracte/semnate and show the signature in the footer.
+
+The assistant calls `agent_sign_pdf` with `files: ["~/Contracte/2026-09"]`, `outDir`, `visible: true` and your certificate id, and reports one line per file. Pass the PIN in the message or, better, set `STORNO_AGENT_PIN` in the MCP server's environment so it never appears in the chat; without a PIN nothing is signed.
+
+### Mass signing rules
+
+- `files` accepts files and directories in any mix. A directory means every `*.pdf` in it; existing `*.signed.pdf` copies are skipped, so a re-run only signs what is new.
+- Every file gets its own `<name>.signed.pdf`, next to the original or in `outDir`. Originals are never modified.
+- Files are signed sequentially on the token, roughly two seconds each on a USB token.
+- A rejected PIN stops the batch at once (`aborted: true`, `pinError: true`) so a loop can never lock the token. Any other per-file error (encrypted or corrupt PDF, an unreadable file) is reported for that file and the batch continues.
+- `visible: true` draws a small box in the footer of the last page: "Semnat digital de <name> (<organisation>)", the date and the issuer. `signerName` overrides the name. Without it the signature is invisible but still present in the document's signature panel.
+
+### HTTP contract
+
+Any local program can use the same endpoint; only loopback connections are accepted and the header `X-Storno-Agent: 1` is required.
+
+```
+POST https://agent.storno.ro:17394/sign
+Content-Type: application/json
+X-Storno-Agent: 1
+
+{
+  "certificateId": "<id from GET /certificates>",
+  "pin": "<token PIN>",
+  "items": [
+    { "name": "contract-01.pdf", "pdf": "<base64>" },
+    { "name": "contract-02.pdf", "pdf": "<base64>" }
+  ],
+  "visible": true,
+  "signerName": "Popescu Ion"
+}
+```
+
+```json
+{
+  "results": [
+    { "index": 0, "name": "contract-01.pdf", "pdf": "<base64 of the signed file>", "bytes": 168210 },
+    { "index": 1, "name": "contract-02.pdf", "error": "PDF is encrypted" }
+  ]
+}
+```
+
+A single document can be sent as `"pdf": "<base64>"` instead of `items`; the answer is then the single result object. `visible` may also be an object `{ "page": "first" | "last", "lines": ["…", "…"] }` (up to four lines) to fully control the box. On a PIN failure the answer carries `aborted: true`, `pinError: true` and a `reason`, with the files signed so far in `results`.
+
+Verify a signed file with `pdfsig contract-01.signed.pdf` (poppler) or by opening it in Adobe Reader; the certificate chain is the one issued by your provider (Trans Sped, certSIGN, DigiSign, CertDigital), so Reader may ask you to trust the root once.
+
 ## Automatic monitoring (unattended SPV sync)
 
 Since agent 1.7.0 the agent can check the SPV inbox on its own, without the web app being open. Enable it under **Company → ANAF → Monitorizare SPV automată** after selecting the certificate and entering the PIN:

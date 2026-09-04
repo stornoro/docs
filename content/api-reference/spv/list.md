@@ -81,7 +81,7 @@ Requires the `declaration.view` permission.
 
 ## Related
 
-- `GET /api/v1/spv/documents/stats` — totals, unread, pending PDFs, breakdown by category and severity
+- `GET /api/v1/spv/documents/stats` — totals, unread, pending PDFs, breakdown by category and severity, and `lastSyncedAt` (ISO 8601, the last successful sync through the agent or the automatic monitor; `null` until the first one). The web and mobile apps show it as "Ultima sincronizare" so users can tell how fresh the inbox is.
 - `GET /api/v1/spv/documents/{uuid}` — one document (adds `idSolicitare`, `downloadError`, `notifiedAt`)
 - `GET /api/v1/spv/documents/{uuid}/download` — the archived PDF (marks the document read); `404` with `code` `SPV_FILE_PENDING`, `SPV_FILE_PURGED` or `SPV_FILE_MISSING`
 - `PATCH /api/v1/spv/documents/{uuid}/read`, `POST /api/v1/spv/documents/read-all`

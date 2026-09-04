@@ -7,6 +7,22 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-05 — declarations with your own AI, SPV requests, PDF signing
+
+### Added
+
+- **Public declaration tools** (no account, nothing stored): `POST /api/v1/public/declarations/validate` validates any ANAF declaration XML with ANAF's own DUKIntegrator validators, `GET /api/v1/public/declarations/status/{index}/{cui}` reads the processing state from StareD112, `GET /api/v1/public/anaf/nomenclator/*` serves county, locality and street codes from a local mirror. Designed for AI assistants working through the MCP server: the assistant reads the user's documents locally and only asks Storno to validate, look up codes and check status.
+- **Legal documents** — `GET /api/v1/public/documents` and `POST /api/v1/public/documents/{type}` generate a rental termination agreement (`conventie_incetare_inchiriere`) or the landlord's sworn statement for C168 (`declaratie_incetare_contract`) as PDF + HTML from structured fields.
+- **SPV requests** — `GET /api/v1/spv/requests/types`, `POST /api/v1/spv/requests/prepare`, `POST /api/v1/spv/requests/{uuid}/agent-result`, `GET /api/v1/spv/requests`, `DELETE /api/v1/spv/requests/{uuid}`: file requests to ANAF (fiscal record, registry extracts, C168 register, account statements …) through the agent. Types the web service does not accept (for example C168) go through ANAF's website form automatically.
+- **SPV summaries** — every SPV document now carries `summary` (Romanian) and `summaryEn`, a plain-language explanation of what the document is and what to do; `GET /spv/documents/stats` returns `lastSyncedAt`.
+- **Storno Agent 1.7.6** — unattended SPV monitoring with the PIN in the OS secure store, `POST /sign` for signing PDFs one by one or in bulk (optional visible signature box), `POST /sign-and-submit` to the e-guvernare portal, batch PDF downloads. MCP tools `agent_sign_pdf`, `agent_submit_declaration_pdf`, `document_generate`, `anaf_declaration_status`, `anaf_nomenclator_*`, `spv_request_*` in `storno-cli` 1.0.25.
+
+### Changed
+
+- **Certificate operations require the PIN** — SPV sync, SPV requests, declaration uploads and monitoring refuse to run without it (`PIN_REQUIRED`); the PIN is never sent to Storno.
+- **OAuth-based declaration status sync** is retired: `POST /declarations/sync` without the agent returns `409 AGENT_REQUIRED`.
+- SPV message dates (`data_creare`, day-first `DDMMYYYYHHMMSS`) are parsed correctly; existing rows were repaired.
+
 ## 2026-09-04 — security hardening
 
 ### Changed

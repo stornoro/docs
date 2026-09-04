@@ -261,6 +261,51 @@ The 228 tools are organized into these categories:
 | `anaf_sync_trigger` | Manually trigger sync from ANAF SPV |
 | `anaf_sync_status` | Check last sync timestamp and counts |
 
+### ANAF SPV documents and requests (13 tools)
+
+Everything ANAF sends a company through Spațiul Privat Virtual, plus requests to ANAF (fiscal record, registry extracts, C168 rent contract register, account statements). Syncing and requesting go through the [Storno Agent](/agent) with the certificate PIN; reading is plain API.
+
+| Tool | Description |
+|------|-------------|
+| `spv_documents_list` / `spv_documents_get` | Archived SPV messages with category, severity and a plain-language summary in Romanian and English |
+| `spv_documents_stats` | Totals, unread, pending PDFs, `lastSyncedAt` |
+| `spv_documents_download` | The PDF ANAF attached |
+| `spv_documents_mark_read` | Mark a message as read |
+| `spv_document_upload` | Attach a PDF obtained elsewhere (for example a portal download) |
+| `spv_sync_prepare` / `spv_sync_agent_result` | Two-step sync through the local agent: Storno prepares the ANAF calls, the agent runs them with the certificate, Storno ingests the answer |
+| `spv_request_types` | Catalogue of SPV request types with required parameters and observations for legal entities |
+| `spv_request_prepare` / `spv_request_agent_result` | File a request (web-service or ANAF website channel, chosen automatically) and record ANAF's registration id |
+| `spv_requests_list` / `spv_request_delete` | Requests filed so far and their answers |
+
+### Declarations (17 tools)
+
+| Tool | Description |
+|------|-------------|
+| `declarations_list` / `declarations_get` / `declarations_create` / `declarations_delete` | Company declarations (D300, D390, D394, D406 …) |
+| `declarations_recalculate` / `declarations_validate` | Rebuild figures from the ledgers, validate with ANAF's DUKIntegrator |
+| `declarations_prepare` / `declarations_agent_result` / `declarations_submit` | Sign and upload through the local agent; record ANAF's index |
+| `declarations_sync` / `declarations_refresh_statuses` / `declarations_download_xml` | Statuses from StareD112 and the SPV inbox; the XML itself |
+| `declaration_validate_xml` | Public: validate any declaration XML (D212, C168, D177, D100 …) exactly as ANAF does, no account needed |
+| `anaf_declaration_status` | Public: processing state of any portal filing by index + CUI/CNP |
+| `anaf_nomenclator_judete` / `anaf_nomenclator_localitati` / `anaf_nomenclator_strazi` | Public: county, locality and street codes the XSDs require, from Storno's local mirror |
+
+### Local agent (4 tools)
+
+Available when the MCP server runs on the same computer as the [Storno Agent](/agent) (stdio transport). The PIN is passed per call or through `STORNO_AGENT_PIN`; nothing is signed or sent without it.
+
+| Tool | Description |
+|------|-------------|
+| `agent_status` / `agent_certificates` | Agent health, certificates on the token |
+| `agent_sign_pdf` | Sign one PDF or whole directories with the qualified certificate (PAdES, optional visible footer box); see [mass signing](/agent#signing-pdfs) |
+| `agent_submit_declaration_pdf` | Sign a DUKIntegrator PDF and upload it to the e-guvernare portal; returns the ANAF index |
+
+### Legal documents (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `document_types` | Standard documents Storno can generate and their required fields |
+| `document_generate` | Rental termination agreement (convenție de încetare) or the landlord's sworn statement for C168, as PDF; public, nothing stored |
+
 ### Webhooks (10 tools)
 
 | Tool | Description |
