@@ -14,6 +14,7 @@ Forms available today:
 | Form | What it does | Attachment |
 |---|---|---|
 | `C168` | Registration, amendment or termination of a rental (lease) contract by the landlord (OPANAF 114/2019). | required: the scanned contract, addendum, or termination document / [sworn statement](/api-reference/public/legal-documents) |
+| `D212` | Declarația unică, rent-income scenario: chapter I.1 for each contract with a natural-person tenant (20 % forfait, 10 % tax), the obligations summary and the CASS section on the 6/12/24 minimum-wage thresholds of the income year. Other income categories are not written yet. | none |
 
 ## Catalog and specification
 
@@ -58,6 +59,8 @@ Storno writes the XML, applies its own checks, validates with ANAF's DUKIntegrat
   "next": "Fix the issues / validation errors and build again."
 }
 ```
+
+For D212 the builder also returns `info` issues with the computed amounts (tax, CASS tier, total due by 25 May) so the assistant can explain the result. ANAF's validator checks the arithmetic of the file but not the CASS thresholds; Storno applies them from the minimum wage of the income year (3300 RON for income 2024, 4050 RON for income 2025), exactly like ANAF's own web form. Rent paid by a legal-entity tenant is refused in the contracts list (the tenant withholds the tax) and can be passed under `alteVenituriCass` so it still counts for the health contribution.
 
 `valid` is true only when there are no error-level issues, DUK accepts the file and ANAF's online validator (when reachable) accepts it too. Warnings do not block: a termination without the tenant's CNP is refused by the web form but accepted by the e-guvernare portal upload through the agent, which is why that rule is a warning.
 
