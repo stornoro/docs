@@ -7,6 +7,21 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-04 — security hardening
+
+### Changed
+
+- **Document emails** — `POST /invoices|delivery-notes|receipts/{uuid}/email` now require every recipient (`to`, `cc`, `bcc`) to be a client of the company (or the company's / sender's own address), cap recipients at 5, apply per-user burst and per-organization daily limits, and reject phishing-style content. New error codes: `EMAIL_RECIPIENT_NOT_CLIENT`, `EMAIL_TOO_MANY_RECIPIENTS`, `EMAIL_RATE_LIMIT`, `EMAIL_DAILY_LIMIT`, `EMAIL_CONTENT_BLOCKED`.
+- **Company scoping** — `X-Company` / `?company` must reference a company of the caller's organization; other ids return `404`. Every uuid-addressed document, supplier, and email template route returns `404` for entities outside the organization. `clientId`, `productId`, and `templateId` in request bodies must belong to the same company.
+- **Monthly invoice limit** — enforced on every invoice creation path (conversions, recurring, storno) per organization, not only on `POST /invoices`.
+- **Plan gates** — `402 PLAN_LIMIT` is now returned consistently for PDF on all document types, bank statements (borderou), payment links (Stripe Connect and share-link `pay`), recurring invoices, webhooks (update/test/retry), email templates, import follow-up steps, backup download, member reactivation, company restore, and realtime tokens.
+- **Rate limits** — invitations (10 pending per organization, 10 sends per hour), password reset and confirmation resend (3 per email per hour), share links (30 per 10 minutes per token), storage and webhook tests (10 per 10 minutes), ANAF/VIES lookups (30 per minute), and a per-organization ANAF budget (60 per minute).
+- **Outbound URLs** — webhook URLs must be public HTTPS on port 443; storage endpoints, SMTP hosts, and SDI endpoints must resolve to public addresses.
+- **Realtime** — `POST /centrifugo/subscription-token` only issues tokens for the caller's own user channel and companies.
+- **PDF templates** — `customCss` is validated (no `<`, `url()`, `@import`, escapes); `fontFamily` must match a simple font-name pattern. Company logos accept PNG, JPG, and WEBP only.
+- **Registration** — email is validated, names are limited to 60 characters and may not contain links, line breaks, or email addresses.
+- **CSV exports** — cells starting with `=`, `+`, `-`, `@` are prefixed with `'` to neutralize spreadsheet formulas.
+
 ## 2026-06-02
 
 ### Changed
