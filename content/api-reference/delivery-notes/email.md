@@ -110,14 +110,32 @@ When using the default email template (subject or body omitted), the following v
 | `[[company_name]]` | Your company name | Your Company SRL |
 | `[[currency]]` | Currency code | RON |
 
+## Sending limits
+
+Document emails go out from the shared Storno sender, so every message is checked against an abuse guard before it is queued:
+
+| Rule | Limit |
+|------|-------|
+| Recipients per email (`to` + `cc` + `bcc`) | 5 |
+| Burst per user | 10 emails / 10 minutes on Freemium, 60 / 10 minutes on paid plans |
+| Rolling 24h cap per organization | 30 on Freemium, 300 on Starter, 1,000 on Professional, 3,000 on Business |
+| Content | Subject and body must describe the attached document. Phishing-style wording, raw `<script>`/`<form>`/`<iframe>` tags and HTML in the subject are rejected. |
+
+Organizations on the Business plan that relay through their own SMTP server (white-label mailer) are exempt from the burst, daily and wording checks.
+
 ## Error Codes
 
 | Status Code | Error Code | Description |
 |-------------|------------|-------------|
 | 400 | `bad_request` | Invalid or missing `to` email address |
+| 400 | `EMAIL_TOO_MANY_RECIPIENTS` | More than 5 recipients across `to`, `cc` and `bcc` |
 | 401 | `unauthorized` | Missing or invalid authentication token |
 | 403 | `forbidden` | Invalid or missing X-Company header |
 | 404 | `not_found` | Delivery note not found or doesn't belong to the company |
+| 402 | `PLAN_LIMIT` | Email sending is not available on the organization's plan |
+| 422 | `EMAIL_CONTENT_BLOCKED` | Subject or body rejected by the abuse filter |
+| 429 | `EMAIL_RATE_LIMIT` | Per-user burst limit exceeded; retry after the `Retry-After` header |
+| 429 | `EMAIL_DAILY_LIMIT` | Organization's rolling 24h cap reached |
 | 500 | `internal_error` | Email sending failed |
 
 ## Related Endpoints

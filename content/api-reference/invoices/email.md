@@ -184,16 +184,31 @@ Email sending requires proper configuration in company settings:
 The sender email must be verified before you can send emails. Unverified emails will result in a `403` error.
 {% /callout %}
 
+## Sending limits
+
+Document emails go out from the shared Storno sender, so every message is checked against an abuse guard before it is queued:
+
+| Rule | Limit |
+|------|-------|
+| Recipients per email (`to` + `cc` + `bcc`) | 5 |
+| Burst per user | 10 emails / 10 minutes on Freemium, 60 / 10 minutes on paid plans |
+| Rolling 24h cap per organization | 30 on Freemium, 300 on Starter, 1,000 on Professional, 3,000 on Business |
+| Content | Subject and body must describe the attached document. Phishing-style wording, raw `<script>`/`<form>`/`<iframe>` tags and HTML in the subject are rejected. |
+
+Organizations on the Business plan that relay through their own SMTP server (white-label mailer) are exempt from the burst, daily and wording checks.
+
 ## Error codes
 
 | Code | Description |
 |------|-------------|
-| `400` | Validation error - invalid email address or missing required fields |
+| `400` | Validation error - invalid email address, missing required fields, or more than 5 recipients (`EMAIL_TOO_MANY_RECIPIENTS`) |
 | `401` | Missing or invalid authentication token |
 | `403` | Sender email not verified |
 | `404` | Invoice not found |
 | `422` | Invoice not issued or PDF/XML not generated |
-| `429` | Rate limit exceeded (max 100 emails per hour) |
+| `402` | Email sending not available on the organization's plan (`PLAN_LIMIT`) |
+| `422` | Subject or body rejected by the abuse filter (`EMAIL_CONTENT_BLOCKED`) |
+| `429` | Per-user burst limit or organization daily cap reached (`EMAIL_RATE_LIMIT`, `EMAIL_DAILY_LIMIT`); see `Retry-After` |
 | `500` | Email service temporarily unavailable |
 
 ## Related endpoints
