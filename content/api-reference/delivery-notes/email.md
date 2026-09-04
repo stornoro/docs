@@ -116,6 +116,7 @@ Document emails go out from the shared Storno sender, so every message is checke
 
 | Rule | Limit |
 |------|-------|
+| Recipients | Every address in `to`, `cc` and `bcc` must be the email of one of the company's clients, the company's own email, or the sender's email |
 | Recipients per email (`to` + `cc` + `bcc`) | 5 |
 | Burst per user | 10 emails / 10 minutes on Freemium, 60 / 10 minutes on paid plans |
 | Rolling 24h cap per organization | 30 on Freemium, 300 on Starter, 1,000 on Professional, 3,000 on Business |
@@ -133,6 +134,7 @@ Organizations on the Business plan that relay through their own SMTP server (whi
 | 403 | `forbidden` | Invalid or missing X-Company header |
 | 404 | `not_found` | Delivery note not found or doesn't belong to the company |
 | 402 | `PLAN_LIMIT` | Email sending is not available on the organization's plan |
+| 422 | `EMAIL_RECIPIENT_NOT_CLIENT` | A recipient is not a client of the company |
 | 422 | `EMAIL_CONTENT_BLOCKED` | Subject or body rejected by the abuse filter |
 | 429 | `EMAIL_RATE_LIMIT` | Per-user burst limit exceeded; retry after the `Retry-After` header |
 | 429 | `EMAIL_DAILY_LIMIT` | Organization's rolling 24h cap reached |
