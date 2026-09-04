@@ -17,7 +17,7 @@ Frontend → POST https://agent.storno.ro:17394/proxy → local agent uses curl 
 Frontend → POST /agent-result → backend processes ANAF response
 ```
 
-Only `cerere` (submission) and `listaMesaje` (status listing) require mTLS via the agent. `descarcare` (recipisa download) only needs a Bearer token and is handled server-side automatically.
+Every SPVWS2 call — `cerere` (submission), `listaMesaje` (inbox listing) and `descarcare` (PDF download) — requires the qualified certificate over mTLS; the ANAF OAuth token used for e-Factura is not accepted by SPVWS2 (it redirects to the F5 login policy). All three therefore go through the agent. See the [SPV inbox sync](/api-reference/spv/sync) for the document archive flow and the [Storno Agent guide](/agent) for installation and certificates.
 
 ## Local Agent
 
