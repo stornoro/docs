@@ -9,7 +9,9 @@ endpoint: /api/v1/spv/documents
 
 Every message in the company's ANAF **Spațiul Privat Virtual** inbox that Storno has archived: somații (enforcement notices), decizii, notificări, adrese, rapoarte de analiză de risc, recipise, certificate, plăți, extrase de cont and the rest. Messages get into the archive through the local storno-agent sync (see [Sync the SPV inbox](/api-reference/spv/sync)).
 
-Each document carries a `category` and a `severity`:
+Each document carries a plain-language explanation of what it is, which declaration and period it concerns and what to do, in Romanian (`summary`) and English (`summaryEn`), built from ANAF's wording (for example a receipt for D406 becomes "Filing receipt for the SAF-T standard audit file (D406), July 2026, registered at ANAF under number INTERNT-… on 31.08.2026. If the PDF mentions no errors, the return was accepted").
+
+Each document also carries a `category` and a `severity`:
 
 | Severity | Meaning | Examples |
 |---|---|---|
