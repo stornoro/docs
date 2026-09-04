@@ -277,7 +277,7 @@ Everything ANAF sends a company through Spațiul Privat Virtual, plus requests t
 | `spv_request_prepare` / `spv_request_agent_result` | File a request (web-service or ANAF website channel, chosen automatically) and record ANAF's registration id |
 | `spv_requests_list` / `spv_request_delete` | Requests filed so far and their answers |
 
-### Declarations (17 tools)
+### Declarations (21 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -285,6 +285,7 @@ Everything ANAF sends a company through Spațiul Privat Virtual, plus requests t
 | `declarations_recalculate` / `declarations_validate` | Rebuild figures from the ledgers, validate with ANAF's DUKIntegrator |
 | `declarations_prepare` / `declarations_agent_result` / `declarations_submit` | Sign and upload through the local agent; record ANAF's index |
 | `declarations_sync` / `declarations_refresh_statuses` / `declarations_download_xml` | Statuses from StareD112 and the SPV inbox; the XML itself |
+| `declaration_forms` / `declaration_form_spec` / `declaration_build` / `declaration_pdf` | Public: build a declaration from plain JSON (C168 today), validate it with DUKIntegrator and ANAF's online validator, get the PDF with the attachment zip for upload — see [declaration forms](/api-reference/public/declaration-forms) |
 | `declaration_validate_xml` | Public: validate any declaration XML (D212, C168, D177, D100 …) exactly as ANAF does, no account needed |
 | `anaf_declaration_status` | Public: processing state of any portal filing by index + CUI/CNP |
 | `anaf_nomenclator_judete` / `anaf_nomenclator_localitati` / `anaf_nomenclator_strazi` | Public: county, locality and street codes the XSDs require, from Storno's local mirror |
