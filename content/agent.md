@@ -163,6 +163,11 @@ Agent endpoints used by the web app: `GET /monitor` (status), `POST /monitor` (e
 | Browser says the agent certificate expired | old agent, before self-renewal | update the agent; since 1.6.0 it refreshes the certificate itself |
 | `No certificates found` | middleware missing, wrong library, token not plugged in | see the platform section above, then `storno-agent certificates` |
 | Certificate listed but ANAF answers "Pagina logout" / login page | PIN not accepted, or the certificate has no SPV rights on that CUI | check the PIN in the vendor app; verify the CUI is enrolled for this certificate in SPV |
+| "Storno Agent nu rulează" | the web app cannot reach `127.0.0.1:17394` | start the Storno Agent app (menu bar / tray icon); reinstall from get.storno.ro/agent if it is missing |
+| "Tokenul USB nu este conectat" | the PKCS#11 module or the Windows/Keychain store lists no certificate | plug in the token, check its driver or middleware, then retry |
+| "PIN greșit" / "Tokenul este blocat" | the token rejected the PIN, or too many wrong attempts | check the PIN in the vendor app; unlock with the PUK when locked |
+| "ANAF nu răspunde" | ANAF's servers timed out or returned an error | wait a few minutes and retry; ANAF has nightly maintenance windows |
+| "Conexiunea cu Storno s-a întrerupt" | the request never reached api.storno.ro (offline, or a deployment restarting the API) | retry after a few seconds |
 | `SSL engine cannot load client cert` | PKCS#11 library or toolchain architecture mismatch | `storno-agent certificates` shows the module architecture and what is missing |
 | The PDF of a document is "pending" | the agent has not fetched it yet | run **Sincronizează cu ANAF** again; pending files are retried every sync |
 
