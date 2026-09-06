@@ -49,7 +49,7 @@ Storno writes the XML, applies its own checks, validates with ANAF's DUKIntegrat
   "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<c168 xmlns=\"mfp:anaf:dgti:c168:declaratie:v3\" …",
   "issues": [
     { "level": "error", "code": "BR-C168-0041", "field": "contracte[0].bun.adresa.codPostal", "message": "Pentru imobil, trebuie completate toate câmpurile de adresă: județ, localitate, bloc/scară/etaj/ap și cod poștal." },
-    { "level": "warning", "code": "BR-C168-005911", "field": "contracte[0].locatari[0].cif", "message": "Cif-ul chiriașului este obligatoriu și numeric dacă s-a selectat adresa în România …" }
+    { "level": "error", "code": "BR-C168-005911", "field": "contracte[0].locatari[0].cif", "message": "CNP-ul/CIF-ul chiriașului este obligatoriu: ANAF respinge cererea la prelucrare …" }
   ],
   "validation": {
     "duk": { "valid": true, "errors": [], "warnings": [], "elapsedMs": 412 },
@@ -62,7 +62,7 @@ Storno writes the XML, applies its own checks, validates with ANAF's DUKIntegrat
 
 For D212 the builder also returns `info` issues with the computed amounts (tax, CASS tier, total due by 25 May) so the assistant can explain the result. ANAF's validator checks the arithmetic of the file but not the CASS thresholds; Storno applies them from the minimum wage of the income year (3300 RON for income 2024, 4050 RON for income 2025), exactly like ANAF's own web form. Rent paid by a legal-entity tenant is refused in the contracts list (the tenant withholds the tax) and can be passed under `alteVenituriCass` so it still counts for the health contribution.
 
-`valid` is true only when there are no error-level issues, DUK accepts the file and ANAF's online validator (when reachable) accepts it too. Warnings do not block: a termination without the tenant's CNP is refused by the web form but accepted by the e-guvernare portal upload through the agent, which is why that rule is a warning.
+`valid` is true only when there are no error-level issues, DUK accepts the file and ANAF's online validator (when reachable) accepts it too. Warnings do not block. The tenant's CNP is an error, not a warning: the portal upload passes without it, but ANAF then rejects the request in processing (recipisa G000 "CNP/NIF/CIF neprecizat"), verified on a real filing. Another lesson from real filings: only one C168 per landlord and period can be in processing at a time (R_MULTI_C168), so put every contract in one request.
 
 Rules applied by the C168 builder, all listed in the specification: required fields and `DD.MM.YYYY` dates (ISO dates are converted); Romanian addresses need the county, locality and street codes from the [nomenclator](/api-reference/public/anaf-nomenclator); the rented property needs a postal code; the declared income share must equal the sum of the co-owners' shares; CNP control digits are verified; the competent fiscal office is written only for a NIF; ownership fraction and share of the good exclude each other. Identifiers are never invented or padded: ANAF rejects them and a false identifier is a false declaration.
 
