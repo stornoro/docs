@@ -22,7 +22,7 @@ Download from [get.storno.ro/agent](https://get.storno.ro/agent) and pick your p
 
 | Platform | Package | Notes |
 |---|---|---|
-| macOS Apple Silicon | `storno-agent-macos-arm64.zip` (Storno Agent.app) | Move the app to `~/.storno-agent/` or Applications and open it once. macOS may ask you to allow it under Privacy & Security. |
+| macOS Apple Silicon | `storno-agent-macos-arm64.zip` (Storno Agent.app) | Move the app to `~/.storno-agent/` or Applications and open it once. The app is not notarized, so macOS blocks the first launch: right-click the app, choose **Open**, or go to **System Settings → Privacy & Security** and press **Open Anyway**. See [macOS says the app is damaged](#macos-says-the-app-is-damaged) if you get that message instead. |
 | macOS Intel | `storno-agent-macos-x64.zip` | same |
 | Windows | `storno-agent-win-x64.exe` | Uses the Windows certificate store; the token's own middleware must be installed |
 | Linux | `storno-agent-linux-x64` | Uses PKCS#11 (`pkcs11-tool`, `curl` with the `pkcs11` engine, `openssl`) |
@@ -156,6 +156,16 @@ Agent endpoints used by the web app: `GET /monitor` (status), `POST /monitor` (e
 - The PIN is kept in memory for the current session only and is redacted from logs. With automatic monitoring enabled it is stored in the OS secure store (Keychain / DPAPI / libsecret) together with the scoped API key; disabling monitoring deletes both.
 - The bundled `agent.storno.ro` certificate serves loopback traffic exclusively.
 
+### macOS says the app is damaged
+
+"Storno Agent is damaged and can't be opened" is Gatekeeper, not a broken download. It appears when a quarantined app bundle has no signature seal. Either update to the latest release (bundles are sealed from agent 1.7.7) or clear the quarantine flag on the copy you already have:
+
+```bash
+xattr -dr com.apple.quarantine ~/Downloads/"Storno Agent.app"
+```
+
+Then open the app normally. An unsigned but sealed bundle shows the regular "Apple could not verify" dialog instead; allow it once under **System Settings → Privacy & Security → Open Anyway**.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -164,6 +174,7 @@ Agent endpoints used by the web app: `GET /monitor` (status), `POST /monitor` (e
 | `No certificates found` | middleware missing, wrong library, token not plugged in | see the platform section above, then `storno-agent certificates` |
 | Certificate listed but ANAF answers "Pagina logout" / login page | PIN not accepted, or the certificate has no SPV rights on that CUI | check the PIN in the vendor app; verify the CUI is enrolled for this certificate in SPV |
 | "Storno Agent nu rulează" | the web app cannot reach `127.0.0.1:17394` | start the Storno Agent app (menu bar / tray icon); reinstall from get.storno.ro/agent if it is missing |
+| "Storno Agent is damaged and can't be opened. You should move it to the Bin." | Gatekeeper refuses a quarantined download whose bundle is not sealed (releases before agent 1.7.7) or whose zip was re-packed | remove the quarantine flag and open the app again: `xattr -dr com.apple.quarantine "/path/to/Storno Agent.app"`; or update to the latest zip, where the bundle is sealed and macOS shows the normal **Open Anyway** flow |
 | "Tokenul USB nu este conectat" | the PKCS#11 module or the Windows/Keychain store lists no certificate | plug in the token, check its driver or middleware, then retry |
 | "PIN greșit" / "Tokenul este blocat" | the token rejected the PIN, or too many wrong attempts | check the PIN in the vendor app; unlock with the PUK when locked |
 | "ANAF nu răspunde" | ANAF's servers timed out or returned an error | wait a few minutes and retry; ANAF has nightly maintenance windows |
