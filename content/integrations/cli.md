@@ -277,18 +277,28 @@ Everything ANAF sends a company through Spațiul Privat Virtual, plus requests t
 | `spv_request_prepare` / `spv_request_agent_result` | File a request (web-service or ANAF website channel, chosen automatically) and record ANAF's registration id |
 | `spv_requests_list` / `spv_request_delete` | Requests filed so far and their answers |
 
-### Declarations (21 tools)
+### Declarations (23 tools)
 
 | Tool | Description |
 |------|-------------|
-| `declarations_list` / `declarations_get` / `declarations_create` / `declarations_delete` | Company declarations (D300, D390, D394, D406 …) |
+| `declarations_list` / `declarations_get` / `declarations_create` / `declarations_update` / `declarations_delete` | Company declarations (D300, D390, D394, D406 …) |
 | `declarations_recalculate` / `declarations_validate` | Rebuild figures from the ledgers, validate with ANAF's DUKIntegrator |
-| `declarations_prepare` / `declarations_agent_result` / `declarations_submit` | Sign and upload through the local agent; record ANAF's index |
+| `declarations_file_via_agent` (one call: prepare, sign, upload, record the index) / `declarations_prepare` / `declarations_agent_result` / `declarations_submit` | Sign and upload through the local agent; record ANAF's index. `declarations_create` also takes `d212` and `c168` with the form input in `data.input` |
 | `declarations_sync` / `declarations_refresh_statuses` / `declarations_download_xml` | Statuses from StareD112 and the SPV inbox; the XML itself |
 | `declaration_forms` / `declaration_form_spec` / `declaration_build` / `declaration_pdf` | Public: build a declaration from plain JSON (C168, D212 rent income), validate it with DUKIntegrator and ANAF's online validator, get the PDF with the attachment zip for upload — see [declaration forms](/api-reference/public/declaration-forms) |
 | `declaration_validate_xml` | Public: validate any declaration XML (D212, C168, D177, D100 …) exactly as ANAF does, no account needed |
 | `anaf_declaration_status` | Public: processing state of any portal filing by index + CUI/CNP |
 | `anaf_nomenclator_judete` / `anaf_nomenclator_localitati` / `anaf_nomenclator_strazi` | Public: county, locality and street codes the XSDs require, from Storno's local mirror |
+
+### Dosare — case files (12 tools)
+
+| Tool | Description |
+|------|-------------|
+| `dosare_actions` | What needs attention: rejected filings with the reason, deadlines, contracts expiring, unread somații; what ANAF is processing; new answers — see [dosare](/api-reference/dosare/overview) |
+| `dosare_stats` | Rental portfolio: properties, active and expiring contracts, monthly rent, expected vs declared rent per year |
+| `dosare_list` / `dosare_get` / `dosare_create` / `dosare_update` / `dosare_delete` / `dosare_attach` | Manage case files and what they group |
+| `dosare_annual_return` / `dosare_d212_prefill` / `dosare_d212_create` | The yearly Declarația unică dosar (25 May), the D212 prefilled from the rental contracts, the draft in the dosar |
+| `dosare_document` | Termination agreement or sworn statement prefilled from a rental dosar, then PDF |
 
 ### Local agent (4 tools)
 

@@ -7,6 +7,14 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-08 — dosare (case files), D212 from Storno, deadline reminders
+
+### Added
+
+- **Dosare** — `GET/POST /api/v1/dosare`, `GET …/actions`, `GET …/stats`, `GET/PATCH/DELETE …/{id}`, `POST …/{id}/attach|detach`, `POST …/annual-return`, `GET …/{id}/d212-prefill`, `POST …/{id}/d212`, `GET/POST …/{id}/document/{type}`: case files grouping declarations, SPV requests and ANAF messages around a rental contract, a filing year of the Declarația unică, the periodic returns or the fiscal standing; automatic linking of recipisas (by upload index) and answers (by `id_solicitare`) by the inbox sync; the "needs attention / at ANAF / new answers" feed; the rental portfolio with expected vs declared rent; the termination agreement and the sworn statement prefilled from the dosar. `dosarId` on declarations, SPV requests and SPV documents. MCP: `dosare_*` (12 tools). See [dosare](/api-reference/dosare/overview).
+- **D212 and C168 filed from Storno** — declaration types `d212` and `c168` take the form input (`data.input`, schema from the public form spec) and, for C168, the attachments (`data.attachments`); prepare builds the XML with Storno's rules, validates with DUKIntegrator, renders the PDF with the zip and the agent files it. The D212 rent scenario is prefilled from the rental dosare. MCP: `declarations_create` (with `data`, `dosarId`), `declarations_update`, `declarations_file_via_agent` (prepare, sign, upload, record the index in one call).
+- **Deadline reminders** — daily `app:dosare:remind` creates the yearly Declarația unică dosar for taxpayers with rental contracts and notifies 30, 7 and 1 days before a dosar deadline and on the day (`dosar.deadline` notifications). The C168 30-day deadline is set when a rental dosar is created.
+
 ## 2026-09-05 — declarations with your own AI, SPV requests, PDF signing
 
 ### Added
