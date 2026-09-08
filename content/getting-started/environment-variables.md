@@ -30,6 +30,9 @@ Complete reference for configuring a Storno.ro deployment. All variables are set
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret. Mapped to `OAUTH_GOOGLE_CLIENT_SECRET` (backend) in Docker Compose. |
 | `TURNSTILE_SECRET_KEY` | No | — | Cloudflare Turnstile secret key for bot protection on login/register. If empty, captcha validation is skipped. |
 | `TURNSTILE_SITE_KEY` | No | — | Cloudflare Turnstile site key. If empty, a test key is used (always passes). Get keys from [Cloudflare dashboard](https://dash.cloudflare.com/?to=/:account/turnstile). |
+| `META_PIXEL_ID` | No | — | Meta (Facebook) Pixel / dataset id. When set together with `META_CAPI_ACCESS_TOKEN`, every completed registration is reported server-side to the Conversions API as a `CompleteRegistration` event, with the email SHA-256 hashed. Leave empty to disable. |
+| `META_CAPI_ACCESS_TOKEN` | No | — | Conversions API access token, generated in Events Manager → pixel → Settings → Conversions API. |
+| `META_CAPI_TEST_EVENT_CODE` | No | — | Test event code from Events Manager → Test events; set only while validating the integration. |
 
 ## ANAF / e-Factura
 
