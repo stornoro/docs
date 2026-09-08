@@ -45,6 +45,8 @@ Attaching a declaration to a dosar later brings its archived recipisas along; at
 | `GET` | `/api/v1/dosare/{id}/c168-prefill?actiune=` | the C168 input built from the dosar and the company, with the rule issues and the files available as attachment |
 | `POST` | `/api/v1/dosare/{id}/c168` | `{actiune, input, fileIds[], attachments[]}` → the C168 declaration in the dosar (422 with `issues` when the rules fail, `ATTACHMENT_REQUIRED` without a file) |
 | `GET` | `/api/v1/dosare/stats?format=csv` | the portfolio as CSV |
+| `GET` / `POST` | `/api/v1/dosare/registry-proposals` | contracts in ANAF's registry extract (newest one in the SPV inbox, `?documentId=`, or multipart `file`) with state and the matching dosar |
+| `POST` | `/api/v1/dosare/registry-import` | `{contracts: [...]}` from the proposals → rental dosare (terminated → closed, expired without termination → attention) |
 
 Permissions: reading needs `declaration.view`, writing `declaration.submit`. All routes take the company from `X-Company`.
 
@@ -87,6 +89,10 @@ The scanned contract, the addendum, the termination document or the signed sworn
 `GET …/c168-prefill?actiune=inregistrare|modificare|incetare` assembles the [C168 input](/api-reference/public/declaration-forms) from the dosar and the company: the company as designated landlord, the contract, the property, the tenant, and for a termination or an amendment the corresponding block from the subject (`dataIncetare`, `incetareNumar`, `incetareMotiv`; `dataModificare`, `modificareChirie`, `modificarePanaLa`). ANAF wants coded addresses; they are kept in the subject as `adresaCod` (property), `chiriasAdresaCod` (tenant) and `locatorAdresaCod` (landlord), each `{judet, localitate, localitateNume, strada, stradaNume, numar, detalii, codPostal}` with codes from the [nomenclator](/api-reference/public/anaf-nomenclator). The response carries Storno's rule `issues` so the missing pieces are explicit.
 
 `POST …/c168` with the reviewed input and the attachment (dosar `fileIds` and/or inline `attachments`) creates the C168 declaration in the dosar, remembers the reviewed addresses and dates in the subject, and sets the next step. The declaration then follows the normal flow: validate, prepare, sign and file through the agent. Prepare refuses a C168 while another one of the company is still in processing (`409 C168_IN_PROCESSING`), because ANAF rejects the second one (R_MULTI_C168).
+
+## Dosare from ANAF's registry
+
+The answer to the C168 SPV request is the "Registrul contractelor de locațiune", a table with one row per filing. Storno reads it (`GET /api/v1/dosare/registry-proposals` takes the newest one archived in the inbox; `POST` with multipart `file` takes a PDF downloaded by hand), reconstructs every contract with its state after all filings (`activ`, `expirat` without a termination filing, `incetat` with the termination date), and matches each one against the existing rental dosare by contract number and date or by tenant and start date. `POST …/registry-import` with the ticked contracts creates the dosare, keeping the ANAF upload index and registration date in the subject; a contract that expired without a termination is flagged for attention because ANAF still considers it running.
 
 ## C168 filed from Storno
 
