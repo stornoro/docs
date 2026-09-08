@@ -20,11 +20,15 @@ POST /api/v1/spv/requests/{requestId}/agent-result {statusCode, body}
 … later: POST /api/v1/spv/sync-agent-result        → request status becomes "answered", answerDocumentId set
 ```
 
+## CNP or CUI: the same lists as the SPV form
+
+ANAF's request form decides the type list from the identifier's length alone: 13 digits is a person and gets the CNP list (Declarația unică, `Duplicat declaratie unica`, `Adeverinte Venit`, `Istoric declaratii PF`, `InterogariBanci`, `Venituri Formular Banca`, `Detalii neconcordante D112 REVISAL`, C168, fișa rol, vector fiscal…), anything else gets the CUI list (the company returns, bilanț, `Istoric declaratii`, decisions…). Storno mirrors that: `types` returns the list for the company's identifier, `prepare` refuses a type outside it with `422 INVALID_REQUEST` and a message saying so, and for types sent through the website form it applies the form's own period rules (no period for C168, fișa rol, vector fiscal…; month fixed to 12 for annual types and 6 for the half-year bilanț).
+
 ## Endpoints
 
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
-| GET | `/api/v1/spv/requests/types` | `declaration.view` | Catalog of request types, their parameters, first year with data, ANAF notes, reasons for income certificates |
+| GET | `/api/v1/spv/requests/types` | `declaration.view` | Request types the SPV form offers **this company** (a CNP sees a different list than a CUI; `?all=1` for the whole catalog), their parameters, `audience`, first year with data, ANAF notes, reasons for income certificates |
 | GET | `/api/v1/spv/requests` | `declaration.view` | Requests of the company, newest first (`page`, `limit`, `status`) |
 | POST | `/api/v1/spv/requests/prepare` | `declaration.submit` | Validate and register a request; returns the ANAF URL |
 | POST | `/api/v1/spv/requests/{uuid}/agent-result` | `declaration.submit` | Relay ANAF's answer |
