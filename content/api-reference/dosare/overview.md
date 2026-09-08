@@ -45,6 +45,7 @@ Attaching a declaration to a dosar later brings its archived recipisas along; at
 | `GET` | `/api/v1/dosare/{id}/c168-prefill?actiune=` | the C168 input built from the dosar and the company, with the rule issues and the files available as attachment |
 | `POST` | `/api/v1/dosare/{id}/c168` | `{actiune, input, fileIds[], attachments[]}` → the C168 declaration in the dosar (422 with `issues` when the rules fail, `ATTACHMENT_REQUIRED` without a file) |
 | `GET` | `/api/v1/dosare/stats?format=csv` | the portfolio as CSV |
+| `GET` | `/api/v1/dosare/{id}/billing` | the tenant's invoices: recurring invoice, issued invoices with payment state, received invoices, compensation balance |
 | `GET` / `POST` | `/api/v1/dosare/registry-proposals` | contracts in ANAF's registry extract (newest one in the SPV inbox, `?documentId=`, or multipart `file`) with state and the matching dosar |
 | `POST` | `/api/v1/dosare/registry-import` | `{contracts: [...]}` from the proposals → rental dosare (terminated → closed, expired without termination → attention) |
 
@@ -69,6 +70,10 @@ Permissions: reading needs `declaration.view`, writing `declaration.submit`. All
 ## Rental portfolio
 
 `GET /api/v1/dosare/stats` returns every property (`properties[]`: address, tenant, rent, currency, period, `active`, `expiresInDays`, linked declarations), `activeContracts`, `expiringWithin60Days`, `monthlyRent` by currency, `expectedGrossByYear` (rent × months from the contract terms, per income year and currency) and `declaredByIncomeYear` (the gross rent the D212s declared per income year with the declaration status). A year with expected rent and no D212 is what the assistant or the dashboard should point at.
+
+## Billing with the tenant
+
+`GET /api/v1/dosare/{id}/billing` matches the tenant's CUI/CNP (`subject.chiriasCif`) against the company's clients and suppliers and returns: `recurring[]` (the recurring invoice: total, frequency, day, next issuance, last invoice), `issued[]` (invoices issued to the tenant, each with `paymentState` paid / partial / unpaid / overdue and `daysOverdue`), `totals` per currency (invoiced, paid, unpaid, overdue), `received[]` (invoices the tenant issued to the landlord, for example works) and, when the subject carries an `investitie` clause (`estimata`, `plafon`, `moneda`, `compensareDeLa`), a `compensation` block with the works invoiced by the tenant against the rent invoiced since the compensation started. Company landlords see "expected vs invoiced" in the portfolio (`invoicedByYear`, `landlordIsCompany`) instead of "expected vs declared"; the expected rent follows `chirieDeLa` (when the rent becomes due) and `chirieMajorata` from `majorareDeLa`.
 
 ## Declarația unică from the contracts
 
