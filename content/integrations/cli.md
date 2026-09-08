@@ -189,7 +189,7 @@ The 228 tools are organized into these categories:
 |------|-------------|
 | `companies_list` | List all companies with e-invoice sync status |
 | `companies_get` | Get company details |
-| `companies_create` | Create company via CIF lookup |
+| `companies_create` | Create a company via CIF lookup, or a natural person (`type: individual` + CNP, name, city, county) — see [create company](/api-reference/companies/create) |
 | `companies_update` | Modify company settings |
 | `companies_delete` | Delete company and all data |
 | `companies_upload_logo` | Upload company logo (PNG/JPG/SVG, max 2MB) |
@@ -309,7 +309,8 @@ Everything ANAF sends a company through Spațiul Privat Virtual, plus requests t
 |------|-------------|
 | `dosare_actions` | What needs attention: rejected filings with the reason, deadlines, contracts expiring, unread somații; what ANAF is processing; new answers — see [dosare](/api-reference/dosare/overview) |
 | `dosare_stats` | Rental portfolio: properties, active and expiring contracts, monthly rent, expected vs declared rent per year |
-| `dosare_list` / `dosare_get` / `dosare_create` / `dosare_update` / `dosare_delete` / `dosare_attach` | Manage case files and what they group |
+| `dosare_list` / `dosare_get` / `dosare_create` / `dosare_update` / `dosare_delete` / `dosare_attach` | Manage case files and what they group; the tenant is linked to the client / supplier with the same CUI or CNP (`clientId` / `supplierId` to set by hand, filter the list by them) |
+| `related_get` | Everything connected to one record (client, supplier, invoice, recurring invoice, declaration, SPV message or request, dosar), each item with its page — see [related records](/api-reference/related/overview) |
 | `dosare_annual_return` / `dosare_d212_prefill` / `dosare_d212_create` | The yearly Declarația unică dosar (25 May), the D212 prefilled from the rental contracts, the draft in the dosar |
 | `dosare_document` | Termination agreement or sworn statement prefilled from a rental dosar, then PDF |
 

@@ -24,17 +24,19 @@ The SPV inbox sync links every new message to what it answers:
 
 Attaching a declaration to a dosar later brings its archived recipisas along; attaching a request brings its answer.
 
+The other party is linked too: when a dosar is created or its subject edited, the tenant's CUI or CNP (`subject.chiriasCif`) finds the **client** and the **supplier** with the same identifier, and the dosar carries them as `client` / `supplier` (`{id, name}`). From there the tenant's invoices, recurring invoice and payments show in the dosar ([billing](#billing-with-the-tenant)) and the dosar shows on the client page. `PATCH` with `clientId` / `supplierId` sets the link by hand (a client recorded under another identifier), `null` removes it; `GET /api/v1/dosare?clientId=` lists a client's dosare. See [related records](/api-reference/related/overview) for the same links seen from the client, the invoice, the declaration or the SPV message.
+
 ## Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/dosare?type=&status=` | list with per-dosar counts (declarations, requests, documents) |
+| `GET` | `/api/v1/dosare?type=&status=&clientId=&supplierId=` | list with per-dosar counts (declarations, requests, documents) and the linked `client` / `supplier` |
 | `GET` | `/api/v1/dosare/actions` | `todo`, `inProgress`, `answers` (see below) |
 | `GET` | `/api/v1/dosare/stats` | rental portfolio (see below) |
 | `POST` | `/api/v1/dosare` | create; `title` is derived from the subject when omitted |
 | `POST` | `/api/v1/dosare/annual-return` | ensure the `Declarația unică <an>` dosar (`{"an": 2026}`; default: the year whose 25 May is next) |
 | `GET` | `/api/v1/dosare/{id}` | `dosar`, `counts`, `declarations[]`, `requests[]`, `documents[]`, `timeline[]` |
-| `PATCH` | `/api/v1/dosare/{id}` | `title`, `subject` (merged), `status` (`active`, `attention`, `closed`), `nextStep`, `deadlineAt`, `deadlineLabel`, `notes` |
+| `PATCH` | `/api/v1/dosare/{id}` | `title`, `subject` (merged), `status` (`active`, `attention`, `closed`), `nextStep`, `deadlineAt`, `deadlineLabel`, `notes`, `clientId` / `supplierId` (null unlinks) |
 | `DELETE` | `/api/v1/dosare/{id}` | delete; children are unlinked |
 | `POST` | `/api/v1/dosare/{id}/attach` / `/detach` | `{declarationId}` or `{requestId}` or `{documentId}` |
 | `GET` | `/api/v1/dosare/{id}/d212-prefill` | D212 rent-scenario input built from the rental dosare for the income year |
