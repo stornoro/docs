@@ -39,7 +39,12 @@ Attaching a declaration to a dosar later brings its archived recipisas along; at
 | `POST` | `/api/v1/dosare/{id}/attach` / `/detach` | `{declarationId}` or `{requestId}` or `{documentId}` |
 | `GET` | `/api/v1/dosare/{id}/d212-prefill` | D212 rent-scenario input built from the rental dosare for the income year |
 | `POST` | `/api/v1/dosare/{id}/d212` | create the D212 draft in the dosar (`{input}` optional, else the prefill) |
-| `GET` / `POST` | `/api/v1/dosare/{id}/document/{type}` | prefilled fields, then the PDF: `conventie_incetare_inchiriere`, `declaratie_incetare_contract` (`?format=pdf` streams it) |
+| `GET` / `POST` | `/api/v1/dosare/{id}/document/{type}` | prefilled fields, then the PDF: `conventie_incetare_inchiriere`, `declaratie_incetare_contract`, `act_aditional_inchiriere`, `notificare_incetare_inchiriere` (`?format=pdf` streams it) |
+| `POST` | `/api/v1/dosare/{id}/files` | multipart `file` + `kind` (`contract`, `act_aditional`, `incetare`, `declaratie`, `altele`); PDF, JPG, PNG, TIFF, 10 MB |
+| `GET` / `DELETE` | `/api/v1/dosare/{id}/files/{fileId}/download`, `/api/v1/dosare/{id}/files/{fileId}` | download or remove a file |
+| `GET` | `/api/v1/dosare/{id}/c168-prefill?actiune=` | the C168 input built from the dosar and the company, with the rule issues and the files available as attachment |
+| `POST` | `/api/v1/dosare/{id}/c168` | `{actiune, input, fileIds[], attachments[]}` → the C168 declaration in the dosar (422 with `issues` when the rules fail, `ATTACHMENT_REQUIRED` without a file) |
+| `GET` | `/api/v1/dosare/stats?format=csv` | the portfolio as CSV |
 
 Permissions: reading needs `declaration.view`, writing `declaration.submit`. All routes take the company from `X-Company`.
 
@@ -72,6 +77,16 @@ Permissions: reading needs `declaration.view`, writing `declaration.submit`. All
 ## Documents from a dosar
 
 `GET /api/v1/dosare/{id}/document/conventie_incetare_inchiriere` returns the fields of the [legal document generator](/api-reference/public/legal-documents) prefilled from the dosar and the company (landlord, tenant, contract, property, termination date) plus the `required` list; `POST` with the reviewed fields as overrides renders the PDF. The same for `declaratie_incetare_contract`, the landlord's sworn statement attached to a C168 termination. Generating either sets the dosar's next step to signing and filing the C168 termination within 30 days.
+
+## Files in a dosar
+
+The scanned contract, the addendum, the termination document or the signed sworn statement live in the dosar (`POST …/files`). They are what the C168 needs as its zip attachment, so filing from the dosar picks them by id.
+
+## C168 built from the dosar
+
+`GET …/c168-prefill?actiune=inregistrare|modificare|incetare` assembles the [C168 input](/api-reference/public/declaration-forms) from the dosar and the company: the company as designated landlord, the contract, the property, the tenant, and for a termination or an amendment the corresponding block from the subject (`dataIncetare`, `incetareNumar`, `incetareMotiv`; `dataModificare`, `modificareChirie`, `modificarePanaLa`). ANAF wants coded addresses; they are kept in the subject as `adresaCod` (property), `chiriasAdresaCod` (tenant) and `locatorAdresaCod` (landlord), each `{judet, localitate, localitateNume, strada, stradaNume, numar, detalii, codPostal}` with codes from the [nomenclator](/api-reference/public/anaf-nomenclator). The response carries Storno's rule `issues` so the missing pieces are explicit.
+
+`POST …/c168` with the reviewed input and the attachment (dosar `fileIds` and/or inline `attachments`) creates the C168 declaration in the dosar, remembers the reviewed addresses and dates in the subject, and sets the next step. The declaration then follows the normal flow: validate, prepare, sign and file through the agent. Prepare refuses a C168 while another one of the company is still in processing (`409 C168_IN_PROCESSING`), because ANAF rejects the second one (R_MULTI_C168).
 
 ## C168 filed from Storno
 
