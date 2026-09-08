@@ -46,6 +46,19 @@ claude mcp add storno --transport http https://mcp.storno.ro/mcp
 }
 ```
 
+### ChatGPT
+
+ChatGPT connects to remote MCP servers through **Developer mode** (available on Plus, Pro, Business, Enterprise and Edu plans):
+
+1. Open **Settings → Connectors → Advanced** and enable **Developer mode**
+2. Back in **Connectors**, click **Create**
+3. Name it `Storno`, set the MCP server URL to `https://mcp.storno.ro/mcp`, choose **OAuth** authentication and save
+4. Sign in with your Storno account when ChatGPT asks
+5. In a new chat, enable the Storno connector from the tools menu and ask, for example, *"List my unpaid invoices"*
+
+ChatGPT asks for confirmation before running tools that change data (issuing, submitting, deleting).
+
+
 ### Claude Desktop
 
 ```json
