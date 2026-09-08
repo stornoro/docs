@@ -78,6 +78,10 @@ A small always-on Linux box with the token plugged in is the practical way for a
 
 Never test a PIN by guessing: tokens lock after a few wrong attempts and need the PUK from the vendor application.
 
+### Remembering the PIN (agent 1.7.8+)
+
+Under **Company → ANAF → Agent**, enter the PIN and press **Salvează preferința**. The agent checks the PIN on the token once (a typo is never stored) and keeps it in the operating system's secure store: macOS Keychain, Windows DPAPI or Linux libsecret (a `0600` file when none exists). From then on the web app, the MCP tools and the automatic monitoring leave the PIN out of their requests and the agent fills it in itself; the PIN never leaves the computer and is never sent to Storno. The badge *PIN reținut în …* shows that it is stored; **Uită PIN-ul** deletes it. Older agents keep the PIN only for the browser session.
+
 ## Signing PDFs
 
 Since agent 1.7.6 the agent also signs ordinary PDF files with the qualified certificate: contracts, offers, sworn statements, declarations produced by DUKIntegrator, anything a partner or an authority wants signed electronically. Nothing leaves your computer: the file is hashed locally, the token signs the hash, the signature is embedded in a copy of the PDF.
@@ -90,7 +94,7 @@ With the `storno-cli` MCP server running on the same computer as the agent (Clau
 
 > Sign every PDF in ~/Contracte/2026-09 with my certificate, put the signed copies in ~/Contracte/semnate and show the signature in the footer.
 
-The assistant calls `agent_sign_pdf` with `files: ["~/Contracte/2026-09"]`, `outDir`, `visible: true` and your certificate id, and reports one line per file. Pass the PIN in the message or, better, set `STORNO_AGENT_PIN` in the MCP server's environment so it never appears in the chat; without a PIN nothing is signed.
+The assistant calls `agent_sign_pdf` with `files: ["~/Contracte/2026-09"]`, `outDir`, `visible: true` and your certificate id, and reports one line per file. Pass the PIN in the message, set `STORNO_AGENT_PIN` in the MCP server's environment, or remember the PIN once in the web app (agent 1.7.8+, see above) so it never appears in the chat; without one of these nothing is signed.
 
 ### Mass signing rules
 
@@ -136,18 +140,18 @@ Verify a signed file with `pdfsig contract-01.signed.pdf` (poppler) or by openin
 
 ## Automatic monitoring (unattended SPV sync)
 
-Since agent 1.7.0 the agent can check the SPV inbox on its own, without the web app being open. Enable it under **Company → ANAF → Monitorizare SPV automată** after selecting the certificate and entering the PIN:
+Since agent 1.7.0 the agent can check the SPV inbox on its own, without the web app being open. Enable it under **Company → ANAF → Monitorizare SPV automată** after selecting the certificate and entering (or remembering) the PIN:
 
 1. Storno creates a dedicated API key limited to the `declaration.view` and `declaration.submit` scopes.
 2. The browser hands the key, the PIN and the certificate id to the agent on `127.0.0.1`.
 3. The agent keeps the two secrets in the operating system's secure store (macOS Keychain, Windows DPAPI, Linux libsecret, or a `0600` file when none is available) and writes only the schedule to `~/.storno-agent/monitor.json`.
 4. Every *N* hours (1 to 24, default 6) the agent lists the last 60 days of SPV messages with the certificate, sends them to Storno, and fetches the PDFs Storno does not have yet. New somații and decisions trigger the usual push/email notifications.
 
-The computer must be on and the token plugged in. After consecutive failures the interval backs off (up to 24 h) and the last error is shown on the ANAF page. **Sincronizează acum** runs a cycle immediately, **Dezactivează** removes the entry, deletes the secrets and revokes the API key.
+The computer must be on and the token plugged in. Right after the computer wakes from sleep the USB token is re-enumerated and the middleware may not expose the certificate for a while (curl reports `pkcs11 engine::object not found`); since 1.7.8 a run that resumes after sleep waits a minute first and retries such errors three times before counting a failure. After consecutive failures the interval backs off (up to 24 h) and the last error is shown on the ANAF page. **Sincronizează acum** runs a cycle immediately, **Dezactivează** removes the entry, deletes the secrets and revokes the API key.
 
 For an office, put the token in a small always-on machine (a Linux box works, see the Linux section) and enable monitoring there for every company the certificate is enrolled for.
 
-Agent endpoints used by the web app: `GET /monitor` (status), `POST /monitor` (enroll), `POST /monitor/{companyId}/run`, `DELETE /monitor/{companyId}`. They accept only requests from `app.storno.ro` carrying the `X-Storno-Agent: 1` header.
+Agent endpoints used by the web app: `GET /monitor` (status), `POST /monitor` (enroll), `POST /monitor/{companyId}/run`, `DELETE /monitor/{companyId}`; for the remembered PIN `GET /pin/{certificateId}` (`{stored, store}`), `POST /pin` (`{certificateId, pin}`, checked on the token first) and `DELETE /pin/{certificateId}`. `GET /certificates` reports `pinStored` per certificate and the `secretStore` name. They accept only requests from `app.storno.ro` carrying the `X-Storno-Agent: 1` header.
 
 ## Security
 
