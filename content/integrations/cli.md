@@ -189,7 +189,7 @@ The 228 tools are organized into these categories:
 |------|-------------|
 | `companies_list` | List all companies with e-invoice sync status |
 | `companies_get` | Get company details |
-| `companies_create` | Create a company via CIF lookup, or a natural person (`type: individual` + CNP, name, city, county) — see [create company](/api-reference/companies/create) |
+| `companies_create` | Create a company via CIF lookup, or an individual person (`type: individual` + CNP, name, city, county) — see [create company](/api-reference/companies/create) |
 | `companies_update` | Modify company settings |
 | `companies_delete` | Delete company and all data |
 | `companies_upload_logo` | Upload company logo (PNG/JPG/SVG, max 2MB) |

@@ -109,7 +109,7 @@ The Client object represents customers who receive invoices and other documents.
 
 ## Notes
 
-- **type**: Use `company` for legal entities, `individual` for natural persons
+- **type**: Use `company` for legal entities, `individual` for individual persons
 - **cui** vs **cnp**: Companies use CUI, individuals use CNP
 - **vatCode**: Full VAT code with country prefix (RO prefix for Romania)
 - **isVatPayer**: Determines whether VAT is applied on invoices

@@ -157,7 +157,7 @@ Type of client:
 | Value | Description |
 |-------|-------------|
 | company | Legal entity (company) |
-| individual | Natural person (individual) |
+| individual | Individual person (individual) |
 
 ## Source
 

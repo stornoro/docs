@@ -1,6 +1,6 @@
 ---
 title: Create Company
-description: Add a company by CIF with automatic ANAF validation, or a natural person by CNP
+description: Add a company by CIF with automatic ANAF validation, or an individual person by CNP
 method: POST
 endpoint: /api/v1/companies
 ---
@@ -9,7 +9,7 @@ endpoint: /api/v1/companies
 
 Creates a new company by providing its CIF (tax identification number). The system automatically validates the CIF with ANAF and retrieves the company's official registration data including name, address, VAT status, and other details.
 
-A **natural person** (persoană fizică) can be added the same way with `type: "individual"`: the landlord who registers rental contracts (C168) and files the annual return (D212) as a person, or anyone who receives invoices in SPV by CNP. Nothing is fetched from ANAF; the CNP is checked (13 digits, first digit 1–8, control digit) and the name, city and county are typed by hand. The person is a company like any other afterwards (`X-Company`, dosare, declarations, invoices received), never a VAT payer, with `type: "individual"` and `isIndividual: true` in every response, and `refresh-anaf` refused with `400 INDIVIDUAL`.
+A **individual person** (persoană fizică) can be added the same way with `type: "individual"`: the landlord who registers rental contracts (C168) and files the annual return (D212) as a person, or anyone who receives invoices in SPV by CNP. Nothing is fetched from ANAF; the CNP is checked (13 digits, first digit 1–8, control digit) and the name, city and county are typed by hand. The person is a company like any other afterwards (`X-Company`, dosare, declarations, invoices received), never a VAT payer, with `type: "individual"` and `isIndividual: true` in every response, and `refresh-anaf` refused with `400 INDIVIDUAL`.
 
 ## Headers
 
@@ -30,7 +30,7 @@ A **natural person** (persoană fizică) can be added the same way with `type: "
 | state | string | individuals | County |
 | country, email, phone | string | No | Default country `RO` |
 
-Natural person:
+Individual person:
 
 ```json
 { "type": "individual", "cnp": "1800101400016", "name": "POPESCU ION", "address": "Bld. Iuliu Maniu 7", "city": "Sector 6", "state": "București" }
