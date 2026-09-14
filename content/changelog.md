@@ -7,6 +7,23 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-14 — Received e-Facturi: supplier product memory, VAT rounding, message to the issuer
+
+### Added
+
+- **Supplier product memory**: lines of received e-Facturi are matched to products by the supplier's barcode (BT-157), article code (BT-155) and description, learned on every sync and confirmed when you pick a product on a received invoice; see [Received invoices](/concepts/anaf-integration#received-invoices-product-matching-and-messages-to-the-issuer). The identifiers are kept on the line (`productCode`, `buyerItemIdentification`, `standardItemIdentification`).
+- **`POST /invoices/{uuid}/efactura-message`**: message to the issuer of a received invoice through SPV (ANAF RASP), recorded as the `efactura_message_sent` event. MCP: `invoices_efactura_message` (storno-cli 1.0.43).
+- **Units of measure**: 16 more units (cutie, pereche, g, t, ml, cm, km, mp, mc, min, sapt, an, kWh, serv, %) in `GET /defaults/invoice` and the apps.
+
+### Changed
+
+- Line VAT on received invoices: a difference under 3 (document currency) between the recomputed lines and the issuer's `TaxSubtotal` is placed on the largest line of that rate, so lines add up to the declared VAT.
+- e-Factura XML: category `E` on invoices under the special regimes art. 311 / art. 312 now carries `VATEX-EU-309` / `VATEX-EU-F` with the matching reason text (was `VATEX-EU-132` for every exemption).
+
+### Fixed
+
+- Unit `pachet` was sent to ANAF as `PK`, which is not a UN/ECE Recommendation 20 code; it is now `XPK` (older stored values are rewritten on generation).
+
 ## 2026-09-14 — Cloud certificates in the Storno Agent
 
 ### Added

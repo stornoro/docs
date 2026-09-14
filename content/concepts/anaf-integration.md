@@ -121,6 +121,22 @@ Message types include:
 - **FACTURA_TRIMISA** — Outgoing invoice status update
 - **ERORI_FACTURA** — Invoice validation errors
 
+## Received invoices: product matching and messages to the issuer
+
+Every received e-Factura is turned into an incoming invoice with lines linked to products. Since 2026-09-14 the matching follows what the supplier prints on the line, in this order:
+
+1. **Barcode** (BT-157 `StandardItemIdentification`) already seen from this supplier
+2. **The supplier's own article code** (BT-155 `SellersItemIdentification`)
+3. **The item description** as this supplier writes it (normalised: case and spaces)
+4. **Our own code** (BT-156 `BuyersItemIdentification`, or the barcode) equal to a product `code`
+5. Product name + unit, then a new product
+
+Steps 1–3 read a per-supplier memory (`supplier_product_mapping`) that is written on every sync and, above all, when you change the product of a line on a received invoice (`PUT /invoices/{uuid}` with `productId`): that choice is marked as confirmed and is never overridden by a later import. The identifiers stay on the line (`productCode` = supplier code, `buyerItemIdentification`, `standardItemIdentification`).
+
+Line VAT is recomputed from the net amount and the rate; when the sum differs from the issuer's `TaxSubtotal` by less than 3 (document currency) the difference is put on the largest line of that rate, so the lines add up to the declared VAT. Larger gaps are left as they are.
+
+**Message to the issuer (SPV "RASP").** `POST /api/v1/invoices/{uuid}/efactura-message` with `{"message": "..."}` sends a plain-text message (max 4000 characters) to the seller through ANAF, attached to the invoice's upload index: a dispute, a request for a corrected invoice, "not ours". The invoice is not changed; the message is recorded as the `efactura_message_sent` event. See [Message the issuer](/api-reference/invoices/efactura-message).
+
 ## XML Validation
 
 Before submission, invoices can be validated against ANAF's rules:

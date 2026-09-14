@@ -79,18 +79,15 @@ The Product object represents goods or services that can be added to invoices, p
 
 ## Common Units of Measure (Romania)
 
-- **buc** - bucată (piece)
-- **kg** - kilogram
-- **g** - gram
-- **l** - liter
-- **m** - meter
-- **m2** - square meter
-- **m3** - cubic meter
-- **ora** - hour (oră)
-- **zi** - day (zi)
-- **luna** - month (lună)
-- **set** - set
-- **pachet** - package (pachet)
+The value is the Romanian label; the UN/ECE Recommendation 20 code sent to ANAF (BT-130) is in brackets. Unknown labels are sent as `H87`.
+
+- **buc** - bucată, piece (`H87`)
+- **kg** - kilogram (`KGM`), **g** - gram (`GRM`), **t** - tonă (`TNE`)
+- **l** - litru (`LTR`), **ml** - mililitru (`MLT`)
+- **m** - metru (`MTR`), **cm** (`CMT`), **km** (`KMT`), **mp** / **m2** - metru pătrat (`MTK`), **mc** / **m3** - metru cub (`MTQ`)
+- **ora** - oră (`HUR`), **min** - minut (`MIN`), **zi** (`DAY`), **sapt** - săptămână (`WEE`), **luna** (`MON`), **an** (`ANN`)
+- **set** (`SET`), **pereche** (`PR`), **pachet** (`XPK`), **cutie** (`XBX`)
+- **kwh** (`KWH`), **serv** - serviciu (`E48`), **proc** - procent (`P1`)
 
 ## VAT Category Codes
 
