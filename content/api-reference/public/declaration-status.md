@@ -9,6 +9,8 @@ endpoint: /api/v1/public/declarations/status/{index}/{cui}
 
 After a declaration is uploaded to ANAF's e-guvernare portal (through the [Storno Agent](/agent) or manually) ANAF answers with an **upload index** ("Indexul este 1216…"). Its processing state is public on ANAF's StareD112 page for anyone who knows the index and the taxpayer's CUI/CNP. This endpoint reads that page and returns a normalized state. No account, nothing stored, 60 requests per hour per IP.
 
+StareD112 is served from three ANAF hosts (`www.anaf.ro`, `stare.anaf.ro`, `epatrim.anaf.ro`) that fail independently; Storno asks them in turn and reports which one answered in `host`. Add `?ghiseu=1` when the number is the registration number received at the ANAF counter instead of an online upload index.
+
 ## Request
 
 ```

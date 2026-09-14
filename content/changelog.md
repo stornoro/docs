@@ -7,6 +7,13 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-14 — StareD112 on every host, filings made elsewhere
+
+### Added
+
+- **StareD112 fallback hosts** — declaration status and recipisa are asked from `www.anaf.ro`, `stare.anaf.ro` and `epatrim.anaf.ro` in turn (the first was down for days in September); `GET /api/v1/public/declarations/status/{index}/{cui}` reports the `host` that answered and takes `?ghiseu=1` for a counter registration number. Status checks now run on the async transport with 5-minute retries instead of at once. MCP: `anaf_declaration_status` with `ghiseu`.
+- **Filings made outside Storno** — `PATCH /api/v1/declarations/{uuid}` with `filedExternally: {index, ghiseu}` records a declaration filed on the portal by hand, from another program or at the counter; Storno follows its state and fetches the recipisa. Web: *Depusă în altă parte* on the declaration page. MCP: `declarations_update` with `filedExternally`.
+
 ## 2026-09-08 — dosare (case files), D212 from Storno, deadline reminders
 
 ### Added

@@ -29,6 +29,7 @@ Partially updates a tax declaration's `data` or `metadata` fields. Only declarat
 |-------|------|----------|-------------|
 | `data` | object | No | Partial or full replacement of the declaration's fiscal data payload |
 | `metadata` | object | No | Partial or full replacement of the declaration's metadata |
+| `filedExternally` | object | No | `{index, ghiseu?}`: the declaration was filed outside Storno (portal by hand, another program, at the ANAF counter). Storno stores ANAF's number as `anafUploadId`, sets `submitted`, and follows the state on StareD112 (recipisa into the case file). `ghiseu: true` when the number is the counter registration number, not an online upload index. Works on any declaration not already submitted or accepted. |
 
 At least one of `data` or `metadata` must be provided.
 
