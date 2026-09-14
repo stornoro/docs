@@ -7,6 +7,40 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-14 — D394 rebuilt on the current form
+
+### Changed
+
+- **D394 (declarația informativă 394)** is generated again from scratch for the form in force (schema v5): partner rows (`op1`) per partner type, operation type and rate with whole-lei rounding, the `rezumat1` / `rezumat2` summaries with exactly the attribute groups ANAF's validator demands, the invoice series block (`serieFacturi` tip 1 / 2), the `informatii` block (partner counts, invoices issued, VAT per rate for VAT on collection, refund flags) and the `totalPlata_A` control sum. Private persons without CNP are declared by county, RO suppliers not registered for VAT as `N`, EU / non-EU partners by VAT number. Reverse charge and purchases from private persons (which need the goods-code breakdown) are reported in `data.warnings` instead of being guessed. The XML passes ANAF's validator (DUKIntegrator). See [Create declaration](/api-reference/declarations/create#d394-declaratia-informativa-394).
+
+### Fixed
+
+- The previous D394 populator used rates 19 / 9 / 5 %, invented attributes (`nrParteneri`, `nrT`, `d_rec`) and was rejected by the ANAF validator.
+
+## 2026-09-14 — D301 and D398 populated from invoices
+
+### Added
+
+- **D301 (decont special de TVA)** is now built from the received invoices of companies not registered for VAT: intra-community goods (section 1), services from the EU (section 4 with the 4.1 sub-total) and from outside the EU (section 4), VAT self-assessed at the standard rate in whole lei, the invoice's currency and exchange rate per row, the header and the payment reference the ANAF validator requires. `POST /declarations` with `type: d301`; see [Create declaration](/api-reference/declarations/create#d301-decont-special-de-tva).
+- **D398 (OSS, regimul UE)**, new type `d398` (quarterly): special-regime art. 314–315 sales to consumers in other member states grouped per state of consumption, supply type and VAT rate, amounts in EUR, VAT at the destination state's rate, nil return when there is nothing to declare; validated with ANAF's D398 validator. See [Create declaration](/api-reference/declarations/create#d398-declarația-specială-de-tva--oss-regimul-ue). MCP: `declarations_create` accepts `d301` and `d398`.
+
+## 2026-09-14 — Fiscal calendar with deadline reminders
+
+### Added
+
+- **Fiscal calendar**: `GET /fiscal-calendar` lists the declarations a company has to file in the next `days` days (D300, D390, D394, D301, D100, D112, SAF-T, D212, annual financial statements), derived from the company's profile and invoices, with the due date moved past weekends and Romanian legal holidays and a `due` / `overdue` / `filed` status read from the filed declarations. `GET /fiscal-calendar/all` gives the same across every company the caller can see. See [Fiscal calendar](/api-reference/fiscal-calendar/overview). Web: a *Calendar fiscal* page and dashboard widget (individuals included); MCP: `fiscal_calendar` (storno-cli 1.0.44).
+- **Company**: `vatPeriod` (`monthly` | `quarterly`, default monthly), `incomeTaxPeriod` (`monthly` | `quarterly`, default quarterly) and `hasEmployees` in `GET` / `PATCH /companies/{uuid}` and in the web settings; the calendar rules follow them.
+- **Notification `fiscal.deadline`**: 7, 3 and 1 days before an unfiled deadline, to every member of the company, with `data.code`, `data.dueDate`, `data.declarationType`, `data.period`, `data.companyId`; e-mail on by default, listed in the notification preferences under *Fiscal calendar*.
+
+## 2026-09-14 — Customer statements (situație clienți) with aging bands and e-mail
+
+### Added
+
+- **Customer statement**: `GET /clients/{uuid}/statement` lists a client's unpaid outgoing invoices as of a date (total, paid, outstanding, days overdue), the balance and the outstanding amount split into aging bands (current, 1–30, 31–60, 61–90, 91–120, 121–180, over 180 days); `GET /clients/{uuid}/statement.pdf` renders it as a PDF. See [Customer statement](/api-reference/clients/statement).
+- **`GET /clients/statements`**: every client with a positive balance, sorted by balance, with company-wide aging totals.
+- **`POST /clients/{uuid}/statement/email`** and **`POST /clients/statements/email`** (bulk, with `minBalance` and `dryRun`): e-mail "Facturi neachitate {company}" with the invoice list, the total to pay, the company IBANs, an optional message and the PDF attached, through the invoice e-mail pipeline (`EmailLog` category `statement`, outbound guard, unsubscribe). An e-mail template with category `statement` overrides the subject/body.
+- Web: "Situație facturi" card on the client page (aging, unpaid invoices, send by e-mail, download PDF) and "Trimite situația tuturor clienților cu sold" on the clients list. MCP: `client_statement`, `client_statements`, `client_statement_email`.
+
 ## 2026-09-14 — D300 rebuilt on the current form
 
 ### Changed

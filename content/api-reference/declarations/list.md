@@ -22,7 +22,7 @@ Retrieves a paginated list of tax declarations for the authenticated company. De
 |------|------|----------|-------------|
 | `page` | integer | No | Page number (default: 1) |
 | `limit` | integer | No | Items per page (default: 20, max: 100) |
-| `type` | string | No | Filter by declaration type: `d394`, `d300`, `d390`, `d100`, `d112` |
+| `type` | string | No | Filter by declaration type: `d394`, `d300`, `d390`, `d301`, `d398`, `d100`, `d112`, `d212`, `c168` |
 | `status` | string | No | Filter by status: `draft`, `validated`, `submitted`, `processing`, `accepted`, `rejected`, `error` |
 | `year` | integer | No | Filter by fiscal year (e.g., 2026) |
 | `month` | integer | No | Filter by fiscal month (1–12) |

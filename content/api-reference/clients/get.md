@@ -124,3 +124,4 @@ curl -X GET 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345
 - [List clients](/api-reference/clients/list)
 - [Update client](/api-reference/clients/update)
 - [Delete client](/api-reference/clients/delete)
+- [Customer statement (unpaid invoices, aging, e-mail)](/api-reference/clients/statement)

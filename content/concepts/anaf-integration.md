@@ -163,3 +163,6 @@ curl -X POST https://api.storno.ro/api/v1/invoices/{uuid}/verify-signature \
   -H "X-Company: {company_uuid}"
 ```
 
+## Fiscal calendar
+
+Storno derives the filing deadlines of a company instead of asking for them: the VAT return (D300) and D394 follow the VAT period set on the company (monthly or quarterly), D100 the income tax period, D112 exists only while the company has employees, D390 appears for a month with an intra-community counterparty on an invoice, D301 for a non-VAT payer with foreign supplier invoices, SAF-T (D406) follows the VAT period, and a person gets the Declarația unică (25 May) while a company gets the annual financial statements (last working day of May). A deadline that falls on a weekend or a Romanian legal holiday moves to the next working day. A deadline is `filed` when a submitted or accepted declaration of that type exists for the period, `overdue` when it has passed without one; members are reminded 7, 3 and 1 days ahead (`fiscal.deadline`). See [Fiscal calendar](/api-reference/fiscal-calendar/overview).

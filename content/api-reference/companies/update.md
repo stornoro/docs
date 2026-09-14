@@ -30,6 +30,10 @@ Updates configuration settings for a company. Note that core ANAF data (CIF, reg
 | bankAccount | string | No | IBAN account number |
 | bankBic | string | No | BIC/SWIFT code |
 | defaultCurrency | string | No | Default currency code (e.g., "RON", "EUR") |
+| caenCode | string | No | Main activity code (CAEN, 4 digits) — the D300 header and SAF-T need it |
+| vatPeriod | string | No | `monthly` (default) or `quarterly` — the D300, D394 and SAF-T deadlines of the [fiscal calendar](/api-reference/fiscal-calendar/overview) follow it |
+| incomeTaxPeriod | string | No | `quarterly` (default) or `monthly` — the D100 deadline |
+| hasEmployees | boolean | No | With employees the company files D112 every month |
 | phone | string | No | Contact phone number |
 | email | string | No | Contact email address |
 | syncDaysBack | integer | No | Number of days to sync back from ANAF (1-365) |
