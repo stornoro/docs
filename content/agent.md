@@ -196,6 +196,7 @@ Then open the app normally. An unsigned but sealed bundle shows the regular "App
 | Browser says the agent certificate expired | old agent, before self-renewal | update the agent; since 1.6.0 it refreshes the certificate itself |
 | `No certificates found` | middleware missing, wrong library, token not plugged in | see the platform section above, then `storno-agent certificates` |
 | Certificate listed but ANAF answers "Pagina logout" / login page | PIN not accepted, or the certificate has no SPV rights on that CUI | check the PIN in the vendor app; verify the CUI is enrolled for this certificate in SPV |
+| "Update failed: EROFS: read-only file system … /AppTranslocation/…" (macOS) | the app was started from a quarantined download, so macOS ran a temporary read-only copy | agent 1.8.1 updates the original bundle and clears the quarantine flag by itself; on older agents move "Storno Agent.app" to Applications and start it from there, then update |
 | Cloud certificate asks for a PIN in Storno | the vendor's key provider was not recognised | add the thumbprint to `cloudCertificateIds` in `~/.storno-agent/config.json` (see *Cloud certificates on Windows*) |
 | Cloud certificate: request fails after ~3 minutes | the approval in the vendor app was not given in time | approve the prompt on the phone / in the vendor app, then repeat the operation |
 | "Storno Agent nu rulează" | the web app cannot reach `127.0.0.1:17394` | start the Storno Agent app (menu bar / tray icon); reinstall from get.storno.ro/agent if it is missing |
