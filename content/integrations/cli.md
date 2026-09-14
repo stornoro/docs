@@ -321,7 +321,7 @@ Available when the MCP server runs on the same computer as the [Storno Agent](/a
 
 | Tool | Description |
 |------|-------------|
-| `agent_status` / `agent_certificates` | Agent health, certificates on the token |
+| `agent_status` / `agent_certificates` | Agent health, certificates on the token or in the cloud (`kind`: token / cloud / software) |
 | `agent_sign_pdf` | Sign one PDF or whole directories with the qualified certificate (PAdES, optional visible footer box); see [mass signing](/agent#signing-pdfs) |
 | `agent_submit_declaration_pdf` | Sign a DUKIntegrator PDF and upload it to the e-guvernare portal; returns the ANAF index |
 

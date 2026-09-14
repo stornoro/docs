@@ -43,6 +43,24 @@ It lists every usable identity with subject, issuer and expiry, and on macOS/Lin
 
 Install the middleware that came with your token (SafeNet Authentication Client, Feitian, certSIGN, Longmai). The certificate then appears in the Windows certificate store and the agent uses it directly; the PIN prompt is handled by the middleware or by Storno.
 
+### Cloud certificates on Windows (Trans Sped EasySign, certSIGN cloud, DigiSign cloud) — agent 1.8.0+
+
+A qualified certificate kept by the provider ("in cloud", "virtual token") works through the vendor's Windows driver: install it (for Trans Sped, the EasySign application), sign in once, and the certificate appears in the Windows certificate store with the vendor's key storage provider. The agent recognises the provider and lists the certificate as `kind: cloud`; the web app shows a **Cloud** badge and hides the PIN field.
+
+What changes compared to a USB token:
+
+- **No PIN.** Nothing is stored by Storno or by the agent. Each signature or ANAF login is approved in the vendor's app (a phone confirmation, an OTP or the driver's own dialog), so the agent has to run in your desktop session and the request waits up to three minutes for your approval.
+- **No automatic monitoring.** Unattended SPV sync needs a certificate the agent can use on its own; the web app refuses to enable monitoring with a cloud certificate. The web app and the MCP tools work normally.
+- **Detection.** `storno-agent certificates` prints `Kind: cloud` and the provider name. If the vendor's provider is not recognised (the certificate shows `Kind: token` and every request asks for a PIN), add the thumbprint or a fragment of the provider name to `~/.storno-agent/config.json`:
+
+```json
+{ "cloudCertificateIds": ["3F2B…"], "cloudCertificateProviders": ["easysign"] }
+```
+
+Cloud certificates are Windows-only: the vendors ship no macOS or Linux driver, and the agent cannot use them there.
+
+Certificates whose key is held by Windows itself (an imported `.pfx`, a TPM key) are listed as `kind: software` and also take no PIN; ANAF accepts only qualified certificates, so this mostly matters for testing.
+
 ### macOS with a Keychain-aware token
 
 Tokens whose vendor ships a CryptoTokenKit driver (most SafeNet/Thales eTokens) appear in Keychain Access after installing the middleware, and the agent uses them through the system `security` tools. No further setup.
@@ -158,6 +176,7 @@ Agent endpoints used by the web app: `GET /monitor` (status), `POST /monitor` (e
 - Binds to `127.0.0.1` only; CORS restricted to `app.storno.ro`.
 - Only `webserviced.anaf.ro` and `epatrim.anaf.ro` can be reached through it.
 - The PIN is kept in memory for the current session only and is redacted from logs. With automatic monitoring enabled it is stored in the OS secure store (Keychain / DPAPI / libsecret) together with the scoped API key; disabling monitoring deletes both.
+- Cloud and software certificates (Windows) are the only ones used without a PIN, and only because they have none: the vendor's driver asks for approval on every operation. Any certificate the agent cannot classify is treated as a token and stays behind the PIN gate.
 - The bundled `agent.storno.ro` certificate serves loopback traffic exclusively.
 
 ### macOS says the app is damaged
@@ -177,6 +196,8 @@ Then open the app normally. An unsigned but sealed bundle shows the regular "App
 | Browser says the agent certificate expired | old agent, before self-renewal | update the agent; since 1.6.0 it refreshes the certificate itself |
 | `No certificates found` | middleware missing, wrong library, token not plugged in | see the platform section above, then `storno-agent certificates` |
 | Certificate listed but ANAF answers "Pagina logout" / login page | PIN not accepted, or the certificate has no SPV rights on that CUI | check the PIN in the vendor app; verify the CUI is enrolled for this certificate in SPV |
+| Cloud certificate asks for a PIN in Storno | the vendor's key provider was not recognised | add the thumbprint to `cloudCertificateIds` in `~/.storno-agent/config.json` (see *Cloud certificates on Windows*) |
+| Cloud certificate: request fails after ~3 minutes | the approval in the vendor app was not given in time | approve the prompt on the phone / in the vendor app, then repeat the operation |
 | "Storno Agent nu rulează" | the web app cannot reach `127.0.0.1:17394` | start the Storno Agent app (menu bar / tray icon); reinstall from get.storno.ro/agent if it is missing |
 | "Storno Agent is damaged and can't be opened. You should move it to the Bin." | Gatekeeper refuses a quarantined download whose bundle is not sealed (releases before agent 1.7.7) or whose zip was re-packed | remove the quarantine flag and open the app again: `xattr -dr com.apple.quarantine "/path/to/Storno Agent.app"`; or update to the latest zip, where the bundle is sealed and macOS shows the normal **Open Anyway** flow |
 | "Tokenul USB nu este conectat" | the PKCS#11 module or the Windows/Keychain store lists no certificate | plug in the token, check its driver or middleware, then retry |

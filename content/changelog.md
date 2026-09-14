@@ -7,6 +7,13 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-14 — Cloud certificates in the Storno Agent
+
+### Added
+
+- **Storno Agent 1.8.0**: certificates are listed with a `kind` (`token`, `cloud`, `software`) and, on Windows, the key `provider`. Cloud certificates (Trans Sped EasySign, certSIGN / DigiSign cloud) are used without a PIN: the vendor app approves each operation, requests wait up to three minutes for it. `POST /pin` answers `pinless: true` for them; automatic SPV monitoring refuses cloud certificates. Overrides in `config.json`: `cloudCertificateIds`, `cloudCertificateProviders`. See [Cloud certificates on Windows](/agent#cloud-certificates-on-windows-trans-sped-easysign-certsign-cloud-digisign-cloud-agent-180).
+- **MCP (storno-cli 1.0.42)**: `agent_certificates` returns `kind` and `provider`; `agent_sign_pdf`, `agent_submit_declaration_pdf` and `declarations_file_via_agent` skip the PIN requirement for cloud and software certificates.
+
 ## 2026-09-14 — StareD112 on every host, filings made elsewhere
 
 ### Added
