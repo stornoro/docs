@@ -17,6 +17,7 @@ The Company object represents a business entity within the system. Each organiza
 | registrationNumber | string | Company registration number (număr de înregistrare) |
 | vatPayer | boolean | Whether the company is registered for VAT |
 | vatCode | string | Full VAT code with country prefix (e.g., "RO12345678") |
+| caenCode | string | Main activity code (CAEN, 4 digits); required in the VAT return (D300) header and in SAF-T |
 | address | string | Street address |
 | city | string | City name |
 | state | string | County/state |

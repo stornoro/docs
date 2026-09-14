@@ -111,6 +111,24 @@ Returns `201 Created` with the new declaration object.
 | `updatedAt` | string | ISO 8601 last-updated timestamp |
 | `createdBy` | string | UUID of the authenticated user |
 
+## D300 (decont de TVA)
+
+`data.rows` is keyed by ANAF's own XML attribute names (`R9_1` = base of row 9, `R9_2` = its VAT, …), in whole lei, so the XML is written exactly as populated and the values can be edited before filing. The form version follows the period (`data.layout`):
+
+| Period | Layout | Standard rows |
+|---|---|---|
+| until 07/2025 | `legacy` | 19 % → R9, 9 % → R10, 5 % → R11 |
+| 08–12/2025 | `v2025h2` | 21 % → R9, 11 % → R10, plus R69 / R70 / R71 (sales) and R74 / R75 / R24 (purchases) for the old 19 / 9 / 5 % |
+| from 01/2026 | `v2026` | 21 % → R9, 11 % → R10; old rates only as regularisations |
+
+How invoices are placed:
+
+- **Sales** are taken by issue date. Taxable lines go to the rate's row; category `AE` (or invoice type *taxare inversă*) to row 13 (base only); intra-community goods to row 1, intra-community services and exports to rows 3 / 3.1; exempt with deduction to row 14, exempt without to row 15; OSS (art. 314–315) to row 17; a line at a rate the form no longer has, or an invoice issued to the company's own CUI, is a regularisation (row 16). Category `O` and the margin / travel-agent regimes stay out of the return.
+- **Purchases** are taken by the date they were recorded in Storno. Domestic taxable lines go to rows 24 / 25; a supplier invoice dated before the period, or at an abrogated rate, is a regularisation (row 33). Reverse charge is self-assessed on both sides: domestic `AE` → rows 12 (12.1 / 12.2 by rate) and 26 (26.1 / 26.2); intra-community goods → rows 5 / 5.1 and 20 / 20.1; services from the EU → rows 7 / 7.1 and 22 / 22.1; services from outside the EU → rows 7 and 22. Exempt purchases and imported goods go to row 29. Foreign-currency invoices use the invoice's exchange rate.
+- Rows are rounded to whole lei (half up); totals (rows 19, 30, 35, 37, 44, 45) are sums of rows; row 42 of the previous period's D300 is carried into row 42 (`R38_2`) when no refund was requested.
+
+The header the validator requires is filled from the company: declarant (`representative` split into name / first name, `representativeRole`), `caenCode`, the default bank account, `tip_decont` (L / T), the checkboxes (`N`), `temei` (0) and the payment reference `nr_evid` (computed). Missing prerequisites are listed in `data.warnings` (`MISSING_CAEN`, `MISSING_REPRESENTATIVE`, `MISSING_BANK_ACCOUNT`, `UNMAPPED_LINES`); the validator refuses the return without them.
+
 ## Validation Rules
 
 - `type` must be one of: `d394`, `d300`, `d390`, `d100`, `d112`

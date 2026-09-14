@@ -7,6 +7,17 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-14 — D300 rebuilt on the current form
+
+### Changed
+
+- **D300 (decont de TVA)** is generated again from scratch for the form in force: 21 % / 11 % rows, the 08–12/2025 transitional rows for 19 / 9 / 5 %, regularisation rows for old rates and for supplier invoices dated before the period, reverse charge self-assessed on both sides (rows 5 / 7 / 12 with their deductible mirrors), row-level rounding to whole lei and all totals. `data.rows` now uses ANAF's attribute names (`R9_1`, `R17_2`, …); the header carries the declarant, CAEN, bank account, `tip_decont`, checkboxes and the computed payment reference `nr_evid`, so the XML passes ANAF's validator (DUKIntegrator). See [Create declaration](/api-reference/declarations/create#d300-decont-de-tva).
+- **Company**: new `caenCode` (4 digits) in the API, the web settings and the mobile app; required by the D300 header.
+
+### Fixed
+
+- The previous D300 populator used rates 19 / 9 / 5 % and row keys that no longer match the form, and its XML was rejected by the ANAF validator (missing header attributes, `d_rec` unknown).
+
 ## 2026-09-14 — Received e-Facturi: supplier product memory, VAT rounding, message to the issuer
 
 ### Added
@@ -36,7 +47,7 @@ All notable changes to the Storno.ro API are documented here.
 ### Added
 
 - **StareD112 fallback hosts** — declaration status and recipisa are asked from `www.anaf.ro`, `stare.anaf.ro` and `epatrim.anaf.ro` in turn (the first was down for days in September); `GET /api/v1/public/declarations/status/{index}/{cui}` reports the `host` that answered and takes `?ghiseu=1` for a counter registration number. Status checks now run on the async transport with 5-minute retries instead of at once. MCP: `anaf_declaration_status` with `ghiseu`.
-- **Declarations made elsewhere, filed by Storno** — `POST /api/v1/declarations/upload` takes the ANAF PDF from SAGA, DUKIntegrator or the filled ANAF form besides XML (the embedded XML is read); uploaded documents are now validated and filed exactly as uploaded instead of being regenerated from their attributes (child elements were lost before). Web: the upload drop zone takes PDFs. MCP: `declarations_upload`. See [upload](/api-reference/declarations/upload).
+- **Declarations made elsewhere, filed by Storno** — `POST /api/v1/declarations/upload` takes the ANAF PDF produced by DUKIntegrator, by the filled ANAF form or by another program besides XML (the embedded XML is read); uploaded documents are now validated and filed exactly as uploaded instead of being regenerated from their attributes (child elements were lost before). Web: the upload drop zone takes PDFs. MCP: `declarations_upload`. See [upload](/api-reference/declarations/upload).
 - **ANAF form versions watched** — `GET /api/v1/public/declarations/form-versions` reads DUKIntegrator's manifest daily (`app:anaf:form-versions`), records every form's validator/PDF version and when it changed, flags Storno forms changed in the last 30 days and validators installed behind ANAF; notice on the declarations page. MCP: `declaration_form_versions`. See [form versions](/api-reference/public/declaration-form-versions).
 - **Filings made outside Storno** — `PATCH /api/v1/declarations/{uuid}` with `filedExternally: {index, ghiseu}` records a declaration filed on the portal by hand, from another program or at the counter; Storno follows its state and fetches the recipisa. Web: *Depusă în altă parte* on the declaration page. MCP: `declarations_update` with `filedExternally`.
 
