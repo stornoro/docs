@@ -1,13 +1,15 @@
 ---
-title: Upload Declaration XML
-description: Upload an XML file to create a declaration by parsing type and period from its contents
+title: Upload a declaration (XML or PDF)
+description: Create a declaration from an XML file or from the ANAF PDF made by another program; type and period come from the document, which is filed as it is
 method: POST
 endpoint: /api/v1/declarations/upload
 ---
 
-# Upload Declaration XML
+# Upload a declaration (XML or PDF)
 
-Creates a new tax declaration by uploading an existing XML file. The server parses the XML to automatically extract the declaration type, fiscal year, and period. This is useful for importing declarations that were generated externally or by other accounting software.
+Creates a declaration from a document made elsewhere: the XML file, or the ANAF PDF produced by SAGA, DUKIntegrator or ANAF's own form filled in Acrobat (Storno reads the XML embedded in the PDF, as attachment or XFA data). The type, year and month come from the document. From then on the declaration behaves like any other: `validate` runs ANAF's validator on it, the [agent](/api-reference/declarations/agent) signs and files it, the recipisa lands in the dosar. **The uploaded document is what gets filed, never a regeneration** (`metadata.externalXml`); a PDF upload also keeps the original file (`metadata.uploadedPdfPath`). A PDF without a declaration inside answers `422 NO_DECLARATION_XML`.
+
+This is the way to use Storno's filing (agent, certificate, tracking, dosare) with an accounting program that produces the declarations.
 
 ## Headers
 
