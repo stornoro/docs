@@ -35,6 +35,17 @@ The Client object represents customers who receive invoices and other documents.
 | viesValid | boolean \| null | ✓ | ✓ | VIES validation result for EU clients (`true` = valid, `false` = invalid, `null` = not validated) |
 | viesValidatedAt | datetime \| null | ✗ | ✓ | Timestamp of last VIES validation |
 | viesName | string \| null | ✗ | ✓ | Company name as registered in the VIES system |
+| vatStatusCheckedAt | datetime \| null | ✓ | ✓ | When the partner was last checked at ANAF / VIES ([Verify partner](/api-reference/clients/verify)) |
+| vatRegistered | boolean \| null | ✓ | ✓ | Registered for VAT according to the registry (`null` = not checked) |
+| vatOnCollection | boolean \| null | ✓ | ✓ | Applies VAT on collection according to ANAF |
+| vatOnCollectionFrom | date \| null | ✗ | ✓ | Start of the VAT-on-collection period reported by ANAF |
+| vatOnCollectionTo | date \| null | ✗ | ✓ | End of the VAT-on-collection period reported by ANAF (`null` while open) |
+| inactive | boolean \| null | ✓ | ✓ | Inactive taxpayer according to ANAF |
+| efacturaRegistered | boolean \| null | ✓ | ✓ | Present in the RO e-Factura register |
+| verificationNotes | string \| null | ✗ | ✓ | Human-readable notes of the last check (name differences, inactivation date, registry outage) |
+| affiliated | boolean | ✓ | ✓ | Affiliated party — D394 reports `prsAfiliat = 1` when an affiliated partner appears on an invoice of the period |
+| status | string | ✓ | ✓ | Partner rule: `active`, `warning` (notice when picked on an invoice) or `blocked` (cannot be invoiced) |
+| creditLimit | decimal \| null | ✓ | ✓ | Partner rule: maximum outstanding balance in the company currency; issuing beyond it returns a `warning` |
 | source | string | ✗ | ✓ | Source: manual, anaf, import |
 | lastSyncedAt | datetime | ✗ | ✓ | Last sync timestamp from e-invoice provider |
 | createdAt | datetime | ✓ | ✓ | Timestamp when created |
@@ -115,5 +126,7 @@ The Client object represents customers who receive invoices and other documents.
 - **isVatPayer**: Determines whether VAT is applied on invoices
 - **source**: `manual` (user-created), `anaf` (synced from e-invoice provider), `import` (bulk import)
 - **viesValid**: Automatically set when a foreign EU client is created/updated with a VAT code. Used to determine reverse charge eligibility and OSS applicability.
+- **Verification snapshot** (`vatStatusCheckedAt`, `vatRegistered`, `vatOnCollection`, `inactive`, `efacturaRegistered`, …): filled by [Verify partner](/api-reference/clients/verify) and refreshed daily after 30 days; it never changes `isVatPayer` / `vatCode`.
+- **status / creditLimit / affiliated**: the partner rules — see [Verify partner → Partner rules](/api-reference/clients/verify#partner-rules).
 - Clients synced from an e-invoice provider have `lastSyncedAt` timestamp
 - Soft-deleted clients have `deletedAt` set but remain in database

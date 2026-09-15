@@ -7,6 +7,20 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-15 — Decizia de numerotare
+
+### Added
+
+- **Numbering decision (decizia de numerotare)** — the yearly internal decision required by OMFP 2634/2015 that names the person responsible for allocating document numbers and lists, per document type, the series and the number range allocated for the year. Built from the company's document series (first number = the first number issued that year or the next free one, planned last number = first + `rangeSize` − 1, extended to the highest number already issued). `GET /document-series/numbering-decision` returns it as JSON, `GET /document-series/numbering-decision.pdf` as a print-ready Romanian PDF (title, legal basis, table, signature block); options `year`, `decisionNumber`, `decisionDate`, `responsible`, `rangeSize`. Web: button "Decizie de numerotare" on the document series settings page. MCP: `document_series_numbering_decision` (JSON, or `outFile` for the PDF). See [Numbering decision](/api-reference/document-series/numbering-decision).
+
+## 2026-09-15 — Partner verification and rules
+
+### Added
+
+- **Partner verification (ANAF / VIES).** `POST /api/v1/clients/{uuid}/verify`, `POST /api/v1/suppliers/{uuid}/verify` and the bulk `POST /api/v1/partners/verify-all` check a partner against ANAF (Romanian companies: VAT registration, VAT on collection with its period, inactive taxpayer, RO e-Factura register) or VIES (EU partners) and store the snapshot on the client / supplier (`vatStatusCheckedAt`, `vatRegistered`, `vatOnCollection`, `vatOnCollectionFrom/To`, `inactive`, `efacturaRegistered`, `viesValid`, `verificationNotes`). Partners are re-checked automatically every day at 06:40 once their last check is older than 30 days; a partner that becomes inactive, loses its VAT registration, moves to VAT on collection or fails VIES triggers the new `partner.status_changed` notification (e-mail on by default). Registry outages never fail a request: the previous snapshot is kept and the check is retried. See [Verify partner](/api-reference/clients/verify).
+- **Partner rules on clients.** `status` (`active` | `warning` | `blocked`), `creditLimit` and `affiliated` are accepted by create / update and returned in list and detail. A blocked client cannot be picked on the invoice form and `POST /invoices/{id}/issue` refuses it with `422`; a credit limit makes the issue response carry a `warning` (`credit_limit_exceeded`, with the outstanding balance and the projected one) without refusing the invoice. Suppliers carry `affiliated` too, and the D394 populator sets `prsAfiliat = 1` when an affiliated partner is declared.
+- MCP tools `partner_verify` and `partners_verify_all`; `clients_create` / `clients_update` accept `status`, `creditLimit`, `affiliated`; suppliers accept `affiliated`.
+
 ## 2026-09-14 — D394 rebuilt on the current form
 
 ### Changed
@@ -23,6 +37,7 @@ All notable changes to the Storno.ro API are documented here.
 
 - **D301 (decont special de TVA)** is now built from the received invoices of companies not registered for VAT: intra-community goods (section 1), services from the EU (section 4 with the 4.1 sub-total) and from outside the EU (section 4), VAT self-assessed at the standard rate in whole lei, the invoice's currency and exchange rate per row, the header and the payment reference the ANAF validator requires. `POST /declarations` with `type: d301`; see [Create declaration](/api-reference/declarations/create#d301-decont-special-de-tva).
 - **D398 (OSS, regimul UE)**, new type `d398` (quarterly): special-regime art. 314–315 sales to consumers in other member states grouped per state of consumption, supply type and VAT rate, amounts in EUR, VAT at the destination state's rate, nil return when there is nothing to declare; validated with ANAF's D398 validator. See [Create declaration](/api-reference/declarations/create#d398-declarația-specială-de-tva--oss-regimul-ue). MCP: `declarations_create` accepts `d301` and `d398`.
+- **D301 / D398 detail page** on the web: D301 shows the operations table (section, supplier, document, amount and currency, exchange rate, base and VAT in lei) with the totals per section; D398 shows one card per member state of consumption with its supplies (goods / services, standard / reduced rate, taxable amount and VAT in EUR) and the EUR rate used. **D398 exchange rate**: RON invoices are converted at the ECB reference rate of the last day of the quarter (or the next publication day), reported in `data.eurRate`; until the quarter ends the BNR rate of the day is used and the `EUR_RATE_FALLBACK` warning (replacing `EUR_RATE_APPROXIMATE`) asks to regenerate the return before filing.
 
 ## 2026-09-14 — Fiscal calendar with deadline reminders
 

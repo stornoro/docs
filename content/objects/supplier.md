@@ -27,6 +27,16 @@ The Supplier object represents companies that issue incoming invoices to your co
 | bankName | string | ✗ | ✓ | Bank name |
 | bankAccount | string | ✗ | ✓ | Bank account number (IBAN) |
 | notes | text | ✗ | ✓ | Internal notes about the supplier |
+| vatStatusCheckedAt | datetime \| null | ✓ | ✓ | When the partner was last checked at ANAF / VIES ([Verify partner](/api-reference/clients/verify)) |
+| vatRegistered | boolean \| null | ✓ | ✓ | Registered for VAT according to the registry (`null` = not checked) |
+| vatOnCollection | boolean \| null | ✓ | ✓ | Applies VAT on collection according to ANAF |
+| vatOnCollectionFrom | date \| null | ✗ | ✓ | Start of the VAT-on-collection period reported by ANAF |
+| vatOnCollectionTo | date \| null | ✗ | ✓ | End of the VAT-on-collection period reported by ANAF (`null` while open) |
+| inactive | boolean \| null | ✓ | ✓ | Inactive taxpayer according to ANAF |
+| efacturaRegistered | boolean \| null | ✓ | ✓ | Present in the RO e-Factura register |
+| verificationNotes | string \| null | ✗ | ✓ | Human-readable notes of the last check (name differences, inactivation date, registry outage) |
+| affiliated | boolean | ✓ | ✓ | Affiliated party — D394 reports `prsAfiliat = 1` when an affiliated partner appears on an invoice of the period |
+| viesValid | boolean \| null | ✓ | ✓ | VIES validity of the VAT number for EU suppliers (`null` = not checked) |
 | source | string | ✗ | ✓ | Source: manual, anaf, import |
 | lastSyncedAt | datetime | ✗ | ✓ | Last sync timestamp from e-invoice provider |
 | createdAt | datetime | ✓ | ✓ | Timestamp when created |

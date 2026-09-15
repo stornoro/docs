@@ -115,3 +115,4 @@ curl -X GET 'https://api.storno.ro/api/v1/document-series?type=invoice' \
 - [Create document series](/api-reference/document-series/create)
 - [Update document series](/api-reference/document-series/update)
 - [Delete document series](/api-reference/document-series/delete)
+- [Numbering decision (decizia de numerotare)](/api-reference/document-series/numbering-decision)
