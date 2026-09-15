@@ -14,6 +14,7 @@ All notable changes to the Storno.ro API are documented here.
 - **Filing a C168 through the agent** — `GET /declarations/{uuid}/prepare?operation=submit` now renders the DUK PDF with the attachment zip (the scanned contract) exactly like `GET /declarations/{uuid}/pdf`; previously the portal upload of a C168 failed with `500` because the PDF was built without the zip. The upload index is read even when the portal's answer wraps "Indexul este" over a line break.
 - **Dosar follow-up on acceptance** — when ANAF accepts a C168 filed from a dosar, the dosar's next step becomes "Înregistrat la ANAF (index …)" and the 30-day deadline is cleared (a termination closes the dosar); an accepted D212 clears the 25 May deadline. The dosar page shows the coded addresses remembered from the C168 as readable lines.
 - New console command `app:declarations:check-status [ids]` re-queues the ANAF status check for processing declarations that carry an upload index.
+- **Attachments are no longer echoed back.** `data.attachments` of a declaration (the scanned contract of a C168) is returned as `{name, size, mime, stored: true}` by every declaration response instead of the full base64 content, which weighed several megabytes per read. `PATCH /declarations/{uuid}` accepts that same shape back and keeps the stored files; send `contentBase64` only to add or replace a file, and omit a name to drop it.
 
 ## 2026-09-15 — Decizia de numerotare
 
