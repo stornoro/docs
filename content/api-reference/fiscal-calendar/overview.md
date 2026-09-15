@@ -95,7 +95,7 @@ GET /api/v1/fiscal-calendar?from=2026-10-01&days=60
       "daysLeft": 32,
       "period": { "year": 2026, "month": 9, "from": "2026-09-01", "to": "2026-09-30" },
       "appliesBecause": "saft",
-      "declarationType": null,
+      "declarationType": "d406",
       "status": "due"
     }
   ],
@@ -106,7 +106,7 @@ GET /api/v1/fiscal-calendar?from=2026-10-01&days=60
 }
 ```
 
-`nominalDueDate` is the legal date; `dueDate` is the working day it moved to. `appliesBecause` is one of `vat_payer`, `intra_community_operations`, `non_vat_payer_foreign_suppliers`, `income_tax`, `employees`, `saft`, `individual`, `company`, `rental_contract`. Items derived from a dosar also carry `dosarId` and `dosarTitle`; a `C168` item is `filed` once a C168 filed from that dosar is submitted or accepted, a `D212_ESTIMAT` item once a D212 for the contract's year was filed after the contract start. `declarationType` is the value [Create declaration](/api-reference/declarations/create) expects; it is `null` for SAF-T and the annual financial statements, which are filed outside Storno.
+`nominalDueDate` is the legal date; `dueDate` is the working day it moved to. `appliesBecause` is one of `vat_payer`, `intra_community_operations`, `non_vat_payer_foreign_suppliers`, `income_tax`, `employees`, `saft`, `individual`, `company`, `rental_contract`. Items derived from a dosar also carry `dosarId` and `dosarTitle`; a `C168` item is `filed` once a C168 filed from that dosar is submitted or accepted, a `D212_ESTIMAT` item once a D212 for the contract's year was filed after the contract start. `declarationType` is the value [Create declaration](/api-reference/declarations/create) expects — `d406` for SAF-T, which Storno generates too; it is `null` only for the annual financial statements and the contract-end reminder, which are not filed from Storno.
 
 ### Error Codes
 

@@ -7,6 +7,35 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-15 — Importuri: Uber, Glovo, Tazz, WooCommerce, PrestaShop, casă de marcat A4200
+
+### Added
+
+- **Platform statements** — `POST /api/v1/import/upload` accepts `importType: platform_sales` with source `uber`, `bolt`, `glovo` or `tazz`. The weekly statement or orders export becomes one sales invoice to the platform per group plus the platform's commission as a purchase invoice; `importOptions.groupBy` = `week` (default), `day` or `order`, and `platformName` / `platformCif` / `platformCountry` override the platform entity. A commission from an EU platform is a reverse-charge purchase (`AE`, services art. 278) for a VAT-paying company, a plain expense otherwise.
+- **Web shop orders** — sources `woocommerce` and `prestashop` with `importType: invoices_issued` turn one order into one issued invoice (`WC-…` / `PS-…`), create the customer as a client (CUI / CNP / billing address, or *Persoană fizică* when the export has no name) and take the lines from the export's line-item cell. Orders whose status is not paid / completed are skipped unless `importOptions.includeAll` is set; a gross-only total is split with the company's default VAT rate.
+- **Fiscal cash register** — source `cash_register` with `importType: receipts` reads the A4200 XML a cash register exports for ANAF (one day per file, or a `.zip` with a month) and creates one issued receipt per bon, keeping its fiscal identifier and the device serial, splitting payments into cash / card / other and creating one line per VAT level. The Z report feeds a daily summary on the job (`summary.days[]`); `importOptions.vatGroups` maps the register's VAT groups to rates and `cashRegisterName` names the device.
+- **Templates and summaries** — `GET /api/v1/import/template?importType=&source=` returns the template in the platform's own column layout, the import job gained a `summary` field, and `POST /api/v1/import/{id}/revert` now also deletes the receipts an import created. MCP: `import_upload` / `import_template` / `import_execute` cover the new sources and options and `import_revert` undoes a job. See [Imports](/api-reference/import/overview).
+
+### Fixed
+
+- Invoice imports whose mapper reports the direction as `issued` / `received` (eMAG, Bolt invoices, the new shop exports) now store the direction and link the client; before, those invoices were saved without a direction.
+
+## 2026-09-15 — Parc auto și alerte de expirare
+
+### Added
+
+- **Fleet (parc auto).** `GET/POST /api/v1/vehicles`, `GET/PATCH/DELETE /api/v1/vehicles/{id}` and `GET/POST /api/v1/vehicles/{id}/expiries` keep the company's vehicles (plate, VIN, make, model, year, fuel, ownership own / leasing / rented, driver, active) with, per vehicle, the next expiry and the counts of expired / due / valid documents.
+- **Expiry items.** `GET/POST /api/v1/expiries`, `GET/PATCH/DELETE /api/v1/expiries/{id}`, `GET /api/v1/expiries/upcoming?days=60`, `GET /api/v1/expiries/kinds` and `POST /api/v1/expiries/{id}/renew` track everything the company must renew on a date: vehicle documents (`rca`, `itp`, `rovinieta`, `casco`, `tahograf`, `extinctor`, `trusa_medicala`, `licenta_transport`, `copie_conforma`, `leasing`) and company-level items (`certificat_digital`, `contract`, `autorizatie`, `other`). Each item carries `daysLeft` and `status` (`ok`, `due` inside `remindDaysBefore`, `expired`, `renewed`). Renewing creates the next item (the kind's usual validity added to the old expiry unless a date is given) and closes the old one, kept as history (`renewedFromId`).
+- **Reminders.** New notification `expiry.due` (e-mail, in-app and push by default) sent to the company members at `remindDaysBefore` days (30 by default), then 7 and 1 days before and on the day, once per threshold; a changed date restarts them. Daily at 08:25 (`app:notifications:expiries --dry-run --date=`).
+- Web: pages `/vehicles` (list with next-expiry badges, vehicle detail with its expiries and the renew action) and `/expiries` (all items, filter by kind / vehicle, expired first), dashboard widget "Parc auto: expirări". App: menu "Parc auto" with the vehicle list, detail and renew sheet; the `expiry.due` notification opens the vehicle. MCP: `vehicles_list/get/create/update/delete`, `expiries_list/upcoming/create/get/update/renew/delete`. See [Fleet](/api-reference/fleet/overview).
+
+## 2026-09-15 — D406 SAF-T
+
+### Added
+
+- **D406 (SAF-T) generated from Storno's data.** `POST /declarations` accepts `type: d406` and builds the whole `AuditFile` for the period (monthly or quarterly, following the VAT period): header with the company, its VAT registration and bank accounts, the chart of accounts used, customers and suppliers identified the way ANAF requires (`00` + CUI, `01`/`02` + country + VAT number, `03` + CNP, `04` + a company-assigned code), the VAT tax codes, units of measure and products, a general ledger derived from the documents with a fixed account mapping (4111 / 401, 707 / 7015, 604 / 628, 4426 / 4427, 5121 / 5311) and the source documents — sales invoices, purchase invoices and payments. `GET /declarations/{uuid}/xml` returns the file and `POST /declarations/{uuid}/validate` runs it through ANAF's own D406 validator. `data.warnings` lists what an accountant still has to add: opening balances, entries without a document, stock and fixed assets. See [Create declaration](/api-reference/declarations/create).
+- **The fiscal calendar files SAF-T from Storno**: the `D406` item now carries `declarationType: d406`, so the deadline links to the create dialog like the other returns and counts as filed once a D406 for the period is submitted. MCP: `declarations_create` / `declarations_list` accept `d406`.
+
 ## 2026-09-15 — Fiscal calendar: rental-contract deadlines
 
 ### Added

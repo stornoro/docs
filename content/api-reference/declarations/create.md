@@ -183,9 +183,55 @@ How partners and operations are classified:
 
 Warnings: `MISSING_CAEN`, `MISSING_REPRESENTATIVE`, `MISSING_ADDRESS`, `MISSING_PHONE` (the validator refuses the declaration without them), `PARTNER_WITHOUT_ID`, `PARTNER_INVALID_CUI`, `PARTNER_WITHOUT_COUNTY`, `REVERSE_CHARGE_SALES_SKIPPED`, `REVERSE_CHARGE_PURCHASES_SKIPPED`, `INDIVIDUAL_SUPPLIER_SKIPPED`, `UNSUPPORTED_RATE`, `VAT_ON_COLLECTION_BY_INVOICE`.
 
+## D406 (SAF-T)
+
+The standard audit file (`AuditFile`, schema `Ro_SAFT_Schema_v2.4.9`, namespace `mfp:anaf:dgti:d406:declaratie:v1`), built from the company's documents of the period. The period follows the VAT period — `periodType: monthly` (`HeaderComment` L) or `quarterly` (T); a company not registered for VAT reports quarterly. Invoices are selected like for the VAT return (sales by issue date, purchases by the date they were recorded; drafts, cancelled and rejected documents are out) and the payments are the ones recorded on those invoices inside the period.
+
+| Key | Content |
+|---|---|
+| `header` | the `Header`: `registrationNumber` (`RO` + CUI for a VAT payer), name and address (`region` = ISO county code), the contact built from `representative` and the phone, the VAT registration (`100010` registered, `100040` VAT on collection, `100020` not registered), the bank accounts (IBAN), `headerComment` L / T, `taxAccountingBasis` A and the reporting period |
+| `accounts` | the accounts used, with the movements of the period (`debit`, `credit`) and the closing balance; opening balances are 0 |
+| `customers`, `suppliers` | one row per partner of the period: the SAF-T id, name, city, country, the account (4111 / 401), what was invoiced and settled, and the balances |
+| `taxCodes`, `uoms`, `products` | the VAT tax codes (tax type `300`), the units of measure and the products used in the period |
+| `journals` | the derived ledger: `VANZARI`, `CUMPARARI`, `BANCA`, `CASA`, each with its transactions and lines |
+| `salesInvoices`, `purchaseInvoices`, `payments` | the source documents, with their lines, tax information and totals |
+| `counts`, `totals` | how many entries each section has and the totals per section (the ledger's `debit` equals its `credit`) |
+| `mapping` | the document → ledger mapping below, as rows |
+| `warnings` | `{code, message}` — what to fix and what an accountant must add |
+
+### Document to ledger mapping
+
+Storno keeps documents, not a double-entry ledger, so `GeneralLedgerEntries` is derived from the invoices and payments with this fixed mapping (amounts in RON; a document in another currency also carries its `CurrencyAmount` and the invoice's exchange rate):
+
+| Document | Debit | Credit | Notes |
+|---|---|---|---|
+| Sales invoice | 4111 (gross) | 707 / 7015 (net, per line) | 707 when the line's product is a service, 7015 otherwise |
+| Sales invoice, VAT | 4111 | 4427 | one line per VAT rate |
+| Purchase invoice | 604 / 628 (net, per line) | 401 (gross) | 628 for services, 604 otherwise |
+| Purchase invoice, VAT | 4426 | 401 | only when the company is registered for VAT; otherwise the VAT stays in the expense and the line is booked gross |
+| Receipt | 5121 / 5311 | 4111 | 5311 for a cash payment, 5121 otherwise |
+| Payment | 401 | 5121 / 5311 | idem |
+| Credit note / storno | the same accounts | the same accounts | the amounts move to the opposite side, so every `DebitAmount` / `CreditAmount` stays ≥ 0 |
+
+Partners are identified the way ANAF's validator demands: `00` + CUI for a Romanian company, `01` / `02` + country + VAT number for an EU / non-EU one, `03` + CNP for a natural person, `04` + a code the company assigns for a natural person who does not give a CNP, `05` / `06` + country + code for a foreign partner without a VAT number. A document whose partner has no identifier at all, or one whose CUI / CNP check digit is wrong, is left out and reported in `warnings`.
+
+VAT is reported with the tax codes of the SAF-T nomenclature (tax type `300`): standard sales `310344` (21 %), `310309` (19 %), `310351` (11 %), `310310` (9 %), `310311` (5 %), VAT on collection `3103xx`, reverse charge `310312`, intra-community deliveries `310301` / `310306`, exports `310313`, exempt `310314` / `310326`, outside the scope `310324`; purchases use the `3011xx` / `3013xx` / `3009xx` / `3001xx` / `3007xx` / `3012xx` series, and a company not registered for VAT the non-deductible `35xxxx` series. Lines that carry no tax (the partner and treasury lines of a journal entry, every payment line) use the pair `000` / `000000` ANAF prescribes.
+
+### What Storno cannot fill
+
+The file passes ANAF's validator, but it is not a complete accounting export. `warnings` says so explicitly:
+
+- `NO_OPENING_BALANCES` — the opening balances of the accounts, customers and suppliers are 0 and the closing balances are only the movements of the period;
+- `LEDGER_FROM_DOCUMENTS_ONLY` — entries without a document (payroll, depreciation, the VAT closing 4423 / 4424, bank charges, adjustments), stock (`MovementOfGoods`, `PhysicalStock`) and fixed assets (`Assets`, `AssetTransactions`) are not generated;
+- `REVERSE_CHARGE_VAT_NOT_BOOKED` — reverse-charge lines (intra-community acquisitions, imports, art. 331) are reported with the VAT of the invoice (0); the 4426 = 4427 entry for the self-assessed tax is not generated;
+- `CASH_MOVEMENTS_NOT_INCLUDED` — cash-register movements without a partner (deposits, withdrawals) are not in the file, because SAF-T wants a partner on every entry;
+- `PARTNER_WITHOUT_ID`, `PARTNER_INVALID_ID`, `UNSUPPORTED_RATE`, `MISSING_BANK_ACCOUNT`, `MISSING_ADDRESS`, `MISSING_REPRESENTATIVE`, `MISSING_PHONE`, `NO_OPERATIONS` — the prerequisites the validator refuses the file without, and the documents left out of it.
+
+`GET /declarations/{uuid}/xml` returns the `AuditFile`; `POST /declarations/{uuid}/validate` runs it through ANAF's own D406 validator, which is given the reporting period (the SAF-T file has no period attribute, and without it the validator applies the rules of the oldest period it knows).
+
 ## Validation Rules
 
-- `type` must be one of: `d394`, `d300`, `d390`, `d301`, `d398`, `d100`, `d112`, `d212`, `c168`
+- `type` must be one of: `d394`, `d300`, `d390`, `d301`, `d398`, `d406`, `d100`, `d112`, `d212`, `c168`
 - `year` must be a valid 4-digit year
 - `month` must be between 1 and 12
 - A declaration of the same `type`, `year`, and `month` must not already exist for the company
