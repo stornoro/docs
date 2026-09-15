@@ -7,6 +7,12 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-15 — Fiscal calendar: rental-contract deadlines
+
+### Added
+
+- **Deadlines from the dosare.** `GET /fiscal-calendar` (and the dashboard card, reminders, MCP `fiscal_calendar`) now lists, for every active rental-contract dosar: `C168` — the 30-day registration / amendment / termination deadline the dosar carries until ANAF accepts the filing; `D212_ESTIMAT` — for a natural person, the estimated Declarația unică due 30 days after a new contract starts; `CONTRACT_END` — the contract's end date, to prepare the addendum or the termination. These items carry `dosarId` / `dosarTitle` and `appliesBecause: rental_contract`; the web page and the app link them to the dosar. C168 reminders keep coming from the dosar (30/7/1/0 days) and are not duplicated by the fiscal reminders. See [Fiscal calendar](/api-reference/fiscal-calendar/overview).
+
 ## 2026-09-15 — Dosare: C168 acceptată
 
 ### Changed

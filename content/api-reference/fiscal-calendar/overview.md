@@ -22,6 +22,9 @@ A deadline that falls on a Saturday, a Sunday or a Romanian legal holiday moves 
 | `D406` (SAF-T) | company; follows `vatPeriod`, quarterly without VAT registration | last day of the month after the period |
 | `D212` | individual (persoană fizică) | 25 May for the previous year |
 | `BILANT` (annual financial statements) | company | last working day of May for the previous year |
+| `C168` | an active rental-contract dosar that still carries its registration / amendment / termination deadline (cleared when ANAF accepts the C168 filed from it) | 30 days after the contract event, as set on the dosar |
+| `D212_ESTIMAT` | individual with a rental-contract dosar: the estimated income of a new contract | 30 days after the contract start (`deLa`) |
+| `CONTRACT_END` | an active rental-contract dosar with an end date | the contract's `panaLa` (no working-day shift; never reported overdue) |
 
 Not listed here because they are covered elsewhere: the 5-day e-Factura submission window of issued invoices (`invoice.anaf_deadline`) and the expiry of ANAF tokens and certificates (`token.expiring_soon`).
 
@@ -103,7 +106,7 @@ GET /api/v1/fiscal-calendar?from=2026-10-01&days=60
 }
 ```
 
-`nominalDueDate` is the legal date; `dueDate` is the working day it moved to. `appliesBecause` is one of `vat_payer`, `intra_community_operations`, `non_vat_payer_foreign_suppliers`, `income_tax`, `employees`, `saft`, `individual`, `company`. `declarationType` is the value [Create declaration](/api-reference/declarations/create) expects; it is `null` for SAF-T and the annual financial statements, which are filed outside Storno.
+`nominalDueDate` is the legal date; `dueDate` is the working day it moved to. `appliesBecause` is one of `vat_payer`, `intra_community_operations`, `non_vat_payer_foreign_suppliers`, `income_tax`, `employees`, `saft`, `individual`, `company`, `rental_contract`. Items derived from a dosar also carry `dosarId` and `dosarTitle`; a `C168` item is `filed` once a C168 filed from that dosar is submitted or accepted, a `D212_ESTIMAT` item once a D212 for the contract's year was filed after the contract start. `declarationType` is the value [Create declaration](/api-reference/declarations/create) expects; it is `null` for SAF-T and the annual financial statements, which are filed outside Storno.
 
 ### Error Codes
 
