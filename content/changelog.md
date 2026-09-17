@@ -7,6 +7,14 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-17 — Declarația unică: campania 2026
+
+### Changed
+
+- **The Declarația unică of the 2026 campaign is built the way ANAF's web application builds it**: the taxpayer's name is split into `nume_c`, `initiala_c` and `prenume_c`, the two chapter flags `bifa19` and `bifa23` are written and `bifa_succesor` is gone. ANAF's back office refuses a file that still carries the previous shape (`atributul trebuie sa exista`), while the validator ANAF publishes for download still expects it, so for that campaign Storno validates the declaration on its own rules and says so in the declaration's metadata.
+- **The filing PDF of a web-application form comes from ANAF.** `GET /declarations/{uuid}/pdf` and the agent filing flow ask ANAF's own form to render the PDF from the XML, then sign and upload it as usual, so a campaign whose downloadable validator lags behind can still be filed from Storno.
+- **A recipisa that lists errors marks the filing rejected.** The portal answers "Documentul este valid" as soon as it can read the file; whether the declaration entered ANAF's records is written in the recipisa, and that is what Storno now records (with the failed rule in the error message).
+
 ## 2026-09-17 — Chirie în valută: conversia în lei
 
 ### Added
