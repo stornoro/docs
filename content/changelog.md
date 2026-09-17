@@ -7,6 +7,12 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-17 — Chirie în valută: conversia în lei
+
+### Added
+
+- **Rent in a foreign currency is converted automatically** in the Declarația unică prefill (`GET /dosare/{id}/d212-prefill` and `dosare_d212_prefill`): the gross annual income is the contractual rent evaluated at the average annual exchange rate of the income year, the rate the National Bank of Romania publishes for that year, which is how this income is assessed when the tenant is a natural person. The note on each contract states the rate used and whether it is the published figure or a mean computed from the daily series; a rent paid by a company is flagged, because there the tax is withheld at source. Previously such contracts came back with a gross income of 0 and a note to fill it in by hand.
+
 ## 2026-09-17 — Alerta de expirare: e-mail dedicat
 
 ### Changed
