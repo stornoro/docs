@@ -7,6 +7,12 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-09-17 — Alerta de expirare: e-mail dedicat
+
+### Changed
+
+- **The `expiry.due` reminder is now a real e-mail**, not a plain-text fallback: the subject line names the document, and the message shows the vehicle, the document, its number and issuer, the expiry date and the company, with a button that opens the vehicle (or the list when the item is not tied to one). It turns red on the last day. The notification payload gained `vehicle`, `label`, `kindLabel`, `number`, `provider` and `expiresAtLabel`, so the app and the push message carry the same details.
+
 ## 2026-09-15 — Importuri: Uber, Glovo, Tazz, WooCommerce, PrestaShop, casă de marcat A4200
 
 ### Added
