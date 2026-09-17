@@ -11,6 +11,7 @@ All notable changes to the Storno.ro API are documented here.
 
 ### Changed
 
+- **Every reminder is now a real e-mail**, not a plain-text fallback: `fiscal.deadline` names the declaration and its period and offers the create button (or the calendar when Storno does not build that form), `dosar.deadline` shows the case file and its next step, `partner.status_changed` lists what changed at ANAF or VIES with the partner's identifier and the date of the check. Each turns red on the last day and links to the right page of the right company.
 - **The `expiry.due` reminder is now a real e-mail**, not a plain-text fallback: the subject line names the document, and the message shows the vehicle, the document, its number and issuer, the expiry date and the company, with a button that opens the vehicle (or the list when the item is not tied to one). It turns red on the last day. The notification payload gained `vehicle`, `label`, `kindLabel`, `number`, `provider` and `expiresAtLabel`, so the app and the push message carry the same details.
 
 ## 2026-09-15 — Importuri: Uber, Glovo, Tazz, WooCommerce, PrestaShop, casă de marcat A4200
