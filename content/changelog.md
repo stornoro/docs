@@ -11,7 +11,8 @@ All notable changes to the Storno.ro API are documented here.
 
 ### Added
 
-- **Rent in a foreign currency is converted automatically** in the Declarația unică prefill (`GET /dosare/{id}/d212-prefill` and `dosare_d212_prefill`): the gross annual income is the contractual rent evaluated at the average annual exchange rate of the income year, the rate the National Bank of Romania publishes for that year, which is how this income is assessed when the tenant is a natural person. The note on each contract states the rate used and whether it is the published figure or a mean computed from the daily series; a rent paid by a company is flagged, because there the tax is withheld at source. Previously such contracts came back with a gross income of 0 and a note to fill it in by hand.
+- **Exchange rates are read from BNR's new address.** BNR moved its rate files to `curs.bnr.ro` and now answers the old `www.bnr.ro` paths with its home page, so Storno had been serving the last rates it managed to fetch. The daily feed and the new yearly one both use the new host.
+- **Rent in a foreign currency is converted automatically** in the Declarația unică prefill (`GET /dosare/{id}/d212-prefill` and `dosare_d212_prefill`): the gross annual income is the contractual rent evaluated at the average annual exchange rate of the income year, the rate the National Bank of Romania publishes for that year, which is how this income is assessed when the tenant is a natural person. Storno computes it from BNR's own file for that year, as the mean of the twelve monthly means, which reproduces the published figure. The note on each contract states the rate used and whether it is the published figure or a mean computed from the daily series; a rent paid by a company is flagged, because there the tax is withheld at source. Previously such contracts came back with a gross income of 0 and a note to fill it in by hand.
 
 ## 2026-09-17 — Alerta de expirare: e-mail dedicat
 
