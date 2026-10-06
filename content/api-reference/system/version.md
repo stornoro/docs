@@ -89,8 +89,8 @@ When called with both `?platform=ios&version=1.0.0` (or via the `X-App-Version` 
 
 | Tier | Meaning |
 |------|---------|
-| `blocking` | Client `version` is below `min`. The client must render a non-dismissible "must update" screen and refuse to render the rest of the app until the user updates. The server **also enforces this** — see "Server enforcement" below. |
-| `recommended` | Client `version` is at or above `min` but below `latest`. The client should render a dismissible "update available" prompt. |
+| `blocking` | Client `version` is below `min`, or its major.minor is older than `latest`'s (every major or minor release is mandatory). The client must render a non-dismissible "must update" screen and refuse to render the rest of the app until the user updates. Versions below `min` are **also enforced by the server** — see "Server enforcement" below. |
+| `recommended` | Client `version` has the same major.minor as `latest` but an older patch. The client should render a dismissible "update available" prompt. |
 | `ok` | Client is at or above `latest`. Render nothing. |
 | `unknown` | Platform was supplied but no `version` was passed. Render nothing. |
 
