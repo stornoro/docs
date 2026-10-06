@@ -7,6 +7,19 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-10-05 — Abonament în calendar
+
+### Added
+
+- **Calendar subscription.** `GET/POST/PATCH/DELETE /api/v1/calendar-feed` give each member a personal iCalendar link with the expiry items (vehicle documents, contracts, certificates) and the fiscal deadlines of the companies they can see, for Apple Calendar (`webcalUrl`), Google Calendar (`googleCalendarUrl`) and Outlook (`outlookUrl`). Events are all-day with alarms at 09:00; renewed items and filed declarations drop out at the next refresh. The body is served at `GET /api/v1/calendar/feed/{id}/{signature}.ics` without authentication; `regenerate: true` invalidates older links. MCP tools: `calendar_feed_get`, `calendar_feed_enable`, `calendar_feed_update`, `calendar_feed_disable`. See [Calendar subscription](/api-reference/calendar-feed/overview).
+
+## 2026-09-23 — Termenele fiscale: un singur e-mail
+
+### Changed
+
+- **The fiscal deadline reminder is one digest a day per user, not one e-mail per company and declaration.** `fiscal.deadline` now goes out on a day that is 7, 3 or 1 days before an unfiled deadline of any of the user's companies and lists every deadline still due in the next 7 days, grouped by company, each declaration linking to its create dialog. The payload carries `data.companies[]` (`companyId`, `companyName`, `items[]`), `data.count` and `data.companyCount`; `data.companyId` is the first company listed.
+- **Companies without activity are not reminded.** A deadline is listed only when the company issued or received an invoice in the period it covers; the declaration owed for employees (D112) and the deadlines carried by a case file always count. A dormant company still owes its (nil) declarations, but no longer fills the inbox with them.
+
 ## 2026-09-17 — Declarația unică: campania 2026
 
 ### Changed

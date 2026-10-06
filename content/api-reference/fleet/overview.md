@@ -99,3 +99,7 @@ GET /api/v1/expiries/upcoming?days=60
 ```
 
 MCP: `vehicles_list`, `vehicles_get`, `vehicles_create`, `vehicles_update`, `vehicles_delete`, `expiries_list`, `expiries_upcoming`, `expiries_create`, `expiries_get`, `expiries_update`, `expiries_renew`, `expiries_delete`.
+
+## Calendar subscription
+
+The same expiry items can appear in Apple Calendar, Google Calendar or Outlook, with alarms at each item's reminder threshold and the day before, through the member's [calendar subscription](/api-reference/calendar-feed/overview).

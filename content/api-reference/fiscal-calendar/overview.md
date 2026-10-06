@@ -38,7 +38,7 @@ Deadlines already past are kept for 31 days so an unfiled one shows as overdue.
 
 ## Reminders
 
-The `fiscal.deadline` notification is sent to every member of the company 7, 3 and 1 days before a deadline that is still `due` (once per user, deadline and day), with `data.code`, `data.dueDate`, `data.declarationType`, `data.period` and `data.companyId`. It is on by default for e-mail, in-app and push; see [Notification preferences](/api-reference/notification-preferences/overview).
+The `fiscal.deadline` notification is one digest a day per user: it goes out on a day that is 7, 3 or 1 days before an unfiled deadline of one of the user's companies and lists every deadline still `due` in the next 7 days, grouped by company, in `data.companies[]` (`companyId`, `companyName`, `items[]` with `code`, `label`, `period`, `periodLabel`, `dueDate`, `dueDateLabel`, `daysLeft`, `declarationType`), with `data.count` and `data.companyCount`. A company without activity in the period of a deadline is left out: no invoice issued or received in that period means no reminder, even though the declaration (usually a nil one) is still owed. Deadlines owed for employees (D112) and the ones carried by a case file always count as activity. The notification is on by default for e-mail, in-app and push; see [Notification preferences](/api-reference/notification-preferences/overview).
 
 ## Get the calendar of a company
 
@@ -137,6 +137,10 @@ The same items across every company the caller can see (all companies of the org
   "counts": { "due": 9, "overdue": 1, "filed": 2 }
 }
 ```
+
+## Calendar subscription
+
+The unfiled deadlines can also appear in Apple Calendar, Google Calendar or Outlook, with alarms 3 days and 1 day before, through the member's [calendar subscription](/api-reference/calendar-feed/overview).
 
 ## MCP
 
