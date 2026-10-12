@@ -13,6 +13,7 @@ All notable changes to the Storno.ro API are documented here.
 
 - **`[[suma:EXPR]]` in recurring templates.** Notes and line descriptions can print an amount computed at issue time from the BNR rate — `[[suma:1900*curs]]` is 1,900 EUR at the rate of the invoice date — with `curs`, `curs_EUR`, `curs_USD`…, `+ - * /` and parentheses. Amounts print in Romanian format.
 - **Running balance.** A template may carry `balance` (RON) and `balanceStep` (an expression such as `1900*curs`): every issuance deducts the step, `[[sold]]` prints what is left, `[[sold_anterior]]` what there was and `[[rata]]` what was deducted (capped at the remainder); the template pauses when the balance reaches zero. Fields on `POST/PATCH /api/v1/recurring-invoices` and in the MCP tools.
+- **`priceRule: expression`.** A template line can compute its unit price at issuance from the same names — `2000*curs - rata` is 2,000 EUR at the BNR rate minus this month's deduction — so a rent reduced by a balance settles exactly what is left in the last month.
 
 ## 2026-10-05 — Abonament în calendar
 

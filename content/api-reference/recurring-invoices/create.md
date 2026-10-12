@@ -65,14 +65,14 @@ POST /api/v1/recurring-invoices
 | `[[sold_anterior]]` | the balance before this invoice |
 | `[[rata]]` | what this invoice deducts: `balanceStep` evaluated, never more than what is left |
 
-Amounts print in Romanian format (`9.633,00`). A reduction that must also lower the total goes on the line as a fixed `discount` — converted with the line's `referenceCurrency` like the price — while the note explains it:
+Amounts print in Romanian format (`9.633,00`). A reduction that must also lower the total is best expressed as the line price itself (`priceRule: expression`), so the deduction and the price always agree, including the last month; a fixed `discount` converted with the line's `referenceCurrency` works too while the balance is larger than the step:
 
 ```json
 {
   "notes": "Reducere chirie conform Act adițional nr. 1 (1.900 EUR la curs BNR din data facturii): [[suma:1900*curs]] lei; sold investiție rămas: [[sold]] lei.\n[[curs]]",
   "balance": "38532.00",
   "balanceStep": "1900*curs",
-  "lines": [{ "description": "Chirie [[luna]] [[an]]", "quantity": "1", "unitPrice": "3000.00", "discount": "1900.00", "referenceCurrency": "EUR", "vatRate": "0", "vatCategoryCode": "E" }]
+  "lines": [{ "description": "Chirie [[luna]] [[an]]", "quantity": "1", "unitPrice": "0", "priceRule": "expression", "priceExpression": "2000*curs - rata", "vatRate": "0", "vatCategoryCode": "E" }]
 }
 ```
 
@@ -86,9 +86,10 @@ Amounts print in Romanian format (`9.633,00`). A reduction that must also lower 
 | `vatRateId` | string | Yes | UUID of VAT rate |
 | `unitOfMeasure` | string | No | Unit of measure code (default: "buc") |
 | `productId` | string | No | UUID of linked product |
-| `priceRule` | string | No | `fixed`, `exchange_rate`, or `markup` (default: "fixed") |
-| `referenceCurrency` | string | Conditional | Required if priceRule is `exchange_rate` |
-| `markupPercent` | number | Conditional | Required if priceRule is `markup` |
+| `priceRule` | string | No | `fixed` (default), `updated_product` (refresh the linked product's price), `bnr_rate` (convert from `referenceCurrency` at the BNR rate of the issue date), `bnr_rate_markup` (same plus `markupPercent`), `expression` (compute the price from `priceExpression`) |
+| `referenceCurrency` | string | Conditional | With `bnr_rate` / `bnr_rate_markup`; the invoice currency must be RON. The line `discount` is converted the same way |
+| `markupPercent` | number | Conditional | With `bnr_rate_markup` |
+| `priceExpression` | string | Conditional | With `expression`: the unit price in the document currency, computed at issuance with the [placeholder names](#template-placeholders), e.g. `2000*curs - rata` — 2,000 EUR at the BNR rate minus what this issuance deducts from the running balance, so the last month settles exactly what is left. Negative results become 0 |
 
 ## Response
 
