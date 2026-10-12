@@ -47,7 +47,9 @@ All parameters are optional, but at least one must be provided.
 | `dueDateType` | string | `fixed` or `relative` |
 | `dueDateDays` | integer | Days after issue for relative due date |
 | `dueDateFixedDay` | integer | Fixed day of month (1-31) |
-| `notes` | string \| null | Internal notes |
+| `notes` | string \| null | Notes with [template placeholders](/api-reference/recurring-invoices/create#template-placeholders) |
+| `balance` | number \| null | Running balance in RON (null removes it) |
+| `balanceStep` | string \| null | Expression deducted per issuance, e.g. `1900*curs` |
 | `paymentTerms` | string \| null | Payment terms text |
 | `autoEmailEnabled` | boolean | Auto-send email on generation |
 | `autoEmailTime` | string | Time to send (HH:mm) |

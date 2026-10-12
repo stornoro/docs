@@ -7,6 +7,13 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-10-12 — Facturi recurente: sume calculate și sold descrescător
+
+### Added
+
+- **`[[suma:EXPR]]` in recurring templates.** Notes and line descriptions can print an amount computed at issue time from the BNR rate — `[[suma:1900*curs]]` is 1,900 EUR at the rate of the invoice date — with `curs`, `curs_EUR`, `curs_USD`…, `+ - * /` and parentheses. Amounts print in Romanian format.
+- **Running balance.** A template may carry `balance` (RON) and `balanceStep` (an expression such as `1900*curs`): every issuance deducts the step, `[[sold]]` prints what is left, `[[sold_anterior]]` what there was and `[[rata]]` what was deducted (capped at the remainder); the template pauses when the balance reaches zero. Fields on `POST/PATCH /api/v1/recurring-invoices` and in the MCP tools.
+
 ## 2026-10-05 — Abonament în calendar
 
 ### Added

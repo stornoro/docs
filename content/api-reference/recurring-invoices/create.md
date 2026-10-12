@@ -39,8 +39,10 @@ POST /api/v1/recurring-invoices
 | `dueDateType` | string | Yes | `fixed` or `relative` |
 | `dueDateDays` | integer | Conditional | Required if dueDateType is `relative` |
 | `dueDateFixedDay` | integer | Conditional | Required if dueDateType is `fixed` (1-31) |
-| `notes` | string | No | Internal notes |
+| `notes` | string | No | Notes printed on every generated document; see [Template placeholders](#template-placeholders) |
 | `paymentTerms` | string | No | Payment terms text |
+| `balance` | number | No | Running balance in RON, reduced on every issuance by `balanceStep` and printed with `[[sold]]`; the template pauses when it reaches zero |
+| `balanceStep` | string | No | Expression deducted per issuance, e.g. `1900*curs` (1,900 EUR at the BNR rate of the issue date); the last deduction is capped at what is left |
 | `autoEmailEnabled` | boolean | No | Auto-send email on generation (default: false) |
 | `autoEmailTime` | string | No | Time to send (HH:mm, default: "09:00") |
 | `autoEmailDayOffset` | integer | No | Days offset for email sending (default: 0) |
@@ -48,6 +50,31 @@ POST /api/v1/recurring-invoices
 | `penaltyPercentPerDay` | number | No | Daily penalty percentage |
 | `penaltyGraceDays` | integer | No | Grace period before penalties |
 | `lines` | array | Yes | Array of line items (minimum 1) |
+
+### Template placeholders
+
+`notes` and every line `description` are rendered when a document is issued:
+
+| Placeholder | Value |
+|---|---|
+| `[[luna]]`, `[[luna-1]]`, `[[luna+1]]` | the month in Romanian, with an offset in months |
+| `[[luna_nr]]`, `[[an]]` (also `±N`) | month number (`01`–`12`), year |
+| `[[curs]]` | the BNR rate note of the issue date for every currency used, e.g. `Curs BNR 20.10.2026: 1 EUR = 5.0700 RON` |
+| `[[suma:EXPR]]` | an amount computed from `EXPR` with `+ - * /` and parentheses, e.g. `[[suma:1900*curs]]`. Names: `curs` (the BNR rate of the first reference currency of the lines, EUR when there is none), `curs_EUR`, `curs_USD`…, `sold`, `sold_anterior`, `rata`, `luna_nr`, `an` |
+| `[[sold]]` | with a running `balance`: what is left after this invoice |
+| `[[sold_anterior]]` | the balance before this invoice |
+| `[[rata]]` | what this invoice deducts: `balanceStep` evaluated, never more than what is left |
+
+Amounts print in Romanian format (`9.633,00`). A reduction that must also lower the total goes on the line as a fixed `discount` — converted with the line's `referenceCurrency` like the price — while the note explains it:
+
+```json
+{
+  "notes": "Reducere chirie conform Act adițional nr. 1 (1.900 EUR la curs BNR din data facturii): [[suma:1900*curs]] lei; sold investiție rămas: [[sold]] lei.\n[[curs]]",
+  "balance": "38532.00",
+  "balanceStep": "1900*curs",
+  "lines": [{ "description": "Chirie [[luna]] [[an]]", "quantity": "1", "unitPrice": "3000.00", "discount": "1900.00", "referenceCurrency": "EUR", "vatRate": "0", "vatCategoryCode": "E" }]
+}
+```
 
 ### Line Item Object
 
