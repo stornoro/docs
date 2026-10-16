@@ -33,6 +33,7 @@ Complete reference for configuring a Storno.ro deployment. All variables are set
 | `META_PIXEL_ID` | No | — | Meta (Facebook) Pixel / dataset id. When set together with `META_CAPI_ACCESS_TOKEN`, every completed registration is reported server-side to the Conversions API as a `CompleteRegistration` event, with the email SHA-256 hashed. Leave empty to disable. |
 | `META_CAPI_ACCESS_TOKEN` | No | — | Conversions API access token, generated in Events Manager → pixel → Settings → Conversions API. |
 | `META_CAPI_TEST_EVENT_CODE` | No | — | Test event code from Events Manager → Test events; set only while validating the integration. |
+| `NUXT_PUBLIC_META_PIXEL_ID` | No | — | Landing site only (`landing/.env`): the same Pixel id, loaded in the browser after the visitor accepts cookies. Adds `PageView` per route so ad clicks can be matched to visits; sign-ups themselves are always reported server-side. Leave empty to disable. |
 
 ## ANAF / e-Factura
 
