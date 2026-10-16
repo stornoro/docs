@@ -7,6 +7,13 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-10-14 — Storno Agent 1.8.2: reîncercări la erori de rețea, jurnal pe disc
+
+### Changed
+
+- **Storno Agent 1.8.2 — the SPV monitor retries network hiccups.** A sync that fails because ANAF reset or stalled the connection (`curl exited with code 56: Recv failure: Connection reset by peer`, a timeout, an empty reply, a dropped TLS handshake) or because a call to api.storno.ro did not go through is retried after 5, 15 and 45 seconds inside the same run before it counts as a failure and pushes the schedule back. PIN, token and HTTP errors are not retried.
+- **Storno Agent 1.8.2 — log file.** Everything the agent prints is also appended, timestamped, to `~/.storno-agent/agent.log` (rotated at 5 MB, one older copy kept), so a failed unattended sync can be inspected even though the app runs without a terminal. The PIN is redacted as before.
+
 ## 2026-10-12 — Facturi recurente: sume calculate și sold descrescător
 
 ### Added
