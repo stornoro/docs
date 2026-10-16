@@ -79,6 +79,14 @@ In development, the message queue and cache use the filesystem/database automati
 | `CENTRIFUGO_API_KEY` | No | — | Centrifugo API key for server-to-server calls |
 | `CENTRIFUGO_TOKEN_HMAC_SECRET` | No | — | HMAC secret for generating client connection tokens |
 
+## Push Notifications
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `FIREBASE_CREDENTIALS` | No | — | Firebase service-account JSON (path or inline) for sending mobile push notifications directly. |
+| `PUSH_RELAY_URL` | No | `https://hub.storno.ro` (Docker Compose) | Push relay for instances without their own Firebase key; tried before direct FCM. Set it to an empty value to disable the relay and send through `FIREBASE_CREDENTIALS`. |
+| `PUSH_RELAY_SECRET` | No | — | Optional bearer secret for the relay. |
+
 ## Stripe (Payments)
 
 | Variable | Required | Default | Description |
