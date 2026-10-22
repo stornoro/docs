@@ -13,6 +13,10 @@ All notable changes to the Storno.ro API are documented here.
 
 - **Quarterly OSS VAT.** `GET /api/v1/reports/vat/oss?year&quarter` shows the VAT charged to consumers in other EU member states, by state of consumption, VAT rate and invoice currency, converted to euro at the ECB reference rate of the last day of the quarter (the rule of the special VAT return, D398), with the payment due date, the unique reference `RO/<VAT code>/Q<n>.<year>` and the ANAF OSS account. Euro amounts are `null` while the quarter is still running. Shown under the monthly summary on `/reports/vat` in the web app and on the VAT report screen of the mobile app. MCP tool: `reports_vat_oss`. See [VAT Report](/api-reference/reports/vat-report).
 
+### Changed
+
+- **D398 picks up untyped OSS sales.** The special VAT return is populated from invoices typed *special regime art. 314–315* as before, and now also from invoices without that type that plainly are OSS sales: VAT charged to a buyer who is not VAT registered in another EU member state. Such invoices are counted in `invoiceCounts.untyped` and flagged with the `UNTYPED_OSS_INCLUDED` warning. Invoices in a currency other than EUR or RON are converted with the ECB rate of that currency at the quarter end (the invoice's stored rate only when the ECB has none) instead of the stored rate alone, which treated an invoice without one as lei.
+
 ### Fixed
 
 - **Invoice notes longer than 300 characters.** ANAF rejects a `cbc:Note` over 300 characters (`BR-RO-L300`). The invoice note (BT-22) and the line note (BT-127) are now split into several notes of at most 300 characters each in the e-Factura XML, so nothing is lost; the note stored on the invoice and printed on the PDF is untouched.
