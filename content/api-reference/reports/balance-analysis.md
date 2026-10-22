@@ -398,3 +398,36 @@ Number format support:
 - Space-separated: `1 101 657.93` (spaces as thousands, dot as decimal)
 - Standard: `1234.56`
 - Standalone dashes (`-`, `–`, `—`) are treated as zero values
+
+#### Profit tax estimated from invoices
+
+`profitTaxEstimate` is computed from the invoices alone and is present even before any trial balance is uploaded. It is information, not a figure to file: salaries and their contributions, card and payment-processor fees, foreign suppliers without e-Factura, depreciation and every other cost that never becomes an invoice in Storno are missing, so the real tax is lower.
+
+```json
+"profitTaxEstimate": {
+  "hasData": true,
+  "year": 2026,
+  "currency": "RON",
+  "profitTaxRate": 16,
+  "fxSource": "invoice rate, else BNR monthly average",
+  "missingRates": [],
+  "quarters": [
+    { "quarter": 3, "from": "2026-07-01", "to": "2026-09-30", "closed": true,
+      "revenue": "923388.00", "invoicedExpenses": "68355.00", "grossProfit": "855033.00",
+      "estimatedProfitTax": "136805.28", "microTax1": "9233.88", "microTax3": "27701.64",
+      "invoiceCount": { "outgoing": 3753, "incoming": 85 }, "invoicedExpenseShare": 7.4 }
+  ],
+  "ytd": { "revenue": "2626481.00", "invoicedExpenses": "276537.00", "grossProfit": "2349944.00", "estimatedProfitTax": "375991.04", "microTax1": "26264.81", "microTax3": "78794.43", "invoiceCount": { "outgoing": 10243, "incoming": 258 }, "invoicedExpenseShare": 10.5 }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| quarters[] | Every quarter of the year that has started; `closed` is false for the running one |
+| revenue / invoicedExpenses | Issued / received invoices (drafts, cancelled, rejected and converted out), in lei: the invoice's own exchange rate when stored, else BNR's monthly average |
+| grossProfit | revenue − invoicedExpenses |
+| estimatedProfitTax | 16 % of the gross profit (0 when negative) |
+| microTax1 / microTax3 | 1 % and 3 % of revenue, for a micro-enterprise comparison |
+| invoicedExpenseShare | invoicedExpenses as a percentage of revenue; the lower it is, the more of the real costs are missing |
+| missingRates | Currencies with no BNR rate; their invoices were left out |
+| tips[] | Hints sized with the company's numbers, each `{code, level, params}` with `level` `action`, `warning` or `info`: `sponsorship` (headroom = min(0.75 % of turnover, 20 % of the tax), `turnoverCap`, `taxCap`), `reinvested_profit` (the running quarter: `quarterEnd`, `daysLeft`, `tax`, `maxInvestment` = tax / 16 %), `missing_expenses` (`share`, `threshold`), `dividends` (`netProfit`, `dividendTax`, `available`, `dividendTaxRate`), `employee_benefits` (companies with employees), `rd_deduction` (CAEN 62/63/72), `advance_payments`. The apps carry the texts |
