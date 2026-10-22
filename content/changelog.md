@@ -7,6 +7,17 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-10-22 — TVA OSS pe trimestru în raportul de TVA
+
+### Added
+
+- **Quarterly OSS VAT.** `GET /api/v1/reports/vat/oss?year&quarter` shows the VAT charged to consumers in other EU member states, by state of consumption, VAT rate and invoice currency, converted to euro at the ECB reference rate of the last day of the quarter (the rule of the special VAT return, D398), with the payment due date, the unique reference `RO/<VAT code>/Q<n>.<year>` and the ANAF OSS account. Euro amounts are `null` while the quarter is still running. Shown under the monthly summary on `/reports/vat` in the web app and on the VAT report screen of the mobile app. MCP tool: `reports_vat_oss`. See [VAT Report](/api-reference/reports/vat-report).
+
+### Fixed
+
+- **Invoice notes longer than 300 characters.** ANAF rejects a `cbc:Note` over 300 characters (`BR-RO-L300`). The invoice note (BT-22) and the line note (BT-127) are now split into several notes of at most 300 characters each in the e-Factura XML, so nothing is lost; the note stored on the invoice and printed on the PDF is untouched.
+- **VAT report documentation** now describes the response the endpoint actually returns.
+
 ## 2026-10-14 — Storno Agent 1.8.2: reîncercări la erori de rețea, jurnal pe disc
 
 ### Changed
