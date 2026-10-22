@@ -1,23 +1,23 @@
 ---
 title: VAT Report
-description: Monthly VAT summary by rate, and the quarterly OSS view of the VAT charged to EU consumers
+description: VAT summary by rate for a month, quarter, year or date range with filters, and the quarterly OSS view of the VAT charged to EU consumers
 ---
 
 # VAT Report
 
-Two views of the VAT a company collects and deducts: the monthly summary by rate that backs the VAT return (D300), and the quarterly OSS (One Stop Shop) view of the VAT charged to consumers in other EU member states that backs the special VAT return (D398).
+Two views of the VAT a company collects and deducts: the summary by rate (month, quarter, year or any date range, with filters) that backs the VAT return (D300), and the quarterly OSS (One Stop Shop) view of the VAT charged to consumers in other EU member states that backs the special VAT return (D398).
 
 Both need the `REPORT_VIEW` permission and a plan that includes reports.
 
 ---
 
-## Monthly VAT summary
+## VAT summary
 
 ```http
 GET /api/v1/reports/vat
 ```
 
-Issued (collected) and received (deductible) invoices of one calendar month, totalled and broken down by VAT rate from the invoice lines. Amounts are summed in the currency of each invoice; cancelled invoices are left out.
+Issued (collected) and received (deductible) invoices of a period, totalled and broken down by VAT rate from the invoice lines. Amounts are summed in the currency of each invoice (`currencies` lists the ones present; filter by `currency` for a homogeneous total). Cancelled invoices are always left out; drafts, rejected and converted documents only with `finalOnly`.
 
 ### Headers
 
@@ -26,18 +26,38 @@ Issued (collected) and received (deductible) invoices of one calendar month, tot
 | Authorization | string | Yes | Bearer token for authentication |
 | X-Company | string | Yes | Company UUID |
 
-### Query Parameters
+### Period
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| year | integer | No | Report year (default: current year) |
-| month | integer | No | Report month, 1–12 (default: current month) |
+One of, in this order of precedence:
+
+| Parameters | Period |
+|-----------|--------|
+| `from`, `to` (YYYY-MM-DD, `from` ≤ `to`) | An arbitrary date range |
+| `year`, `quarter` (1–4) | A quarter |
+| `year`, `period=year` | The whole year |
+| `year`, `month` (1–12) | A month — the default, the current month when nothing is given |
+
+### Filters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| direction | string | `outgoing` (issued) or `incoming` (received) only |
+| clientId | string | Only invoices of this client |
+| supplierId | string | Only invoices of this supplier |
+| currency | string | Only invoices in this currency (ISO code) |
+| vatRate | number | Only the lines at this VAT rate; the totals are then summed from those lines instead of the invoice totals |
+| documentType | string | `invoice` or `credit_note` only |
+| finalOnly | boolean | Leave drafts, rejected and converted documents out |
 
 ### Response
 
 ```json
 {
-  "period": "2026-09",
+  "period": "2026-Q3",
+  "from": "2026-07-01",
+  "to": "2026-09-30",
+  "filters": { "direction": "outgoing", "clientId": null, "supplierId": null, "currency": "RON", "vatRate": null, "documentType": null, "finalOnly": true },
+  "currencies": ["RON"],
   "outgoing": {
     "21.00": { "taxableBase": "1250.00", "vatAmount": "262.50" },
     "9.00":  { "taxableBase": "0.00", "vatAmount": "0.00" },
@@ -46,27 +66,30 @@ Issued (collected) and received (deductible) invoices of one calendar month, tot
     "19.00": { "taxableBase": "151.28", "vatAmount": "28.72" }
   },
   "incoming": {
-    "21.00": { "taxableBase": "933.63", "vatAmount": "196.04" },
+    "21.00": { "taxableBase": "0.00", "vatAmount": "0.00" },
     "9.00":  { "taxableBase": "0.00", "vatAmount": "0.00" },
     "5.00":  { "taxableBase": "0.00", "vatAmount": "0.00" },
     "0.00":  { "taxableBase": "0.00", "vatAmount": "0.00" }
   },
   "totals": {
     "outgoing": { "taxableBase": "4801.28", "vatAmount": "291.22", "total": "5092.50" },
-    "incoming": { "taxableBase": "933.63", "vatAmount": "196.04", "total": "1129.67" }
+    "incoming": { "taxableBase": "0.00", "vatAmount": "0.00", "total": "0.00" }
   },
-  "netVat": "95.18",
-  "invoiceCount": { "outgoing": 61, "incoming": 6 }
+  "netVat": "291.22",
+  "invoiceCount": { "outgoing": 61, "incoming": 0 }
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| period | string | `YYYY-MM` |
+| period | string | `YYYY-MM`, `YYYY-Qn`, `YYYY` or `from..to` |
+| from / to | string | The period's bounds |
+| filters | object | The filters applied (null when not set) |
+| currencies | string[] | Currencies of the invoices counted |
 | outgoing / incoming | object | One bucket per VAT rate (`"21.00"`, `"9.00"`, `"5.00"`, `"0.00"` always present, other rates added when used) with the taxable base and VAT of the lines at that rate |
-| totals.outgoing / totals.incoming | object | Sum of the invoice subtotals, VAT and totals |
+| totals.outgoing / totals.incoming | object | Sum of the invoice subtotals, VAT and totals (of the matching lines when `vatRate` is set) |
 | netVat | string | Collected VAT minus deductible VAT |
-| invoiceCount | object | Number of issued and received invoices in the month |
+| invoiceCount | object | Number of issued and received invoices counted |
 
 ---
 
