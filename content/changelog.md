@@ -7,6 +7,12 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-10-23 — Adnotări MCP pe toate tool-urile
+
+### Changed
+
+- **storno-cli 1.0.55 — MCP tool annotations.** Every one of the 372 tools now carries explicit `title`, `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint` annotations (never left unset), so Claude, ChatGPT and other MCP clients can tell a read from a write and a write from a delete before calling anything: 178 read-only tools, 44 destructive ones (deletes, cancellations, revocations, `import_revert`, `backup_restore`), 42 that reach outside Storno (ANAF, VIES, BNR, mail, the Storno Agent, webhooks). The hosted server at `mcp.storno.ro` runs this version.
+
 ## 2026-10-22 — TVA OSS pe trimestru în raportul de TVA
 
 ### Added
