@@ -17,9 +17,9 @@ GET /api/v1/invoices/export/payments-saga-xml
 
 | Endpoint | Returns | Root element |
 |----------|---------|--------------|
-| `/invoices/export/saga-xml` | Outgoing invoices for the active company. Accepts the same query filters as the invoice list. | `<Facturi>` |
-| `/invoices/export/receipts-saga-xml` | Receipts (incasari) on **outgoing** invoices. | `<Incasari>` |
-| `/invoices/export/payments-saga-xml` | Payments (plati) on **incoming** invoices. | `<Plati>` |
+| `/invoices/export/saga-xml` | Outgoing invoices issued in the period. Accepts the same query filters as the invoice list. | `<Facturi>` |
+| `/invoices/export/receipts-saga-xml` | Receipts (incasari) on **outgoing** invoices, by payment date. | `<Incasari>` |
+| `/invoices/export/payments-saga-xml` | Payments (plati) on **incoming** invoices, by payment date. | `<Plati>` |
 
 ## Headers
 
@@ -27,6 +27,15 @@ GET /api/v1/invoices/export/payments-saga-xml
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
 | `X-Company` | string | Yes | Company UUID to scope the request |
+
+## Query parameters (all three)
+
+| Name | Default | Description |
+|------|---------|-------------|
+| `dateFrom` | — | Start of the period, `YYYY-MM-DD`. Invoices are filtered on the issue date, receipts and payments on the payment date. |
+| `dateTo` | — | End of the period, `YYYY-MM-DD`, inclusive. |
+
+`from` / `to` are accepted as aliases. Always pass a period: without one the endpoint serializes the company's whole history in a single response, which is slow and may exceed the server's memory limit on large accounts. The invoice endpoint also accepts the other invoice list filters (`direction`, `clientId`, `search`, …).
 
 ## Query parameters (receipts and payments)
 
@@ -45,6 +54,8 @@ Both `*-saga-xml` payment endpoints accept per-export chart-of-accounts override
 curl -G 'https://api.storno.ro/api/v1/invoices/export/receipts-saga-xml' \
   -H 'Authorization: Bearer <TOKEN>' \
   -H 'X-Company: <COMPANY_UUID>' \
+  --data-urlencode 'dateFrom=2026-09-01' \
+  --data-urlencode 'dateTo=2026-09-30' \
   --data-urlencode 'accountCard=5125.2' \
   -o incasari.xml
 ```
