@@ -7,6 +7,16 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-10-28 — Chitanță pentru încasările în numerar
+
+### Added
+
+- **Chitanță for a cash payment.** `POST /api/v1/invoices/{uuid}/payments/{paymentId}/receipt` issues the chitanță for a cash payment already recorded on an issued invoice — a number from the receipt series (default or `seriesId`), a date (default the payment date) — without recording a second payment; `GET …/receipt/pdf` downloads it (A5, amount in words). The payment carries `receiptNumber`, `receiptDate`, `receiptSeriesId`, `receiptIssuedAt`; the invoice timeline gets `receipt_issued`. In the web app and the mobile app the payment history offers *Emite chitanța* on cash payments and the PDF afterwards. MCP tools: `payments_receipt_issue`, `payments_receipt_pdf`. See [Cash receipt](/api-reference/payments/receipt).
+
+### Fixed
+
+- **Cash register direction.** A cash payment recorded on an *issued* invoice was counted as cash **out**; it is now cash **in** (labelled with the chitanță number when one was issued), and only cash payments on *received* invoices count as cash out. The balance and the ledger changed accordingly.
+
 ## 2026-10-23 — Adnotări MCP pe toate tool-urile
 
 ### Changed
