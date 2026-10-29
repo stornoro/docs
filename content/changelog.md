@@ -7,6 +7,12 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-10-29 — Unitățile de măsură în limba documentului
+
+### Fixed
+
+- **Units of measure on PDFs and in the apps.** Lines carry either the Romanian labels the apps save (`buc`, `ora`, `luna`) or the UN/ECE codes e-Factura invoices come with (`H87`, `C62`, `HUR`, `MON`), and both were printed as stored — so an English invoice said *buc* and a received invoice said *C62*. Every PDF (invoice, proforma, delivery note, fiscal receipt) now prints the unit in the document's language (ro / en / de / fr: *buc* → *pcs* / *Stk.* / *pcs*, *H87* → *buc*), and the web document views show it in the interface language. Unknown values stay as they are.
+
 ## 2026-10-28 — Chitanță pentru încasările în numerar
 
 ### Added
