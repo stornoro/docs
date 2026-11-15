@@ -27,6 +27,33 @@ Every import goes through the same four steps, whatever the source is: **upload*
 
 **Summary.** An import that aggregates rows reports what it built in `job.summary`: the documents of a platform statement, the daily totals of a cash register file.
 
+## Suppliers — `importType: suppliers`
+
+The supplier list exported by another invoicing or accounting program, or any spreadsheet (CSV / XLSX). Every source that imports clients imports suppliers too (`smartbill`, `saga`, `oblio`, `fgo`, `facturis_online`, `easybill`, `ciel`, `factureaza`, `facturare_pro`, `icefact`, `generic`): the file has the columns of that program's client export, and columns it renames are recognised by their usual names (`Denumire furnizor`, `CIF`, `Cod fiscal`, `Localitate`, `Cont bancar`, `E-mail`…), so `suggestedMapping` is filled for a plain spreadsheet as well.
+
+Target fields: `name` (required), `cui`, `registrationNumber`, `address`, `city`, `county`, `country`, `postalCode`, `email`, `phone`, `bankName`, `bankAccount`, `notes`. A fiscal code with a country prefix (`RO12345678`, `DE111111111`) marks the supplier as a VAT payer, keeps the full number as `vatCode` and sets the country; a Romanian code is stored without the prefix.
+
+**No duplicates, nothing overwritten.** A row whose fiscal code (or, without one, whose name) matches a supplier the company already has creates nothing: the fields that supplier is still missing are filled in from the file and the row counts as `updated`. That is the usual case after the first e-Factura sync, which creates suppliers from received invoices with little more than a name and a fiscal code. `revert` deletes the suppliers the job created and leaves the ones it only completed.
+
+## Invoice history — `importType: invoices_issued` / `invoices_received`
+
+The invoice report or sales journal exported by another invoicing or accounting program, or any spreadsheet (CSV / XLSX), kept as history. Every source that imports clients imports invoices too (`smartbill`, `saga`, `oblio`, `fgo`, `facturis_online`, `easybill`, `ciel`, `factureaza`, `facturare_pro`, `icefact`, `generic`); `facturis` and `emag` keep their own fixed layouts. Such a report has no fixed set of columns, so `suggestedMapping` is built from the headers the file actually has, by their usual names (`Serie`, `Număr`, `Data`, `Scadență`, `Client`, `CIF`, `Valoare fără TVA`, `TVA`, `Total`, `Monedă`, `Rest de plată`, `Stare`, `Produs`, `Cantitate`, `Preț unitar`, `Cotă TVA`…). Check it in the mapping step.
+
+**XML export for accounting.** The same sources also take the invoice XML these programs export for the accountant — `<Facturi><Factura><Antet>…</Antet><Detalii><Continut><Linie>…` — uploaded as an `.xml` file (`smartbill`, `saga`, `oblio`, `fgo`, `generic`). It is the most reliable input: its fields are fixed (`FacturaNumar`, `FacturaData`, `FacturaScadenta`, `ClientNume`, `ClientCIF`, `FurnizorCIF`, `FacturaMoneda`, and per line `Descriere`, `UM`, `Cantitate`, `Pret`, `Valoare`, `ProcTVA` / `CotaTVA`, `TVA`), so the whole mapping is suggested and each `<Linie>` becomes a line of its invoice. The file names both parties: an invoice issued by another fiscal code than the company's (or, for received invoices, addressed to another one) is refused with an error on its row. The matching client list (`<clienti><linie>` with `denumire`, `cod_fiscal`, `reg_com`, `localitate`, `cont_banca`, `tel`…) is read by `importType: clients` the same way.
+
+In a spreadsheet, two shapes are read:
+
+- **one row per invoice** — the invoice gets a single line carrying its amounts;
+- **one row per invoice line** (the file has product / quantity / price columns) — rows sharing an invoice number become the lines of one invoice and its totals are the sum of the lines.
+
+Target fields: `number` (required), `series` (prepended to the number), `issueDate`, `dueDate`, `receiverName` / `receiverCif` (issued) or `senderName` / `senderCif` (received), `subtotal`, `vatTotal`, `total`, `currency`, `exchangeRate`, `paidAmount`, `unpaidAmount`, `state`, `paymentMethod`, `notes`, the line fields `lineDescription`, `lineProductCode`, `lineQuantity`, `lineUnitOfMeasure`, `lineUnitPrice`, `lineVatRate`, `lineVatAmount`, `lineTotal`, `lineTotalGross`, and the partner fields `clientEmail`, `clientPhone`, `clientAddress`, `clientCity`, `clientCounty`, `clientCountry`. Dates are read as `YYYY-MM-DD`, `DD.MM.YYYY`, `DD/MM/YYYY` or a spreadsheet date cell. An amount the file leaves out is derived from the others; a file that only has the gross total is split with the company's default VAT rate.
+
+**What an imported invoice is.** A record: status `synced`, never sent to ANAF. A row whose `state` says cancelled becomes `cancelled`. The collection comes from the file when it has it — `unpaidAmount` (rest de plată), `paidAmount`, or a `state` saying paid — and gives `paid` or `partially_paid` with a payment dated on the invoice date; rows that say nothing follow the `markAsPaid` option.
+
+**Partners.** An issued invoice is linked to the client with the same fiscal code (`RO12345678` and `12345678` are the same client); a client the company does not have yet is created from the name and code on the invoice. A received invoice is linked to the supplier with that fiscal code when there is one.
+
+**No duplicates.** An issued invoice whose number the company already has is skipped; a received one is identified by its number together with the supplier's fiscal code. `revert` deletes the invoices, payments and clients the job created.
+
 ## Platform statements — `importType: platform_sales`
 
 Sources: `uber`, `bolt`, `glovo`, `tazz`. One row per trip, order or transaction; the persister groups the rows and builds **one sales invoice to the platform** for what the end customers paid and **one purchase invoice from the platform** for its commission.

@@ -7,6 +7,45 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-11-15 — Istoricul de facturi din orice program
+
+### Added
+
+- **Invoice history import for every program.** `invoices_issued` and `invoices_received` were offered only by a few sources with a fixed layout; they are now available for every source that imports clients (SmartBill, SAGA, Oblio, FGO, FacturisOnline, EasyBill, Ciel, Factureaza, FacturarePro, IceFact) and for any CSV / XLSX spreadsheet (`generic`). The preview suggests the mapping from the usual names of the report's columns and reads both one row per invoice and one row per invoice line. The collection status comes from the file (`Rest de plată`, `Încasat`, `Stare`) and gives paid or partially paid invoices with their payment; missing clients are created from the invoice. In the web app: *Setări → Import / Export → Import*, type *Facturi emise* or *Facturi primite*. See [Imports](/api-reference/import/overview).
+
+- **Invoice and client XML exports.** The invoice XML that invoicing programs export for the accountant (`<Facturi><Factura><Antet>` / `<Linie>`) is read by `invoices_issued` and `invoices_received` for `smartbill`, `saga`, `oblio`, `fgo` and `generic`: one invoice per `<Factura>`, one line per `<Linie>`, the mapping fully suggested. An invoice that belongs to another fiscal code than the company's is refused. The client XML (`<clienti><linie>`) is recognised by the client import whatever the spelling of its fields.
+
+### Fixed
+
+- **Client import did not store the bank and the IBAN**, although both could be mapped.
+- **Clients with an `RO` prefix were duplicated on a second import**: the file's `RO12345678` was not recognised as the stored `12345678`.
+- **Multi-row invoices lost lines at the batch boundary.** In a file with one row per invoice line, every 100th invoice kept only its first line. Batches are now written when the next invoice starts.
+- **Line value and collection of multi-row invoices.** The net value of a line mapped from a column was not stored on the line, and `markAsPaid` created the payment for the first line instead of the invoice total.
+- **Clients were not recognised across the `RO` prefix.** An invoice carrying `RO12345678` now links to the client stored as `12345678`, and the other way round. The Facturis sales journal creates the clients it does not find, as its guide says.
+- **Received invoices with the same number from different suppliers** are no longer skipped as duplicates of each other.
+
+### Changed
+
+- **Import wizard.** Import types the selected source cannot read stay visible, disabled, with the reason, instead of disappearing from the list.
+- **Billing page.** When the plan list cannot be loaded the page says so and offers a retry, instead of stating that no plans are configured.
+
+## 2026-11-09 — Import de furnizori
+
+### Added
+
+- **Supplier import.** `POST /api/v1/import/upload` accepts `importType: "suppliers"`: the supplier list exported by another invoicing or accounting program (every source that imports clients — SmartBill, SAGA, Oblio, FGO, FacturisOnline, EasyBill, Ciel, Factureaza, FacturarePro, IceFact) or any CSV / XLSX spreadsheet (`generic`). The preview suggests the mapping from the program's own column names and from the usual names of renamed columns (`Denumire furnizor`, `CIF`, `Cod fiscal`, `Localitate`, `Cont bancar`…). A supplier the company already has (same fiscal code, or same name when the row has none) is not duplicated and not overwritten — only its missing fields are filled in and the row counts as updated; `revert` deletes the suppliers the job created. In the web app: *Setări → Import / Export → Import*, type *Furnizori*. `GET /api/v1/import/template?importType=suppliers` returns the model file. MCP: `import_upload` and `import_template` take `suppliers`. See [Imports](/api-reference/import/overview).
+
+## 2026-11-06 — Declarat nu înseamnă plătit
+
+### Added
+
+- **Payment reminders for filed returns.** The fiscal-deadline digest stops the moment a return is filed, which left the payment itself unwatched. `app:notifications:payment-due` (daily) now sends every user of the company a `declaration.payment_due` notification the day before and on the day the tax of a filed D100, D112, D300, D301 or D398 falls due (the 25th of the month after the period, the end of the following month for D398, moved to the next working day), naming the return, the period, the day it was filed and — when Storno computed the return — the amount. VAT returns are reminded only when they show VAT to pay. In-app, push and e-mail (on by default), configurable under notification preferences in the web and mobile apps.
+- **Fișa rol watched automatically.** `POST /api/v1/spv/sync-prepare` takes `includeRequests: true` and answers with `requests[]`: the periodic reports due now — the fișa rol (taxpayer account statement), at most once every 28 days per company — each recorded as a pending SPV request with the `anafUrl` to place through the certificate. The storno-agent's unattended monitor places them on every sync. When the statement lands in the inbox the backend reads its closing totals (obligations unpaid, interest and penalties computed and not yet charged, per tax), writes them into the document's summary and, when anything is unpaid, notifies the users with `spv.unpaid_balance` (amount, accessories, breakdown by tax). MCP: `spv_sync_prepare` takes `includeRequests`. See [Sync the SPV inbox](/api-reference/spv/sync).
+
+### Changed
+
+- **D100 for a quarterly profit-tax payer must close a quarter.** `POST /api/v1/declarations` rejects a D100 for a month other than 03, 06, 09 or 12 when the company declares its profit tax quarterly: filed for another month, the return declares the tax on a period that was already declared, ANAF books it as an extra debt with a due date months in the past and re-allocates the payments made since — the usual road to a somație. A monthly D100 for obligations that are monthly by nature (dividend tax, withholding) is still accepted with `periodType: "monthly"`.
+
 ## 2026-10-29 — Unitățile de măsură în limba documentului
 
 ### Fixed

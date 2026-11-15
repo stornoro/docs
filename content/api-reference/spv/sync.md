@@ -26,6 +26,7 @@ POST /api/v1/spv/sync-prepare
 | Body field | Type | Required | Description |
 |------------|------|----------|-------------|
 | `days` | integer | No | Days back to list, 1–60 (default 60, the ANAF maximum) |
+| `includeRequests` | boolean | No | Also return the periodic reports due now as `requests[]` (see below). The agent's unattended monitor always sends it. |
 
 ```json
 {
@@ -34,9 +35,16 @@ POST /api/v1/spv/sync-prepare
   "days": 60,
   "pendingDownloads": [
     { "documentId": "01a06e2f-...", "anafUrl": "https://webserviced.anaf.ro/SPVWS2/rest/descarcare?id=100000123", "messageType": "SOMATII" }
+  ],
+  "requests": [
+    { "requestId": "01a1b2c3-...", "type": "Fisa Rol", "anafUrl": "https://webserviced.anaf.ro/SPVWS2/rest/cerere?tip=Fisa%20Rol&cif=12345678" }
   ]
 }
 ```
+
+### Periodic reports (`requests`)
+
+With `includeRequests: true` the backend places, at most once every 28 days per company, a request for the **fișa rol** (the taxpayer's account statement) and returns it in `requests[]`, already recorded as a pending [SPV request](/api-reference/spv/requests). The agent GETs each `anafUrl` with the certificate and relays ANAF's answer to `POST /api/v1/spv/requests/{requestId}/agent-result`. ANAF delivers the statement into the inbox a little later; the next sync archives it and the backend reads the closing totals of the PDF: obligations unpaid, interest and penalties computed and not yet charged, per tax. The document's summary states the balance (also when everything is paid) and, when anything is unpaid, every user of the company gets a `spv.unpaid_balance` notification (in-app, push, e-mail by default) with the amount, the accessories and the breakdown by tax. A payment that never left, or went to the wrong account, shows here weeks before a somație would.
 
 ## Step 3 — relay the listing
 
