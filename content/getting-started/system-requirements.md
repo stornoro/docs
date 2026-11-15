@@ -28,7 +28,7 @@ All other dependencies are included in the Docker images.
 | Node.js | 20+ | Frontend SSR |
 | Nginx | 1.24+ | Reverse proxy |
 | Java JRE | 17+ | UBL XML validation and digital signatures |
-| Centrifugo | 5.x | Real-time WebSocket server |
+| Centrifugo | 6.x | Real-time WebSocket server |
 
 ### Required PHP Extensions
 

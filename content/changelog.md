@@ -7,6 +7,13 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-11-15 — Centrifugo 6
+
+### Changed
+
+- **Self-hosted deployments run Centrifugo 6.** `docker-compose.yml`, `centrifugo.json` and the Helm chart moved from version 5 to version 6. The API, the tokens, the channels and the client libraries are unchanged; only the server's configuration layout differs. Take the new `docker-compose.yml` and `centrifugo.json` together, see [Self-Hosting](/getting-started/self-hosting#centrifugo-5-to-6). The `.env` variables and the chart values keep their names.
+- **Helm chart: channels need a subscription token.** The chart's realtime configuration let any connected client subscribe to a channel by name; it now matches the Docker Compose configuration, where only a token issued by `POST /centrifugo/subscription-token` grants a channel.
+
 ## 2026-11-15 — Istoricul de facturi din orice program
 
 ### Added

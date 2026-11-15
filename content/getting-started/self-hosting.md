@@ -263,6 +263,19 @@ docker compose exec backend php bin/console doctrine:migrations:migrate --no-int
 docker compose exec backend php bin/console cache:clear
 ```
 
+### Centrifugo 5 to 6
+
+The deployment files now run Centrifugo 6, whose configuration file has a different layout from version 5. `docker-compose.yml` and `centrifugo.json` belong together: an installation that keeps its old files stays on version 5 and keeps working, and one that takes the new `docker-compose.yml` must take the new `centrifugo.json` with it.
+
+```bash
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/docker-compose.yml
+curl -O https://raw.githubusercontent.com/stornoro/storno/main/deploy/centrifugo.json
+docker compose pull centrifugo
+docker compose up -d centrifugo
+```
+
+Nothing changes in `.env`: the same `CENTRIFUGO_*` variables are read. Connected browsers and phones reconnect on their own within a few seconds, and the notifications published during the switch are delivered after the reconnect. On Kubernetes the chart handles it; the existing `centrifugo.env` values keep their names.
+
 ---
 
 ## Backups

@@ -41,7 +41,7 @@ Storno.ro is a multi-repo platform with several applications and supporting infr
 | **CLI** | [stornoro/storno-cli](https://github.com/stornoro/storno-cli) | TypeScript (MCP) | CLI tool for AI assistants |
 | **MySQL** | — | 8.0 | Primary database (57 entities) |
 | **Redis** | — | 7.x | Cache, message queue, rate limiting, locks |
-| **Centrifugo** | — | v5 | WebSocket server for real-time updates |
+| **Centrifugo** | — | v6 | WebSocket server for real-time updates |
 
 The backend container bundles PHP-FPM, Nginx, Supervisor (worker management), and a Java 17 runtime for UBL XML validation and digital signature verification.
 
