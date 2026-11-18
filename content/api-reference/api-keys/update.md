@@ -5,7 +5,7 @@ description: Update the name or scopes of an existing API token.
 
 # Update API token
 
-Updates the `name` or `scopes` of an existing API token. Only the token's owner can perform this operation. The token value itself and the expiry date cannot be changed — revoke and recreate the token if a new expiry is needed.
+Updates the `name` or `scopes` of an existing API token. Only the token's owner can perform this operation. Requires the `api_key.manage` permission and a browser session JWT: requests authenticated with an API token or an OAuth2 token return 403. The token value itself and the expiry date cannot be changed — revoke and recreate the token if a new expiry is needed.
 
 ```http
 PATCH /api/v1/api-tokens/{uuid}
@@ -28,7 +28,7 @@ PATCH /api/v1/api-tokens/{uuid}
 
 ### Body Parameters
 
-All parameters are optional, but at least one must be provided.
+All parameters are optional.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -81,21 +81,14 @@ curl -X PATCH 'https://api.storno.ro/api/v1/api-tokens/a1b2c3d4-e5f6-7890-abcd-e
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | The authenticated user is not the owner of this token |
-| 404 | not_found | API token not found |
-| 422 | validation_error | Invalid input data (see error details) |
+Errors return `{"error": "..."}`.
 
-### Validation Errors
-
-Common validation errors include:
-
-- No fields provided for update
-- One or more scope values are not valid `Permission` values
-- One or more scopes exceed the authenticated user's own permissions
-- `name` is an empty string
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `name` is an empty string, `scopes` is empty, or a scope value is not valid |
+| 401 | Invalid or missing authentication token |
+| 403 | The user is not the owner of the token, lacks `api_key.manage`, used an API token or OAuth2 token, or requested a scope beyond the user's own permissions |
+| 404 | API token not found |
 
 ## Important Notes
 

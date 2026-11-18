@@ -108,7 +108,7 @@ In development, the message queue and cache use the filesystem/database automati
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `LICENSE_KEY` | Yes | — | License key for self-hosted instances. Obtain from [Licensing](/concepts/licensing). |
+| `LICENSE_KEY` | No | — | License key for self-hosted instances. Without it the instance runs as the Community edition. Obtain from [Licensing](/concepts/licensing). |
 | `LICENSE_SERVER_URL` | No | `https://api.storno.ro` | License validation server URL |
 
 ---

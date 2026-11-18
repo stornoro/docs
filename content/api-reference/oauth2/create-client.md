@@ -32,7 +32,7 @@ POST /api/v1/oauth2/clients
 |-----------|------|----------|-------------|
 | `name` | string | Yes | Human-readable display name for the application (shown on the consent screen) |
 | `clientType` | string | No | Either `confidential` or `public`. Defaults to `confidential` |
-| `redirectUris` | string[] | Yes | One or more URIs to which Storno may redirect after authorization. Must be valid HTTPS URLs; `http://localhost` and custom URI schemes are also accepted for development |
+| `redirectUris` | string[] | Yes | One or more URIs to which Storno may redirect after authorization. Must be valid absolute URLs. `http://localhost` and custom URI schemes are also accepted for development |
 | `scopes` | string[] | Yes | Permission scopes the application is allowed to request. Must be valid `Permission` values and a subset of the authenticated user's own permissions |
 | `description` | string | No | Optional description of the application's purpose |
 | `websiteUrl` | string | No | URL of the application's website, displayed on the consent screen |
@@ -101,23 +101,14 @@ curl -X POST 'https://api.storno.ro/api/v1/oauth2/clients' \
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token, or token is not a browser session JWT |
-| 403 | forbidden | The authenticated user does not have the `oauth2_app.manage` permission |
-| 422 | validation_error | Invalid input data (see error details) |
+Errors return `{"error": "..."}`.
 
-### Validation Errors
-
-Common validation errors include:
-
-- Missing `name` field
-- Missing or empty `redirectUris` array
-- One or more `redirectUris` are not valid URLs
-- Missing or empty `scopes` array
-- One or more scope values are not valid `Permission` values
-- One or more scopes exceed the authenticated user's own permissions
-- `clientType` is not `confidential` or `public`
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `name` is missing, `clientType` is not `confidential` or `public`, `redirectUris` is missing, empty or holds an invalid URL, or `scopes` is missing, empty or holds an unknown scope |
+| 401 | Invalid or missing authentication token |
+| 403 | The user lacks `oauth2_app.manage`, the request used an API token or OAuth2 token, or a requested scope exceeds the user's own permissions |
+| 404 | Organization not found |
 
 ## Important Notes
 

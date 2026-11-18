@@ -29,6 +29,7 @@ Requires `declaration.view` and the company header. Storno's own rules and ANAF'
 | `402` | `PLAN_LIMIT` — PDF generation is not in the plan |
 | `404` | no PDF and the declaration is already filed without one |
 | `422` | `VALIDATION_FAILED` — the data does not pass Storno's rules or ANAF's validator (message says what) |
+| `502` | `PDF_FAILED` — the PDF could not be generated (message says why) |
 | `503` | `VALIDATOR_UNAVAILABLE` — DUKIntegrator is not running |
 
 MCP: `declarations_download_pdf` writes the file to a local path.

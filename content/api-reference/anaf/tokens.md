@@ -25,29 +25,34 @@ Retrieve all ANAF tokens associated with the authenticated user.
 
 ### Response
 
-Returns an array of ANAF token objects.
-
 ```json
-[
-  {
-    "id": 123,
-    "cif": "12345678",
-    "expiresAt": "2026-03-16T10:30:00Z",
-    "isValid": true,
-    "createdAt": "2026-01-15T09:00:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
+      "label": null,
+      "expiresAt": "2027-02-16T10:30:00+00:00",
+      "isExpired": false,
+      "lastUsedAt": "2026-11-18T09:00:00+00:00",
+      "createdAt": "2026-11-18T08:00:00+00:00",
+      "validatedCifs": [12345678],
+      "exclusive": false
+    }
+  ]
+}
 ```
 
 ### Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| id | integer | Unique token identifier |
-| cif | string | Romanian company fiscal code (CIF) |
-| expiresAt | string | ISO 8601 timestamp when token expires |
-| isValid | boolean | Whether token is currently valid |
-| createdAt | string | ISO 8601 timestamp when token was created |
+| id | string | Token UUID |
+| label | string\|null | Name given to the token |
+| expiresAt | string | When the access token expires. Storno refreshes it on its own while ANAF accepts the refresh |
+| isExpired | boolean | Whether the token is past its expiry |
+| lastUsedAt | string\|null | Last time the token was used for an ANAF call |
+| validatedCifs | integer[] | CIFs the token was used or validated for. For a shared token this is a cache, not a statement of rights at ANAF |
+| exclusive | boolean | `true` when the token is bound to one company by an [exclusive link](/api-reference/anaf/token-links#shared-and-exclusive-tokens) |
 
 ---
 
@@ -57,7 +62,7 @@ Returns an array of ANAF token objects.
 POST /api/v1/anaf/tokens
 ```
 
-Save a new ANAF OAuth access token. The token is validated with ANAF and JWT expiry is extracted.
+Save a new ANAF OAuth access token. The JWT expiry is extracted, and the token is validated with ANAF when a company is known.
 
 ### Headers
 
@@ -76,19 +81,29 @@ Save a new ANAF OAuth access token. The token is validated with ANAF and JWT exp
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| token | string | Yes | The ANAF OAuth access token (JWT format) |
+| token | string | Yes | The ANAF OAuth access token (JWT format), at least 10 characters |
+| label | string | No | Name for the token |
+| companyId | string | No | Company UUID. The token is checked against its CIF. Without it, the `X-Company` header or the only company of the organization is used when there is one. With no company, the token is saved without a check |
+| expiresInDays | integer | No | Expiry in days (1 to 365, default 90), used only when the token is not a JWT with an `exp` claim |
 
 ### Response
 
-Returns `201 Created` with the newly created token object.
+Returns `201 Created`.
 
 ```json
 {
-  "id": 124,
-  "cif": "12345678",
-  "expiresAt": "2026-03-16T10:30:00Z",
-  "isValid": true,
-  "createdAt": "2026-02-16T12:00:00Z"
+  "status": "ok",
+  "message": "Token validat si salvat cu succes.",
+  "data": {
+    "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
+    "label": null,
+    "expiresAt": "2027-02-16T10:30:00+00:00",
+    "isExpired": false,
+    "lastUsedAt": null,
+    "createdAt": "2026-11-18T08:00:00+00:00",
+    "validatedCifs": [12345678],
+    "exclusive": false
+  }
 }
 ```
 
@@ -96,9 +111,11 @@ Returns `201 Created` with the newly created token object.
 
 | Status | Description |
 |--------|-------------|
-| 400 | Invalid token format or expired token |
+| 400 | `token` is missing or shorter than 10 characters |
 | 401 | Unauthorized - invalid authentication |
-| 422 | Validation error - token already exists |
+| 403 | The company does not belong to your organization |
+| 422 | ANAF refused the token for the company CIF, or the check could not be completed |
+| 429 | ANAF rate limit reached. `retryAfter` carries the seconds to wait, also sent as the `Retry-After` header |
 
 ---
 
@@ -108,13 +125,16 @@ Returns `201 Created` with the newly created token object.
 DELETE /api/v1/anaf/tokens/{id}
 ```
 
-Delete an ANAF token. This will disable e-Factura synchronization for the associated company.
+Delete an ANAF token of the authenticated user.
+
+- A shared token stops serving every company that relied on it. If the organization has another valid shared token, that one takes over.
+- An exclusive token revokes ANAF access for the one company it is bound to. Nothing else is affected, and the company has no ANAF access until a new exclusive link is authorized for it.
 
 ### Path Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | integer | The token ID to delete |
+| id | string | The token UUID |
 
 ### Headers
 
@@ -124,12 +144,13 @@ Delete an ANAF token. This will disable e-Factura synchronization for the associ
 
 ### Response
 
-Returns `204 No Content` on successful deletion.
+```json
+{ "status": "ok", "message": "Token sters cu succes." }
+```
 
 ### Error Responses
 
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
-| 403 | Forbidden - token belongs to another user |
-| 404 | Token not found |
+| 404 | Token not found, or it belongs to another user |

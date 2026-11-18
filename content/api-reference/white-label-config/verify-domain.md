@@ -40,9 +40,16 @@ curl -X POST https://api.storno.ro/api/v1/white-label-config/domain/verify \
 {
   "success": true,
   "data": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "enabled": true,
+    "appName": "Acme Invoicing",
+    "logoUrl": null,
+    "primaryColor": "#2563eb",
+    "removeBranding": true,
     "customDomain": "facturi.example.com",
     "customDomainVerified": true,
-    "customDomainVerifiedAt": "2026-06-02T10:30:00+00:00"
+    "customDomainVerifiedAt": "2026-06-02T10:30:00+00:00",
+    "dnsRecord": null
   }
 }
 ```

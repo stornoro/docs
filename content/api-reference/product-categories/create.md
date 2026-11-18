@@ -21,13 +21,23 @@ POST /api/v1/product-categories
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | Yes | 1–100 characters, displayed on the POS chip |
+| `name` | string | Yes | Displayed on the POS chip. Up to 100 characters |
 | `color` | string | No | Hex swatch — `"#RRGGBB"` or `"RRGGBB"`. Invalid values are silently dropped. |
 | `sortOrder` | integer | No | Default 0. Smaller = earlier in the chip strip |
 
 ## Response
 
-`201 Created` — same shape as the list entry.
+`201 Created` with the category: `id`, `name`, `color`, `sortOrder`, `createdAt` and `updatedAt`.
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| 400 | `name` is missing or empty |
+| 403 | Permission denied |
+| 404 | Company not found |
+
+Error bodies have the form `{"error": "message"}`.
 
 ## Permissions
 

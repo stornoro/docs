@@ -5,7 +5,7 @@ description: Delete a recorded payment from an invoice.
 
 # Delete invoice payment
 
-Deletes a recorded payment from an invoice. This updates the invoice's `amountPaid` field and may change the invoice status.
+Deletes a recorded payment from an invoice. The invoice `amountPaid`, `balance` and `paidAt` are recalculated from the remaining payments. The invoice `status` is not changed.
 
 ```http
 DELETE /api/v1/invoices/{uuid}/payments/{paymentId}
@@ -25,11 +25,11 @@ DELETE /api/v1/invoices/{uuid}/payments/{paymentId}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The invoice is found by its UUID, so the header is not used |
 
 ## Response
 
-Returns a `204 No Content` status on successful deletion with no response body.
+Returns `204 No Content` with no response body.
 
 ## Example Request
 
@@ -49,50 +49,40 @@ HTTP/1.1 204 No Content
 
 Deleting a payment:
 
-1. Removes the payment record permanently
-2. Decreases the invoice's `amountPaid` by the payment amount
-3. Recalculates the invoice status based on remaining payments:
-   - If `amountPaid` becomes 0, status changes to `unpaid`
-   - If 0 < `amountPaid` < `totalAmount`, status becomes `partially_paid`
-   - If `amountPaid` ≥ `totalAmount`, status remains `paid`
+1. Removes the payment record. The deletion cannot be undone.
+2. Sets `amountPaid` to the sum of the remaining payments, and `balance` to `total` minus `amountPaid`.
+3. Clears `paidAt` when the remaining payments do not cover the total, and clears the invoice `paymentMethod` when no payments remain.
+
+The invoice `status` is not changed.
 
 ## Use Cases
 
-### Correcting Errors
+### Correcting errors
 
-Delete an incorrectly recorded payment and create a new one with correct details.
+Delete an incorrectly recorded payment and record a new one with the correct details.
 
-### Reversing Payments
+### Reversing payments
 
 Remove a payment that was later reversed or refunded.
 
-### Data Cleanup
+### Data cleanup
 
 Clean up duplicate or test payments.
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Invoice or payment not found, or doesn't belong to company |
+Error responses have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | The invoice is not accessible to the caller, or the caller lacks the payment delete permission |
+| 404 | Invoice not found, or the payment does not belong to the invoice |
 
 ## Important Notes
 
-- This is a permanent delete operation - data cannot be recovered
-- The invoice's `amountPaid` is automatically recalculated
-- The invoice status is automatically updated based on remaining payments
-- Consider the accounting implications before deleting payments
-- For audit purposes, you may want to record the deletion reason externally
-
-## Recommended Approach
-
-Instead of deleting:
-
-1. **Add a correction payment** - For accounting accuracy, consider adding a negative payment or correction entry
-2. **Document the reason** - Keep external notes explaining why payments were deleted
-3. **Verify impact** - Check the updated invoice status after deletion
+- Check `amountPaid`, `balance` and `paidAt` on the invoice after a deletion.
+- Consider the accounting implications before deleting payments, and keep a record of the reason outside Storno.
 
 ## Related Endpoints
 

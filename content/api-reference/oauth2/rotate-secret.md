@@ -35,9 +35,11 @@ POST /api/v1/oauth2/clients/{uuid}/rotate-secret
 
 ## Response
 
-Returns the updated OAuth2Client object with a `200 OK` status. The response includes a `clientSecret` field containing the new raw secret value. This field is **not** included in any subsequent response.
+Returns `200 OK` with the updated OAuth2Client object under `data`. The new raw secret is in `clientSecret` at the root of the response, next to `data`. It is **not** included in any subsequent response.
 
 ### Response Fields
+
+The fields below are the keys of `data`. `clientSecret` is a sibling of `data`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -45,7 +47,6 @@ Returns the updated OAuth2Client object with a `200 OK` status. The response inc
 | `name` | string | Display name of the application |
 | `description` | string \| null | Application description |
 | `clientId` | string | Public client identifier (unchanged) |
-| `clientSecret` | string | The full raw new client secret — store this securely, it will not be shown again |
 | `clientSecretPrefix` | string | Updated prefix of the new client secret |
 | `clientType` | string | Always `confidential` for this operation |
 | `redirectUris` | string[] | Registered redirect URIs (unchanged) |
@@ -67,37 +68,47 @@ curl -X POST 'https://api.storno.ro/api/v1/oauth2/clients/a1b2c3d4-e5f6-7890-abc
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "name": "Acme Accounting Integration",
-  "description": "Syncs invoices from Storno to Acme Accounting in real time.",
-  "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "clientSecret": "storno_cs_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8",
-  "clientSecretPrefix": "storno_cs_z9y8",
-  "clientType": "confidential",
-  "redirectUris": ["https://acme-accounting.com/oauth/callback"],
-  "scopes": ["invoice.view", "client.view"],
-  "websiteUrl": "https://acme-accounting.com",
-  "logoUrl": "https://acme-accounting.com/logo.png",
-  "isActive": true,
-  "revokedAt": null,
-  "createdAt": "2026-01-15T09:00:00Z"
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Acme Accounting Integration",
+    "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+    "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "clientSecretPrefix": "storno_cs_z9y8",
+    "clientType": "confidential",
+    "redirectUris": [
+      "https://acme-accounting.com/oauth/callback"
+    ],
+    "scopes": [
+      "invoice.view",
+      "client.view"
+    ],
+    "websiteUrl": "https://acme-accounting.com",
+    "logoUrl": "https://acme-accounting.com/logo.png",
+    "isActive": true,
+    "revokedAt": null,
+    "createdAt": "2026-01-15T09:00:00Z"
+  },
+  "clientSecret": "storno_cs_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8"
 }
 ```
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token, or token is not a browser session JWT |
-| 403 | forbidden | The authenticated user does not have the `oauth2_app.manage` permission, or the application is a `public` client |
-| 404 | not_found | OAuth2 application not found, or belongs to a different organization |
+Errors return `{"error": "..."}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | The application is a `public` client or is revoked |
+| 401 | Invalid or missing authentication token |
+| 403 | The user lacks `oauth2_app.manage`, or the request used an API token or OAuth2 token |
+| 404 | OAuth2 application not found, or belongs to a different organization |
 
 ## Important Notes
 
 - The old `clientSecret` stops working the moment this call returns — update your application's configuration before rotating if you need zero-downtime rollover
 - The new `clientSecret` in the response is the only time the raw value is ever transmitted — it is stored as a one-way hash server-side
 - Rotating the secret does **not** revoke existing access tokens or refresh tokens; those remain valid until they expire or are individually revoked
-- Existing refresh tokens will stop working when they next attempt to use the old secret for client authentication during a token exchange
+- Existing refresh tokens stay valid, but a refresh request must carry the new secret
 - This operation cannot be performed on `public` clients, which have no client secret
 - This endpoint requires a browser session JWT. API tokens and OAuth2 access tokens are not accepted
 

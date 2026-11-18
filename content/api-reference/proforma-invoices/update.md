@@ -7,15 +7,15 @@ endpoint: /api/v1/proforma-invoices/{uuid}
 
 # Update Proforma Invoice
 
-Updates an existing proforma invoice. Only proforma invoices in `draft` status can be updated. Once a proforma is sent, accepted, rejected, converted, or cancelled, it becomes immutable.
+Updates an existing proforma invoice. Only proformas in `draft` status can be updated. Once a proforma is sent, accepted, rejected, converted, cancelled or expired, it cannot be edited.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 | `Content-Type` | string | Yes | Must be `application/json` |
+| `X-Company` | string | No | Not read by this endpoint. The proforma is found by its id and must belong to your organization |
 
 ## Path Parameters
 
@@ -25,46 +25,51 @@ Updates an existing proforma invoice. Only proforma invoices in `draft` status c
 
 ## Request Body
 
-All fields from the create endpoint can be updated. The entire proforma is replaced with the new data.
+Send only the fields you want to change. Fields you leave out keep their value. If `lines` is present it replaces all existing lines; line ids are not used, so send every line you want to keep.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `clientId` | string | Yes | UUID of the client |
-| `seriesId` | string | Yes | UUID of the invoice series |
-| `issueDate` | string | Yes | Date of issue (YYYY-MM-DD) |
-| `dueDate` | string | Yes | Payment due date (YYYY-MM-DD) |
-| `validUntil` | string | Yes | Valid until date (YYYY-MM-DD) |
-| `currency` | string | Yes | Currency code (RON, EUR, USD, etc.) |
-| `exchangeRate` | number | No | Exchange rate (defaults to 1.0 for RON) |
-| `invoiceTypeCode` | string | No | Invoice type code |
-| `notes` | string | No | Public notes visible to client |
-| `paymentTerms` | string | No | Payment terms description |
-| `deliveryLocation` | string | No | Delivery address or location |
-| `projectReference` | string | No | Related project reference |
-| `orderNumber` | string | No | Client purchase order number |
-| `contractNumber` | string | No | Related contract number |
-| `issuerName` | string | No | Name of person issuing the proforma |
-| `issuerId` | string | No | UUID of the issuer user |
-| `mentions` | string | No | Additional mentions or notes |
-| `internalNote` | string | No | Internal note (not visible to client) |
-| `salesAgent` | string | No | Sales agent name |
-| `language` | string | No | Document language for PDF generation: `ro`, `en`, `de`, `fr` (default: `ro`) |
-| `lines` | array | Yes | Array of line items (replaces all existing lines) |
+| Field | Type | Description |
+|-------|------|-------------|
+| `clientId` | string | UUID of a client of the company |
+| `issueDate` | string | Date of issue (YYYY-MM-DD) |
+| `dueDate` | string | Payment due date (YYYY-MM-DD) |
+| `validUntil` | string | Valid until date (YYYY-MM-DD) |
+| `currency` | string | Currency code |
+| `exchangeRate` | number | Exchange rate |
+| `invoiceTypeCode` | string | Invoice type code, stored as sent. Use one of the codes accepted by [Create invoice](/api-reference/invoices/create) or leave it out, because the value is reused when the proforma is converted |
+| `notes` | string \| null | Public notes visible to client |
+| `paymentTerms` | string \| null | Payment terms description |
+| `deliveryLocation` | string \| null | Delivery address or location |
+| `projectReference` | string \| null | Related project reference |
+| `orderNumber` | string \| null | Client purchase order number |
+| `contractNumber` | string \| null | Related contract number |
+| `issuerName` | string \| null | Name of person issuing the proforma |
+| `issuerId` | string \| null | Issuer identifier, stored as text |
+| `mentions` | string \| null | Additional mentions or notes |
+| `internalNote` | string \| null | Internal note (not visible to client) |
+| `salesAgent` | string \| null | Sales agent name |
+| `language` | string | Document language for PDF generation |
+| `lines` | array | Line items; replaces all existing lines |
+
+The series and the number cannot be changed on update.
 
 ### Line Item Object
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `uuid` | string | No | UUID of existing line (if updating); omit to create new line |
 | `description` | string | Yes | Item description |
-| `quantity` | number | Yes | Quantity (must be > 0) |
+| `quantity` | number | Yes | Quantity |
 | `unitPrice` | number | Yes | Price per unit |
-| `vatRateId` | string | Yes | UUID of the VAT rate |
-| `unitOfMeasure` | string | No | Unit of measure |
-| `productId` | string | No | UUID of related product |
+| `vatRate` | number | No | VAT rate percentage. Default 21.00 when neither `vatRate` nor `vatRateId` is sent, whatever the VAT status of the company |
+| `vatCategoryCode` | string | No | UBL VAT category code (default `S`; a 0% rate becomes `Z` on its own) |
+| `vatRateId` | string | No | Id of one of the company's VAT rates (`GET /api/v1/vat-rates`). The line takes its percentage and category. Ignored when `vatRate` is sent; an error when it is not a rate of the company |
+| `unitOfMeasure` | string | No | Unit of measure (default: `buc`) |
+| `productId` | string | No | UUID of a product of the company |
+| `productCode` | string | No | Product code; links the product with that code when one exists |
 | `discount` | number | No | Absolute discount amount |
-| `discountPercent` | number | No | Discount percentage (0-100) |
+| `discountPercent` | number | No | Discount percentage, stored on the line. Line totals are computed from `discount` only |
 | `vatIncluded` | boolean | No | Whether unit price includes VAT |
+
+> **VAT on a line.** Send `vatRate` (a percentage) or `vatRateId` (the id of one of the company's rates from `GET /api/v1/vat-rates`; the line takes that rate's percentage and category). When both are sent `vatRate` wins. When neither is sent the line gets **21%**, also when the issuing company is not a VAT payer. For a company that is not a VAT payer send `vatRate: "0.00"` on every line. A `vatRateId` that is not a rate of the company is refused with an error; it never falls back to 21%.
 
 ## Request
 
@@ -74,29 +79,17 @@ curl -X PUT https://api.storno.ro/api/v1/proforma-invoices/550e8400-e29b-41d4-a7
   -H "X-Company: company-uuid-here" \
   -H "Content-Type: application/json" \
   -d '{
-    "clientId": "750e8400-e29b-41d4-a716-446655440000",
-    "seriesId": "650e8400-e29b-41d4-a716-446655440000",
-    "issueDate": "2026-02-16",
     "dueDate": "2026-03-20",
     "validUntil": "2026-03-20",
-    "currency": "RON",
-    "exchangeRate": 1.0,
     "notes": "Updated payment terms: 35 days",
     "paymentTerms": "Net 35",
-    "deliveryLocation": "Updated delivery location",
-    "projectReference": "PROJECT-2026-001",
-    "orderNumber": "PO-2026-123",
-    "issuerName": "John Doe",
-    "salesAgent": "Jane Smith",
     "lines": [
       {
-        "uuid": "950e8400-e29b-41d4-a716-446655440000",
         "description": "Web Development Services - Phase 1 (Updated)",
         "quantity": 45,
         "unitPrice": 150,
         "unitOfMeasure": "hour",
         "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-        "productId": "450e8400-e29b-41d4-a716-446655440000",
         "vatIncluded": false
       },
       {
@@ -120,29 +113,17 @@ const response = await fetch('https://api.storno.ro/api/v1/proforma-invoices/550
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    clientId: '750e8400-e29b-41d4-a716-446655440000',
-    seriesId: '650e8400-e29b-41d4-a716-446655440000',
-    issueDate: '2026-02-16',
     dueDate: '2026-03-20',
     validUntil: '2026-03-20',
-    currency: 'RON',
-    exchangeRate: 1.0,
     notes: 'Updated payment terms: 35 days',
     paymentTerms: 'Net 35',
-    deliveryLocation: 'Updated delivery location',
-    projectReference: 'PROJECT-2026-001',
-    orderNumber: 'PO-2026-123',
-    issuerName: 'John Doe',
-    salesAgent: 'Jane Smith',
     lines: [
       {
-        uuid: '950e8400-e29b-41d4-a716-446655440000',
         description: 'Web Development Services - Phase 1 (Updated)',
         quantity: 45,
         unitPrice: 150,
         unitOfMeasure: 'hour',
         vatRateId: '350e8400-e29b-41d4-a716-446655440000',
-        productId: '450e8400-e29b-41d4-a716-446655440000',
         vatIncluded: false
       },
       {
@@ -156,153 +137,118 @@ const response = await fetch('https://api.storno.ro/api/v1/proforma-invoices/550
     ]
   })
 });
-
 const data = await response.json();
 ```
 
 ## Response
 
-Returns the updated proforma invoice object with recalculated totals:
+Returns the updated proforma object, in the same shape as [Get proforma invoice](/api-reference/proforma-invoices/get). Decimal amounts are strings and dates are ISO 8601 date-times. `documentSeries` is `null` when the proforma has no series.
 
 ```json
 {
-  "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "number": "PRO-2026-001",
-  "seriesId": "650e8400-e29b-41d4-a716-446655440000",
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "number": "PRO0001",
+  "client": {
+    "id": "750e8400-e29b-41d4-a716-446655440000",
+    "type": "company",
+    "name": "Client SRL",
+    "cui": "12345678",
+    "cnp": null,
+    "city": "București",
+    "country": "RO",
+    "email": "contact@client.ro"
+  },
+  "documentSeries": {
+    "id": "650e8400-e29b-41d4-a716-446655440000",
+    "prefix": "PRO",
+    "nextNumber": "PRO0002"
+  },
   "status": "draft",
-  "issueDate": "2026-02-16",
-  "dueDate": "2026-03-20",
-  "validUntil": "2026-03-20",
   "currency": "RON",
-  "exchangeRate": 1.0,
+  "issueDate": "2026-02-16T00:00:00+00:00",
+  "dueDate": "2026-03-20T00:00:00+00:00",
+  "validUntil": "2026-03-20T00:00:00+00:00",
+  "subtotal": "7750.00",
+  "vatTotal": "1472.50",
+  "total": "9222.50",
+  "discount": "0.00",
   "notes": "Updated payment terms: 35 days",
   "paymentTerms": "Net 35",
-  "deliveryLocation": "Updated delivery location",
+  "invoiceTypeCode": null,
+  "deliveryLocation": "Client warehouse",
   "projectReference": "PROJECT-2026-001",
   "orderNumber": "PO-2026-123",
+  "contractNumber": "CONTRACT-2026-456",
   "issuerName": "John Doe",
+  "issuerId": null,
+  "mentions": "Special delivery instructions",
+  "internalNote": "VIP client - priority handling",
   "salesAgent": "Jane Smith",
+  "language": "ro",
+  "exchangeRate": null,
+  "sentAt": null,
+  "acceptedAt": null,
+  "rejectedAt": null,
+  "cancelledAt": null,
+  "expiredAt": null,
   "lines": [
     {
-      "uuid": "950e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 1,
+      "id": "950e8400-e29b-41d4-a716-446655440000",
+      "position": 1,
       "description": "Web Development Services - Phase 1 (Updated)",
-      "quantity": "45.00",
-      "unitPrice": "150.00",
+      "quantity": "45.0000",
       "unitOfMeasure": "hour",
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "productId": "450e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "discount": "0.00",
-      "vatIncluded": false,
-      "subtotal": "6750.00",
+      "unitPrice": "150.00",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
       "vatAmount": "1282.50",
-      "total": "8032.50"
+      "lineTotal": "6750.00",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productId": "450e8400-e29b-41d4-a716-446655440000",
+      "productCode": null
     },
     {
-      "uuid": "970e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 2,
+      "id": "960e8400-e29b-41d4-a716-446655440000",
+      "position": 2,
       "description": "Additional Services",
-      "quantity": "10.00",
-      "unitPrice": "100.00",
+      "quantity": "10.0000",
       "unitOfMeasure": "hour",
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "discount": "0.00",
-      "vatIncluded": false,
-      "subtotal": "1000.00",
+      "unitPrice": "100.00",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
       "vatAmount": "190.00",
-      "total": "1190.00"
+      "lineTotal": "1000.00",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productId": null,
+      "productCode": null
     }
-  ],
-  "subtotal": "7750.00",
-  "totalDiscount": "0.00",
-  "vatAmount": "1472.50",
-  "total": "9222.50",
-  "createdAt": "2026-02-16T09:00:00Z",
-  "updatedAt": "2026-02-16T11:30:00Z"
+  ]
 }
 ```
-
-## Line Item Behavior
-
-When updating lines:
-- Lines with existing `uuid` values are updated
-- Lines without `uuid` are created as new lines
-- Existing lines not included in the request are **deleted**
-- Line numbers are automatically reassigned sequentially
 
 ## Validation Rules
 
-Same validation rules apply as in the create endpoint:
-
-### Status Restriction
-- Proforma must be in `draft` status
-- Cannot update proforma after it's sent, accepted, rejected, converted, or cancelled
-
-### Dates
-- `issueDate` must be valid YYYY-MM-DD format
-- `dueDate` must be equal to or after `issueDate`
-- `validUntil` must be equal to or after `issueDate`
-
-### Currency & Rates
-- `currency` must be valid ISO 4217 code
-- `exchangeRate` must be greater than 0
-
-### Line Items
-- Minimum 1 line required
-- All line validation rules from create endpoint apply
+- The proforma must be in `draft` status.
+- An unknown client or product, or a `vatRateId` that is not a rate of the company, is rejected.
+- Totals are recalculated from the lines.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid request body structure |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header, or proforma is not editable |
-| 404 | `not_found` | Proforma invoice not found or doesn't belong to the company |
-| 409 | `conflict` | Proforma status prevents updates (not in draft) |
-| 422 | `validation_error` | Validation failed (see error details) |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the invoice edit permission |
+| 404 | Proforma not found, or it belongs to another organization |
+| 422 | The proforma is not a draft, or a client, product or VAT rate was not found |
 
-## Example Error Responses
-
-### Status Conflict
+Errors return a JSON body with a single `error` message, for example `{"error": "Proforma not found."}`.
 
 ```json
 {
-  "error": {
-    "code": "conflict",
-    "message": "Proforma invoice cannot be updated",
-    "details": {
-      "status": "sent",
-      "reason": "Only draft proforma invoices can be updated"
-    }
-  }
-}
-```
-
-### Validation Error
-
-```json
-{
-  "error": {
-    "code": "validation_error",
-    "message": "Validation failed",
-    "details": {
-      "dueDate": ["Due date must be after issue date"],
-      "lines.0.quantity": ["Quantity must be greater than 0"],
-      "lines": ["At least one line item is required"]
-    }
-  }
+  "error": "Proforma nu poate fi editata."
 }
 ```

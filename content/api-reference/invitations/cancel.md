@@ -35,15 +35,18 @@ Returns `204 No Content` on successful cancellation.
 
 ### Error Responses
 
+Errors return `{"error": "..."}`.
+
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
 | 403 | Forbidden - insufficient permissions |
-| 404 | Invitation not found or already accepted |
+| 404 | Invitation not found |
+| 422 | The invitation is no longer pending (accepted, cancelled or expired) |
 
 ### Notes
 
-- Cannot cancel invitations that have already been accepted
+- Only pending invitations can be cancelled
 - Cancelled invitations cannot be restored
-- Only organization admins and owners can cancel invitations
+- Requires the `org.manage_members` permission
 - User will not be notified of cancellation

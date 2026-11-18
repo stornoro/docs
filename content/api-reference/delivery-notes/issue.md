@@ -11,14 +11,13 @@ Marks a delivery note as issued when the physical delivery of goods or completio
 
 When the delivery note is issued, the next sequential number from its assigned `delivery_note` series is permanently assigned. If no series was explicitly set on the delivery note, the company's default `delivery_note` series is auto-found and used at this point.
 
-Once issued, the delivery note becomes read-only and can only be cancelled or converted to an invoice.
+An issued delivery note can still be edited, and it can be cancelled or converted to an invoice. It can no longer be deleted.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 
 ## Path Parameters
 
@@ -48,44 +47,38 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated delivery note with `status = issued` and `issuedAt` timestamp:
+Returns the delivery note with `status = issued` and the `issuedAt` timestamp. The object has the fields described in [Get delivery note](/api-reference/delivery-notes/get#response); the example is abridged:
 
 ```json
 {
-  "uuid": "950e8400-e29b-41d4-a716-446655440000",
-  "number": "DN-2026-012",
-  "documentSeriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "DN",
-    "nextNumber": 13
+  "id": "950e8400-e29b-41d4-a716-446655440000",
+  "number": "DN0013",
+  "documentSeries": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "prefix": "DN",
+    "nextNumber": "DN0014"
   },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
   "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
+    "id": "750e8400-e29b-41d4-a716-446655440000",
     "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "email": "contact@client.ro"
+    "cui": "12345678"
   },
   "status": "issued",
   "issueDate": "2026-02-18",
   "dueDate": "2026-03-18",
   "currency": "RON",
-  "exchangeRate": 1.0,
   "subtotal": "5000.00",
-  "vatAmount": "950.00",
-  "total": "5950.00",
+  "vatTotal": "1050.00",
+  "total": "6050.00",
   "deliveryLocation": "Client warehouse - Str. Depozit 5, București",
   "projectReference": "PROJECT-2026-002",
   "deputyName": "Maria Ionescu",
   "deputyIdentityCard": "AB123456",
   "deputyAuto": "B-123-ABC",
   "notes": "Handle with care - fragile items",
-  "issuedAt": "2026-02-18T14:30:00Z",
-  "convertedAt": null,
-  "convertedInvoiceId": null,
-  "createdAt": "2026-02-18T09:00:00Z",
-  "updatedAt": "2026-02-18T14:30:00Z"
+  "issuedAt": "2026-02-18T14:30:00+00:00",
+  "cancelledAt": null,
+  "convertedInvoice": null
 }
 ```
 
@@ -96,77 +89,39 @@ Returns the updated delivery note with `status = issued` and `issuedAt` timestam
 - **After:** `status = issued`
 
 ### Series & Number Assignment
-- The next sequential number from the assigned `delivery_note` series is permanently locked in
-- If no `documentSeriesId` was set on the delivery note, the company's default `delivery_note` series is auto-found and assigned at this point
-- Once issued, the series and document number cannot be changed
+- The next sequential number from the assigned `delivery_note` series is assigned under a lock. The number is the series prefix followed by the counter padded to at least four digits (e.g. `DN0013`)
+- If no `documentSeriesId` was set on the delivery note, the company's default `delivery_note` series is assigned at this point
+- If the company has no `delivery_note` series, the delivery note is still issued and keeps its temporary `AVIZ-` number
 
 ### Timestamp
-- Sets `issuedAt` to current UTC timestamp (ISO 8601 format)
-- Updates `updatedAt` timestamp
+- Sets `issuedAt` to the current time
 
 ### Restrictions Applied
-Once marked as issued:
-- Cannot be updated (PUT requests will fail)
-- Cannot be deleted (DELETE requests will fail)
-- Can be cancelled or converted to invoice
+Once issued:
+- Cannot be deleted (DELETE requests fail with 422)
+- Can still be updated, cancelled or converted to an invoice
 
 ## Validation Rules
 
-### Status Requirement
-- Delivery note must have `status = draft`
-- Cannot issue a delivery note that is already issued, converted, or cancelled
-
-### Data Completeness
-Before issuing, ensure the delivery note has:
-- Valid client information
-- At least one line item
-- All required fields populated
-- Correct totals calculated
-- Delivery location specified (recommended)
-- Deputy information captured (recommended)
+- The delivery note must have `status = draft`. A delivery note that is already issued, converted or cancelled cannot be issued
+- Nothing else is checked at issue time: a delivery note without lines or client can be issued
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Delivery note not found or doesn't belong to the company |
-| 409 | `conflict` | Delivery note status prevents issuing (not in draft status) |
-| 422 | `validation_error` | Delivery note data is incomplete or invalid |
-| 500 | `internal_error` | Server error occurred |
+Errors have the form `{"error": "message"}`.
 
-## Example Error Responses
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Delivery note not found or not in the caller's organization |
+| 422 | The delivery note is not in `draft` status |
 
-### Status Conflict
+### Example error response
 
 ```json
 {
-  "error": {
-    "code": "conflict",
-    "message": "Delivery note cannot be issued",
-    "details": {
-      "status": "issued",
-      "reason": "Delivery note is already marked as issued",
-      "issuedAt": "2026-02-18T14:30:00Z"
-    }
-  }
-}
-```
-
-### Validation Error
-
-```json
-{
-  "error": {
-    "code": "validation_error",
-    "message": "Delivery note data is incomplete",
-    "details": {
-      "deliveryLocation": ["Delivery location is recommended before issuing"],
-      "deputyName": ["Deputy name is recommended for proof of delivery"],
-      "lines": ["At least one line item is required"]
-    }
-  }
+  "error": "Only draft delivery notes can be issued."
 }
 ```
 

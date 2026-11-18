@@ -30,8 +30,8 @@ The POS is built entirely on top of the public API — every action a cashier ta
 
 Mobile networks drop packets. To make POS retries safe, every `POST /receipts` request from the mobile app includes an `Idempotency-Key` HTTP header — typically a UUID generated when the cashier taps **Checkout**.
 
-- The first request with a given key creates the receipt and stores the key on `Receipt.idempotencyKey`.
-- Subsequent requests with the same key return the **already-created** receipt instead of duplicating.
+- The first request with a given key creates the receipt and stores the key on `Receipt.idempotencyKey`. Keys are unique within a company.
+- Subsequent requests with the same key from the same company return the **already-created** receipt instead of duplicating.
 - If both the `Idempotency-Key` header and an `idempotencyKey` body field are sent, the **header wins**.
 
 This makes it safe to retry on connection timeout, app restart, or even after the app comes back from being killed mid-checkout: the same key is replayed, and the server returns the original receipt.
@@ -41,12 +41,12 @@ This makes it safe to retry on connection timeout, app restart, or even after th
 Refunds are first-class receipts. They mirror the parent's lines as **negative quantities** and invert the payment amounts so the daily Z-report nets out correctly.
 
 - `POST /receipts/{uuid}/refund` issues a refund. With no body, the entire receipt is refunded.
-- `lineSelections: [{ position, quantity }, ...]` performs a **partial refund**. Multiple partial refunds against the same parent are allowed until each line's quantity pool is exhausted.
+- `lineSelections: [{ sourceLineId, quantity }, ...]` performs a **partial refund**. Multiple partial refunds against the same parent are allowed until each line's quantity pool is exhausted.
 - Cancelling a refund (via `POST /receipts/{uuid}/cancel`) **releases its quantities back to the pool**, so the cashier can re-issue.
 - Refunds inherit `internalNote`, `cashRegisterName`, `fiscalNumber`, and customer fiscal data from the parent.
 - The PDF header reads `BON DE RAMBURSARE` (or the locale equivalent) instead of `BON FISCAL`.
 
-The parent receipt's status moves to `partially_refunded` while any quantity remains, and to `refunded` once everything has been refunded.
+The parent receipt keeps the status `issued`. Its `refundedBy` array lists the active refunds (`{ id, number }`), and the refund receipt carries `refundOf`. A full refund is rejected once the parent has any active refund.
 
 See [Receipt → Refunds](/objects/receipt#refunds) for the data shape (`refundOf`, `refundedBy`).
 
@@ -66,7 +66,6 @@ If the device loses connectivity mid-shift, the POS keeps working:
 1. Sales are written to a local **outbox** keyed by their generated idempotency key.
 2. The cashier sees the receipt rendered locally with a "pending sync" badge.
 3. A background drainer flushes the outbox to the API as soon as the network is back; idempotency keys protect against duplicates if the server already received an earlier attempt.
-4. ANAF e-Factura submission (where applicable) is queued separately and only fires once the receipt has a server-confirmed UUID.
 
 ## Cash register
 

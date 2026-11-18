@@ -7,14 +7,14 @@ endpoint: /api/v1/delivery-notes/from-proforma
 
 # Create Delivery Note from Proforma
 
-Creates a new delivery note by copying data from an existing proforma invoice. The client, line items, dates, currency, and notes are all copied from the proforma. The new delivery note is created in `draft` status. The company's default `delivery_note` series is automatically assigned to the new delivery note.
+Creates a new delivery note by copying data from an existing proforma invoice. The client, line items, due date, currency, and notes are copied from the proforma; the issue date is today. The new delivery note is created in `draft` status. The company's default `delivery_note` series is automatically assigned to the new delivery note.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID to scope the request. Can be omitted when the organization has exactly one company; the `company` query parameter is accepted too |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Request Body
@@ -53,53 +53,44 @@ const deliveryNote = await response.json();
 
 ## Response
 
-Returns the newly created delivery note in `draft` status:
+Returns `201 Created` with the new delivery note in `draft` status. The object has the fields described in [Get delivery note](/api-reference/delivery-notes/get#response); the example is abridged:
 
 ```json
 {
-  "uuid": "950e8400-e29b-41d4-a716-446655440000",
-  "number": "DN-2026-013",
-  "documentSeriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "DN",
-    "nextNumber": 14
+  "id": "950e8400-e29b-41d4-a716-446655440000",
+  "number": "AVIZ-0194f3c1",
+  "documentSeries": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "prefix": "DN",
+    "nextNumber": "DN0014"
   },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
   "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
+    "id": "750e8400-e29b-41d4-a716-446655440000",
     "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "email": "contact@client.ro"
+    "cui": "12345678"
   },
   "status": "draft",
   "issueDate": "2026-02-19",
   "dueDate": "2026-03-19",
   "currency": "RON",
-  "exchangeRate": 1.0,
-  "notes": "Based on proforma PRO-2026-008",
+  "notes": "Based on the proforma",
   "lines": [
     {
-      "uuid": "A40e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 1,
+      "id": "a40e8400-e29b-41d4-a716-446655440000",
+      "position": 1,
       "description": "Laptop Dell Latitude 7420",
-      "quantity": "10.00",
-      "unitPrice": "450.00",
+      "quantity": "10.0000",
       "unitOfMeasure": "piece",
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "percentage": "19.00"
-      },
-      "subtotal": "4500.00",
-      "vatAmount": "855.00",
-      "total": "5355.00"
+      "unitPrice": "450.00",
+      "vatRate": "21.00",
+      "vatCategoryCode": "S",
+      "vatAmount": "945.00",
+      "lineTotal": "4500.00"
     }
   ],
   "subtotal": "4500.00",
-  "vatAmount": "855.00",
-  "total": "5355.00",
-  "createdAt": "2026-02-19T10:00:00Z",
-  "updatedAt": "2026-02-19T10:00:00Z"
+  "vatTotal": "945.00",
+  "total": "5445.00"
 }
 ```
 
@@ -107,31 +98,31 @@ Returns the newly created delivery note in `draft` status:
 
 | Field | Copied |
 |-------|--------|
-| `clientId` | Yes |
+| `client` | Yes |
 | `currency` / `exchangeRate` | Yes |
-| `issueDate` | Yes (set to today) |
+| `issueDate` | No, set to today |
 | `dueDate` | Yes |
-| `notes` | Yes |
+| `notes`, `mentions`, `internalNote` | Yes |
+| `deliveryLocation`, `projectReference` | Yes |
+| `issuerName`, `issuerId`, `salesAgent` | Yes |
 | `lines` (all items) | Yes |
-| `deliveryLocation` | Yes |
-| `projectReference` | Yes |
-| `documentSeriesId` | No — the company's default `delivery_note` series is auto-assigned |
+| `documentSeries` | No, the company's default `delivery_note` series is assigned |
 
 ## Validation Rules
 
-- `proformaId` must be a valid UUID of a proforma belonging to the same company
-- The proforma must have at least one line item
-- The referenced client must still exist
+- `proformaId` is required
+- The proforma must belong to the company
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Proforma invoice not found or doesn't belong to the company |
-| 422 | `validation_error` | Invalid `proformaId` or proforma has no lines |
-| 500 | `internal_error` | Server error occurred |
+Errors have the form `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `proformaId` is missing |
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Company not found, or proforma invoice not found in the company |
 
 ## Workflow Integration
 

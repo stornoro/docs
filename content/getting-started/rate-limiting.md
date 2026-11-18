@@ -5,76 +5,84 @@ description: Understand API rate limits, throttling policies, and how to handle 
 
 # Rate Limiting
 
-All API requests are subject to rate limiting to protect the platform and ensure fair usage. Limits vary by endpoint type and authentication status.
+The API limits specific endpoints to protect the platform and prevent abuse. There is no general per-request limit on authenticated or unauthenticated traffic today. One may be introduced, so clients should handle `429 Too Many Requests` and honor the `Retry-After` header when it is present.
 
-## General API Limits
+All limits below are sliding windows. A request over the limit is rejected until the window moves on.
 
-| Tier | Bucket Size | Refill Rate | Applied Per |
-|------|-------------|-------------|-------------|
-| Unauthenticated | 10,000 requests | 100 per 5 minutes | IP address |
-| Authenticated | 50,000 requests | 500 per 2 minutes | IP address |
+## Authentication endpoint limits
 
-General API limits use a **token bucket** policy — each request consumes one token. Tokens refill at a steady rate. When the bucket is empty, requests are rejected with `429 Too Many Requests`.
-
-## Authentication Endpoint Limits
-
-Authentication endpoints use stricter **sliding window** limits to prevent brute-force attacks:
-
-| Endpoint | Limit | Window | Applied Per |
+| Endpoint | Limit | Window | Applied per |
 |----------|-------|--------|-------------|
 | `POST /api/auth` (login) | 5 attempts | 1 minute | IP address |
 | `POST /api/auth/register` | 10 attempts | 1 hour | IP address |
-| `POST /api/auth/mfa/verify` | 5 attempts | 1 minute | IP address |
-| `POST /api/auth/google` | 10 attempts | 1 minute | IP address |
-| `POST /api/auth/passkey/login` | 10 attempts | 1 minute | IP address |
-| `POST /api/auth/passkey/login/options` | 10 attempts | 1 minute | IP address |
+| `POST /api/auth/resend-confirmation` | 10 attempts | 1 hour | IP address |
+| `POST /api/auth/resend-confirmation` | 3 attempts | 1 hour | Email address |
+| `POST /api/auth/mfa/verify`, `/mfa/email-otp/send`, `/mfa/passkey/options` | 5 attempts, shared | 1 minute | IP address |
 | `POST /api/auth/forgot-password` | 3 attempts | 15 minutes | IP address |
+| `POST /api/auth/forgot-password` | 3 attempts | 1 hour | Email address |
 | `POST /api/auth/reset-password` | 3 attempts | 15 minutes | IP address |
 
-## Other Endpoint Limits
+Login answers a rate limited attempt with `401` and the message `Too many requests.`, not `429`, because it goes through the JWT login handler. Do not retry a failing login in a loop. After the first failed attempts from the same IP, a login from a browser also needs a `turnstileToken` field in the body, otherwise it answers `401` with `captcha_required`. Requests that identify as the mobile app are exempt from the captcha.
 
-| Endpoint | Limit | Window | Applied Per |
+The other authentication endpoints answer `429` with `{"error": "Too many requests."}`.
+
+### Shared social and passkey bucket
+
+`POST /api/auth/google`, `POST /api/auth/apple`, `POST /api/auth/passkey/login` and `POST /api/auth/passkey/login/options` draw from one bucket of 10 attempts per minute per IP address. Requesting passkey options and then logging in uses two of the 10.
+
+## Other endpoint limits
+
+| Endpoint | Limit | Window | Applied per |
 |----------|-------|--------|-------------|
 | `POST /api/v1/contact` | 3 submissions | 1 hour | IP address |
 | `POST /api/v1/licensing/validate` | 10 attempts | 1 hour | IP address |
+| OAuth2 token endpoint | 20 requests | 1 minute | IP address |
+| Client and supplier lookups (ANAF, VIES, partner verification) | 30 requests | 1 minute | User |
+| Webhook test and delivery retry | 10 requests | 10 minutes | User |
+| Storage connection test | 10 requests | 10 minutes | User |
+| Invitations sent | 10 invitations | 1 hour | Organization |
+| Document emails | 10 emails on free plans, 60 on paid plans | 10 minutes | User |
+| Public declaration validation and legal document tools | 60 requests | 1 hour | IP address |
+| Public storno generator | 30 requests | 1 hour | IP address |
 
-## ANAF Integration Limits
+## ANAF integration limits
 
-ANAF (Romanian Tax Authority) endpoints have dedicated rate limiters to comply with ANAF API restrictions:
+ANAF (Romanian Tax Authority) calls have dedicated limiters to comply with ANAF API restrictions:
 
-| Operation | Limit | Window | Applied Per |
+| Operation | Limit | Window | Applied per |
 |-----------|-------|--------|-------------|
 | All ANAF calls (global) | 1,000 requests | 1 minute | System-wide |
+| ANAF calls triggered from one organization | 60 requests | 1 minute | Organization |
 | List messages | 1,500 requests | 1 day | Company CIF |
-| Download message | 10 requests | 1 day | Message ID |
+| Download message | 100 requests | 1 day | Message ID |
 | Check upload status | 100 requests | 1 day | Upload ID |
 | Upload response | 1,000 requests | 1 day | Company CIF |
 
-## Handling Rate Limit Responses
+## Handling rate limit responses
 
-When a rate limit is exceeded, the API returns a `429 Too Many Requests` response:
+When a rate limit is exceeded, most endpoints return a `429 Too Many Requests` response:
 
 ```json
 {
-  "error": "Too many requests. Please try again later."
+  "error": "Too many requests."
 }
 ```
 
-For ANAF endpoints, the response includes a `Retry-After` header and value:
+For ANAF endpoints, the response includes a `Retry-After` header and a `retryAfter` value in seconds:
 
 ```json
 {
-  "error": "ANAF rate limit reached. Try again later.",
+  "error": "ANAF rate limit reached. Please try again later.",
   "retryAfter": 45
 }
 ```
 
 ### Best Practices
 
-- **Implement exponential backoff** — when you receive a `429`, wait before retrying. Double the wait time on each consecutive failure.
-- **Cache responses** — avoid unnecessary duplicate requests, especially for data that doesn't change frequently (exchange rates, company details).
-- **Use webhooks** — instead of polling for status changes, subscribe to [webhook events](/concepts/webhooks-events) for real-time updates.
-- **Batch operations** — where the API supports it, use list endpoints with filters instead of making individual requests.
+- **Implement exponential backoff.** When you receive a `429`, wait before retrying and double the wait time on each consecutive failure.
+- **Cache responses.** Avoid duplicate requests for data that rarely changes, such as exchange rates and company details.
+- **Use webhooks.** Subscribe to [webhook events](/concepts/webhooks-events) instead of polling for status changes.
+- **Use list filters.** Where the API supports them, filter a list endpoint instead of requesting items one by one.
 
 ### Example: Retry with Backoff
 

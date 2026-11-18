@@ -16,7 +16,7 @@ A vehicle carries `plate` (normalised to upper case), `vin`, `make`, `model`, `y
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/vehicles?active=&search=` | list; `expiries[vehicleId]` gives each vehicle's `nextExpiry` (the soonest open item) and `counts {expired, due, ok}` |
-| `POST` | `/api/v1/vehicles` | create (`plate` required) |
+| `POST` | `/api/v1/vehicles` | create (`plate` or `vin` required) |
 | `GET` | `/api/v1/vehicles/{id}` | `vehicle`, `expiries[]` (open items), `counts`, `nextExpiry` |
 | `PATCH` | `/api/v1/vehicles/{id}` | update any field, `null` clears an optional one, `active` archives |
 | `DELETE` | `/api/v1/vehicles/{id}` | delete the vehicle and all its items, history included |

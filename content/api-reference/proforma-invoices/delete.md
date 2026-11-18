@@ -1,20 +1,20 @@
 ---
 title: Delete Proforma Invoice
-description: Permanently delete a proforma invoice (draft status only)
+description: Delete a proforma invoice (draft or cancelled status only)
 method: DELETE
 endpoint: /api/v1/proforma-invoices/{uuid}
 ---
 
 # Delete Proforma Invoice
 
-Permanently deletes a proforma invoice and all its line items. Only proforma invoices in `draft` status can be deleted. Once sent, accepted, rejected, converted, or cancelled, a proforma cannot be deleted.
+Deletes a proforma invoice. Only proformas in `draft` or `cancelled` status can be deleted. A deleted proforma no longer appears in the API.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not read by this endpoint. The proforma is found by its id and must belong to your organization |
 
 ## Path Parameters
 
@@ -49,86 +49,35 @@ if (response.status === 204) {
 
 **Success:** Returns `204 No Content` with an empty response body.
 
-The proforma invoice and all associated line items are permanently deleted from the database.
-
 ## Restrictions
 
-### Status Requirement
-Only proforma invoices with `status = draft` can be deleted.
+Only proformas with status `draft` or `cancelled` can be deleted.
 
-Proforma invoices in the following states **cannot** be deleted:
-- `sent` - Already sent to client
-- `accepted` - Client has accepted
-- `rejected` - Client has rejected
-- `converted` - Converted to invoice
-- `cancelled` - Already cancelled
+Proformas in these states cannot be deleted:
 
-For non-draft proforma invoices, use the [cancel endpoint](/api-reference/proforma-invoices/cancel) instead to mark them as cancelled without deleting historical data.
+- `sent`
+- `accepted`
+- `rejected`
+- `converted`
+- `expired`
 
-### Referential Integrity
-- Deleting a proforma does not affect the invoice number series
-- The series counter is not rolled back
-- If the proforma was converted to an invoice, the invoice is **not** deleted
+To remove a `sent` or `accepted` proforma, [cancel](/api-reference/proforma-invoices/cancel) it first, then delete it.
+
+The invoice number series is not rolled back when a proforma is deleted. If the proforma was converted to an invoice, the invoice is not affected.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Proforma invoice not found or doesn't belong to the company |
-| 409 | `conflict` | Proforma status prevents deletion (not in draft) |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the invoice delete permission |
+| 404 | Proforma not found, or it belongs to another organization |
+| 422 | The status does not allow deletion |
 
-## Example Error Responses
-
-### Status Conflict
+Errors return a JSON body with a single `error` message, for example `{"error": "Proforma not found."}`.
 
 ```json
 {
-  "error": {
-    "code": "conflict",
-    "message": "Proforma invoice cannot be deleted",
-    "details": {
-      "status": "sent",
-      "reason": "Only draft proforma invoices can be deleted. Use cancel instead."
-    }
-  }
+  "error": "Proforma nu poate fi stearsa."
 }
 ```
-
-### Not Found
-
-```json
-{
-  "error": {
-    "code": "not_found",
-    "message": "Proforma invoice not found"
-  }
-}
-```
-
-## Best Practices
-
-### When to Delete vs Cancel
-
-**Delete** when:
-- The proforma was created by mistake
-- The proforma is still in draft and hasn't been shared
-- You want to remove all traces of the document
-
-**Cancel** when:
-- The proforma has been sent to the client
-- You need to maintain audit trail
-- The proforma was accepted/rejected but the deal fell through
-- You need historical records for reporting
-
-### Audit Considerations
-
-Deleted proforma invoices:
-- Are permanently removed from the database
-- Do not appear in reports or exports
-- Cannot be recovered
-- Do not leave audit trail entries
-
-For compliance and audit purposes, consider using the cancel endpoint instead of delete, especially for proforma invoices that were shared externally.

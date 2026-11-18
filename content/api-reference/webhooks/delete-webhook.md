@@ -7,14 +7,14 @@ endpoint: /api/v1/webhooks/{uuid}
 
 # Delete webhook
 
-Permanently deletes a webhook endpoint and all associated delivery records. This is a hard delete — there is no soft-delete or recovery mechanism.
+Permanently deletes a webhook endpoint. Deleting stays available after a plan downgrade.
 
 ```
 DELETE /api/v1/webhooks/{uuid}
 ```
 
 {% callout type="warning" %}
-This action is permanent and cannot be undone. All delivery history for this endpoint will also be deleted. If you only want to stop receiving deliveries temporarily, set `isActive` to `false` via the [update endpoint](/api-reference/webhooks/update-webhook) instead.
+This action is permanent and cannot be undone. If you only want to stop receiving deliveries temporarily, set `isActive` to `false` via the [update endpoint](/api-reference/webhooks/update-webhook) instead.
 {% /callout %}
 
 ## Headers
@@ -22,13 +22,13 @@ This action is permanent and cannot be undone. All delivery history for this end
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 
 ## Path parameters
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `uuid` | string | Yes | Webhook endpoint UUID |
+| `uuid` | string | Yes | Webhook endpoint ID |
 
 ## Request
 
@@ -72,7 +72,8 @@ Returns `204 No Content` on successful deletion with an empty response body.
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | Insufficient permissions — requires `webhook.manage` permission |
+| `400` | No company selected |
+| `403` | Insufficient permissions. Requires `webhook.manage` |
 | `404` | Webhook endpoint not found for this company |
 
 ## Related endpoints

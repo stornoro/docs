@@ -18,7 +18,7 @@ GET /api/v1/receipts/{uuid}/pdf
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token or API key for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -51,20 +51,21 @@ const blob = await response.blob();
 
 ## Response
 
-Returns the PDF file as binary data with appropriate headers.
+Returns the PDF file as binary data. The PDF is 80 mm wide, in thermal receipt format.
 
 **Headers:**
 
 | Header | Value |
 |--------|-------|
 | `Content-Type` | `application/pdf` |
-| `Content-Disposition` | `attachment; filename="bon-{number}.pdf"` |
+| `Content-Disposition` | `inline; filename="bon-{number}.pdf"` |
 
 ## Error Codes
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
-| `404` | Receipt not found |
-| `500` | PDF generation failed |
+| `403` | Permission denied |
+| `402` | PDF generation is not available on the organization's plan (`{"error": "...", "code": "PLAN_LIMIT"}`) |
+| `404` | Receipt not found or not in your organization |
+| `500` | PDF generation failed (`{"error": "PDF generation failed."}`) |

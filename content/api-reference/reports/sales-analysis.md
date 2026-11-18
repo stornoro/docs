@@ -35,6 +35,7 @@ Returns a full sales analysis covering the requested period, including year-over
 
 ```json
 {
+  "currency": "RON",
   "period": {
     "dateFrom": "2026-01-01",
     "dateTo": "2026-02-26"
@@ -86,7 +87,7 @@ Returns a full sales analysis covering the requested period, including year-over
       "total": 11900.00,
       "currency": "RON",
       "status": "paid",
-      "paidAt": "2026-02-25"
+      "paidAt": "2026-02-25 10:15:00"
     },
     {
       "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
@@ -95,7 +96,7 @@ Returns a full sales analysis covering the requested period, including year-over
       "clientName": "SC Another SRL",
       "total": 5950.00,
       "currency": "RON",
-      "status": "unpaid",
+      "status": "issued",
       "paidAt": null
     }
   ],
@@ -132,6 +133,10 @@ Returns a full sales analysis covering the requested period, including year-over
 
 ### Response Fields
 
+#### `currency`
+
+The company's default currency. Every amount in the report is converted to it.
+
 #### `period`
 
 | Field | Type | Description |
@@ -143,7 +148,7 @@ Returns a full sales analysis covering the requested period, including year-over
 
 | Field | Type | Description |
 |-------|------|-------------|
-| annualTotal | object | Year-to-date totals for the current and previous year |
+| annualTotal | object | Invoiced total of the year of `dateTo` up to `dateTo`, and of the whole previous year |
 | periodInvoiced | object | Invoiced amounts within the requested date range |
 | periodCollected | object | Collected (paid) amounts within the requested date range |
 | periodOutstanding | object | Unpaid amounts within the requested date range |
@@ -152,9 +157,9 @@ Returns a full sales analysis covering the requested period, including year-over
 
 | Field | Type | Description |
 |-------|------|-------------|
-| amount | number | Total invoiced amount for the current year |
-| year | integer | Current year |
-| prevAmount | number | Total invoiced amount for the previous year |
+| amount | number | Total invoiced amount from 1 January of `year` up to `dateTo` |
+| year | integer | Year of `dateTo` |
+| prevAmount | number | Total invoiced amount for the whole previous year |
 | prevYear | integer | Previous year |
 
 ##### `periodInvoiced` / `periodCollected` / `periodOutstanding`
@@ -178,7 +183,7 @@ Array of monthly revenue breakdown objects.
 
 #### `recentInvoices`
 
-Array of the most recent invoices in the period, ordered by issue date descending.
+Up to the 10 most recent invoices in the period, ordered by issue date descending. Drafts and cancelled invoices are left out.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -188,12 +193,12 @@ Array of the most recent invoices in the period, ordered by issue date descendin
 | clientName | string | Client display name |
 | total | number | Total invoice amount (including VAT) |
 | currency | string | Currency code (e.g., RON, EUR) |
-| status | string | Invoice status: `paid`, `unpaid`, `overdue`, `draft` |
-| paidAt | string \| null | Payment date (YYYY-MM-DD), or null if unpaid |
+| status | string | Invoice status as stored: `synced`, `issued`, `sent_to_provider`, `validated`, `rejected`, `paid`, `partially_paid`, `overdue`, `converted`, `refund` or `refunded` |
+| paidAt | string \| null | Payment time (`YYYY-MM-DD HH:MM:SS`), or null if unpaid |
 
 #### `topClients`
 
-Array of top clients ranked by total invoiced amount in the period.
+Up to 50 clients ranked by total invoiced amount in the period.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -204,7 +209,7 @@ Array of top clients ranked by total invoiced amount in the period.
 
 #### `topProducts`
 
-Array of top products/services ranked by total invoiced amount in the period.
+Up to 50 products or services ranked by total invoiced amount in the period.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -219,5 +224,5 @@ Array of top products/services ranked by total invoiced amount in the period.
 |--------|-------------|
 | 400 | Bad request - missing or invalid `dateFrom` / `dateTo` parameters |
 | 402 | Plan limit exceeded - feature not available on current subscription plan |
-| 403 | Forbidden - authenticated user has no access to the specified company |
-| 404 | Company not found - the specified company UUID does not exist |
+| 403 | Forbidden - the caller lacks the `report.view` permission |
+| 404 | Company not found |

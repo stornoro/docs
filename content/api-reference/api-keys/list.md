@@ -21,7 +21,7 @@ GET /api/v1/api-tokens
 
 ## Response
 
-Returns an array of API token objects sorted by `createdAt` descending.
+Returns an object with the API token objects under `data`. Requires the `api_key.view` permission.
 
 ### API Token Object
 
@@ -46,39 +46,51 @@ curl -X GET 'https://api.storno.ro/api/v1/api-tokens' \
 ## Example Response
 
 ```json
-[
-  {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "name": "CI/CD Pipeline",
-    "tokenPrefix": "af_a1b2c3d4e",
-    "scopes": ["invoice.view", "invoice.create", "client.view"],
-    "lastUsedAt": "2026-02-17T11:42:00Z",
-    "expireAt": "2027-01-01T00:00:00Z",
-    "revokedAt": null,
-    "createdAt": "2026-01-15T09:00:00Z"
-  },
-  {
-    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-    "name": "Accounting Export Script",
-    "tokenPrefix": "af_b2c3d4e5f",
-    "scopes": ["invoice.view", "export.data"],
-    "lastUsedAt": null,
-    "expireAt": null,
-    "revokedAt": "2026-02-10T08:00:00Z",
-    "createdAt": "2025-11-20T14:30:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "CI/CD Pipeline",
+      "tokenPrefix": "af_a1b2c3d4e",
+      "scopes": [
+        "invoice.view",
+        "invoice.create",
+        "client.view"
+      ],
+      "lastUsedAt": "2026-02-17T11:42:00Z",
+      "expireAt": "2027-01-01T00:00:00Z",
+      "revokedAt": null,
+      "createdAt": "2026-01-15T09:00:00Z"
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Accounting Export Script",
+      "tokenPrefix": "af_b2c3d4e5f",
+      "scopes": [
+        "invoice.view",
+        "export.data"
+      ],
+      "lastUsedAt": null,
+      "expireAt": null,
+      "revokedAt": "2026-02-10T08:00:00Z",
+      "createdAt": "2025-11-20T14:30:00Z"
+    }
+  ]
+}
 ```
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
+Errors return `{"error": "..."}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | The user lacks the `api_key.view` permission |
 
 ## Important Notes
 
-- The `tokenHash` field is never returned in any list or detail response
+- The token hash is never returned
 - Both active and revoked tokens are included in the response; filter on `revokedAt` to show only active tokens
 - Tokens are scoped to the authenticated user — other users' tokens are never visible
 - The `tokenPrefix` is sufficient to let a user identify which token is which without exposing the secret

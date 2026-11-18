@@ -28,7 +28,7 @@ All optional — any omitted field falls back to the stored configuration.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `testEmail` | string | Recipient for the test message (defaults to the from address) |
+| `testEmail` | string | Recipient for the test message. It must be your own email address or the email address of one of the organization's companies. Defaults to your own address |
 | `host` | string | Override SMTP host |
 | `port` | integer | Override SMTP port |
 | `encryption` | string | Override encryption (`none`, `tls`, `ssl`) |
@@ -43,7 +43,7 @@ All optional — any omitted field falls back to the stored configuration.
 curl -X POST https://api.storno.ro/api/v1/mailer-config/test \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "testEmail": "me@example.com" }'
+  -d '{ "testEmail": "your-own-address@example.com" }'
 ```
 
 ## Response
@@ -51,17 +51,17 @@ curl -X POST https://api.storno.ro/api/v1/mailer-config/test \
 ```json
 {
   "success": true,
-  "message": "Test email sent to me@example.com."
+  "message": "Test email sent to your-own-address@example.com."
 }
 ```
 
-On failure, `success` is `false` and `error` contains the SMTP error message.
+When the message cannot be sent, the response is `200` with `success` set to `false` and `error` set to `Test email could not be sent. Check the SMTP host, port, encryption and credentials.` Validation failures return `400` with `success: false` and an `error` message.
 
 ## Error Codes
 
 | Code | Description |
 |------|-------------|
-| `400` | Missing host or invalid from address |
+| `400` | Missing host or invalid from address, a host that is not allowed, or a `testEmail` outside the allowed addresses |
 | `401` | Missing or invalid authentication token |
 | `403` | Missing `settings.manage` permission, or plan is not Business |
 | `404` | Organization not found |

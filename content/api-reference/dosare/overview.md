@@ -30,12 +30,12 @@ The other party is linked too: when a dosar is created or its subject edited, th
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/dosare?type=&status=&clientId=&supplierId=` | list with per-dosar counts (declarations, requests, documents) and the linked `client` / `supplier` |
+| `GET` | `/api/v1/dosare?type=&status=&clientId=&supplierId=` | `{data, counts, total, types, statuses}`: the dosare in `data`, and `counts` as a map from dosar id to `{declarations, requests, documents}`; each dosar carries its linked `client` / `supplier` |
 | `GET` | `/api/v1/dosare/actions` | `todo`, `inProgress`, `answers` (see below) |
 | `GET` | `/api/v1/dosare/stats` | rental portfolio (see below) |
 | `POST` | `/api/v1/dosare` | create; `title` is derived from the subject when omitted |
 | `POST` | `/api/v1/dosare/annual-return` | ensure the `Declarația unică <an>` dosar (`{"an": 2026}`; default: the year whose 25 May is next) |
-| `GET` | `/api/v1/dosare/{id}` | `dosar`, `counts`, `declarations[]`, `requests[]`, `documents[]`, `timeline[]` |
+| `GET` | `/api/v1/dosare/{id}` | `dosar`, `counts`, `declarations[]`, `requests[]`, `documents[]`, `files[]`, `timeline[]` |
 | `PATCH` | `/api/v1/dosare/{id}` | `title`, `subject` (merged), `status` (`active`, `attention`, `closed`), `nextStep`, `deadlineAt`, `deadlineLabel`, `notes`, `clientId` / `supplierId` (null unlinks) |
 | `DELETE` | `/api/v1/dosare/{id}` | delete; children are unlinked |
 | `POST` | `/api/v1/dosare/{id}/attach` / `/detach` | `{declarationId}` or `{requestId}` or `{documentId}` |

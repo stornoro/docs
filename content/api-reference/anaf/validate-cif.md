@@ -20,11 +20,13 @@ Validates the token by checking:
 - ANAF registry lookup
 - e-Factura access permissions
 
+On success the CIF is added to the token's `validatedCifs`. On failure it is removed.
+
 ### Path Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | integer | The ANAF token ID to validate |
+| id | string | The ANAF token UUID |
 
 ### Headers
 
@@ -32,38 +34,53 @@ Validates the token by checking:
 |------|------|----------|-------------|
 | Authorization | string | Yes | Bearer token for authentication |
 
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| cif | integer\|string | Yes | The CIF to validate, with or without the `RO` prefix |
+
 ### Response
 
 ```json
 {
   "valid": true,
-  "errors": []
+  "cif": 12345678,
+  "companyName": "Example Company SRL",
+  "message": "Token-ul este valid pentru Example Company SRL (CIF 12345678)"
 }
 ```
 
-Or if validation fails:
+When validation fails the status is `422` and the body is:
 
 ```json
 {
   "valid": false,
-  "errors": [
-    "CIF not found in ANAF registry",
-    "Company does not have e-Factura access enabled"
-  ]
+  "cif": 12345678,
+  "error": "CIF-ul 12345678 nu exista in baza de date ANAF."
 }
 ```
+
+When the CIF does not belong to a company of your organization, the body also carries `"code": "COMPANY_NOT_FOUND"`.
 
 ### Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | valid | boolean | Whether validation passed |
-| errors | array | Array of error messages (empty if valid) |
+| cif | integer | The CIF that was checked |
+| companyName | string | Company name from the ANAF registry (success only) |
+| message | string | Confirmation text (success only) |
+| error | string | Reason for the failure (failure only) |
+| code | string | `COMPANY_NOT_FOUND` when the CIF is not in your organization |
 
 ### Error Responses
 
-| Status | Description |
-|--------|-------------|
-| 401 | Unauthorized - invalid authentication |
-| 403 | Forbidden - token belongs to another user |
-| 404 | Token not found |
+| Status | Code | Description |
+|--------|------|-------------|
+| 400 | | `cif` is missing |
+| 401 | | Unauthorized - invalid authentication |
+| 402 | `PLAN_LIMIT` | The CIF is not in your organization and your plan does not allow another company |
+| 404 | | Token not found, or it belongs to another user |
+| 422 | | The CIF is not in your organization, is unknown to ANAF, or the token has no e-Factura access to it |
+| 429 | | ANAF rate limit reached. `retryAfter` carries the seconds to wait |

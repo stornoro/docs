@@ -42,6 +42,7 @@ Generate a JWT token for authenticating the WebSocket connection to Centrifugo r
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
+| 402 | The organization's plan does not include realtime notifications. Body has `code: "PLAN_LIMIT"` |
 
 ### Usage
 
@@ -68,8 +69,8 @@ centrifuge.connect();
 
 The connection token includes:
 - User ID
-- Expiration time (typically 1 hour)
-- Connection metadata
+- Expiration time, 1 hour after issue
+- The user's email as connection metadata
 
 ### Notes
 

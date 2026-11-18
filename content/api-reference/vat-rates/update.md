@@ -5,7 +5,7 @@ description: Update an existing VAT rate configuration.
 
 # Update VAT rate
 
-Updates an existing VAT rate for the authenticated company.
+Updates an existing VAT rate for the authenticated company. Only the fields you send are changed.
 
 ```http
 PATCH /api/v1/vat-rates/{uuid}
@@ -27,9 +27,9 @@ PATCH /api/v1/vat-rates/{uuid}
 | `X-Company` | string | Yes | UUID of the company context |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
-### Body Parameters
+Requires the `settings.manage` permission.
 
-All parameters are optional, but at least one must be provided.
+### Body Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -37,6 +37,7 @@ All parameters are optional, but at least one must be provided.
 | `label` | string | Display label |
 | `categoryCode` | string | e-Factura category code |
 | `isDefault` | boolean | Set as default rate |
+| `isActive` | boolean | Whether the rate is active |
 | `position` | integer | Display order |
 
 ## Response
@@ -60,47 +61,29 @@ curl -X PATCH 'https://api.storno.ro/api/v1/vat-rates/vat-uuid-2' \
 
 ```json
 {
-  "uuid": "vat-uuid-2",
-  "rate": 9,
+  "id": "vat-uuid-2",
+  "rate": "9.00",
   "label": "TVA redusă 9%",
-  "categoryCode": "AA",
+  "categoryCode": "S",
   "isDefault": false,
-  "position": 2,
-  "createdAt": "2025-06-01T10:05:00Z",
-  "updatedAt": "2026-02-16T16:45:00Z"
+  "isActive": true,
+  "position": 2
 }
 ```
 
 ## Default Rate Behavior
 
-- If `isDefault` is set to `true`, any existing default rate will be set to non-default
-- Only one VAT rate can be marked as default
-- Setting `isDefault` to `false` on the default rate requires another rate to be set as default first
-
-## Important Notes
-
-- Changing the rate percentage does not retroactively affect existing invoices
-- Existing invoice lines preserve the VAT rate that was used at creation time
-- Consider creating a new VAT rate instead of modifying an existing one if the rate changes
-- Updating the label only affects future displays; existing invoices store the label at creation
+- If `isDefault` is set to `true`, the default flag is cleared on the company's other rates
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | VAT rate not found or doesn't belong to company |
-| 422 | validation_error | Invalid input data (see error details) |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found, or VAT rate not found in this company |
 
-### Validation Errors
-
-Common validation errors include:
-
-- No fields provided for update
-- Negative rate value
-- Invalid category code
-- Duplicate rate and label combination
+Error bodies have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

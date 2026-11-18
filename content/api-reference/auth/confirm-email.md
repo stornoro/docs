@@ -80,7 +80,7 @@ if ($response->getStatusCode() === 200) {
 
 ```json
 {
-  "message": "Email confirmed successfully. You can now log in to your account."
+  "message": "Email confirmed successfully."
 }
 ```
 
@@ -88,38 +88,27 @@ if ($response->getStatusCode() === 200) {
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Missing or invalid token format |
-| `401` | Unauthorized - Token is invalid, expired, or already used |
-| `409` | Conflict - Email is already confirmed |
+| `400` | Bad Request - Token missing, invalid, already used or expired |
 
-### Error Response Examples
+Error bodies use the form `{"error": "..."}`.
 
-**Invalid or Expired Token (401)**
+**Invalid or used token (400)**
 
 ```json
 {
-  "code": 401,
-  "message": "Email confirmation token is invalid or has expired."
+  "error": "Invalid confirmation token."
 }
 ```
 
-**Email Already Confirmed (409)**
+**Expired token (400)**
 
 ```json
 {
-  "code": 409,
-  "message": "This email address has already been confirmed."
+  "error": "Confirmation token has expired."
 }
 ```
 
-**Token Already Used (401)**
-
-```json
-{
-  "code": 401,
-  "message": "This confirmation token has already been used."
-}
-```
+A token is deleted once it is used, so a second attempt returns the invalid token error.
 
 ---
 
@@ -183,11 +172,11 @@ $response = $client->post('https://api.storno.ro/api/auth/resend-confirmation', 
 
 #### Success Response (200 OK)
 
-For security reasons, the endpoint always returns success regardless of whether the email exists or is already confirmed.
+For security reasons, the endpoint returns success regardless of whether the email exists or is already confirmed, and also when the per-address limit has been reached.
 
 ```json
 {
-  "message": "If an unconfirmed account with that email exists, a new confirmation email has been sent."
+  "message": "If this email exists and is not confirmed, a confirmation email has been sent."
 }
 ```
 
@@ -195,29 +184,16 @@ For security reasons, the endpoint always returns success regardless of whether 
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Invalid email format |
-| `429` | Too Many Requests - Rate limit exceeded |
+| `400` | Bad Request - `email` is missing |
+| `429` | Too Many Requests - the IP address exceeded the rate limit |
 
-### Error Response Examples
+Error bodies use the form `{"error": "..."}`.
 
-**Invalid Email Format (400)**
-
-```json
-{
-  "code": 400,
-  "message": "Validation failed",
-  "errors": {
-    "email": ["This value is not a valid email address."]
-  }
-}
-```
-
-**Rate Limit Exceeded (429)**
+**Rate limit exceeded (429)**
 
 ```json
 {
-  "code": 429,
-  "message": "Too many confirmation email requests. Please try again in 5 minutes."
+  "error": "Too many requests. Please try again later."
 }
 ```
 
@@ -260,7 +236,6 @@ Confirmation tokens have specific lifecycle:
 - **Validity**: 24 hours from issuance
 - **Single-use**: Token is invalidated after successful confirmation
 - **Renewable**: User can request new token via resend endpoint
-- **Automatic cleanup**: Expired tokens are periodically removed
 
 ---
 
@@ -268,9 +243,8 @@ Confirmation tokens have specific lifecycle:
 
 To prevent abuse, confirmation email requests are rate-limited:
 
-- **Per Email**: Maximum 3 requests per hour per email address
-- **Per IP**: Maximum 10 requests per hour per IP address
-- **Cooldown**: 5 minutes between requests for the same email
+- **Per email**: maximum 3 requests per hour. Above it the endpoint still returns 200 but sends nothing
+- **Per IP**: maximum 10 requests per hour. Above it the endpoint returns 429
 
 ---
 
@@ -352,14 +326,7 @@ To prevent abuse, confirmation email requests are rate-limited:
       } else {
         const error = await response.json();
 
-        if (response.status === 409) {
-          showInfo('Your email is already confirmed. You can log in now.');
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-        } else {
-          showError(error.message || 'Confirmation failed. Please try again.');
-        }
+        showError(error.error || 'Confirmation failed. Please try again.');
       }
     } catch (error) {
       showError('An error occurred. Please try again later.');
@@ -450,19 +417,9 @@ To prevent abuse, confirmation email requests are rate-limited:
 
 ---
 
-## Configuration Options
+## Login requirement
 
-Email confirmation requirements can vary based on system configuration:
-
-### Optional Confirmation
-- Users can login immediately after registration
-- Email confirmation unlocks additional features
-- Unconfirmed users may have limited access
-
-### Required Confirmation
-- Users must confirm email before first login
-- Login attempts fail with "Email not confirmed" error
-- Stronger security for sensitive applications
+Users must confirm their email before the first login. Login attempts before confirmation return 403 with `code: "email_not_confirmed"`.
 
 ---
 
@@ -492,11 +449,8 @@ Email confirmation requirements can vary based on system configuration:
 ## Security Considerations
 
 - Tokens are cryptographically secure random strings
-- Tokens are hashed before database storage
 - Rate limiting prevents enumeration attacks
 - Generic success messages prevent email discovery
-- All confirmation attempts are logged for audit
-- Expired tokens are automatically cleaned up
 - One-time use prevents replay attacks
 
 ---

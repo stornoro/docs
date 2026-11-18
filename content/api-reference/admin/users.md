@@ -15,7 +15,7 @@ Manage user accounts with administrative privileges. These endpoints are restric
 GET /api/v1/admin/users
 ```
 
-Get a paginated, searchable list of all users on the platform.
+Get a paginated, searchable list of all users on the platform, newest first.
 
 ### Headers
 
@@ -28,10 +28,8 @@ Get a paginated, searchable list of all users on the platform.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | page | integer | No | Page number (default: 1) |
-| limit | integer | No | Items per page (default: 50, max: 200) |
-| search | string | No | Search by name or email |
-| status | string | No | Filter by status: `active`, `inactive`, `verified`, `unverified` |
-| role | string | No | Filter by role |
+| limit | integer | No | Items per page (default: 10, max: 20, larger values are clamped) |
+| search | string | No | Partial match on email, first name or last name |
 
 ### Response
 
@@ -39,29 +37,22 @@ Get a paginated, searchable list of all users on the platform.
 {
   "data": [
     {
-      "id": 123,
-      "uuid": "123e4567-e89b-12d3-a456-426614174000",
+      "id": "123e4567-e89b-12d3-a456-426614174000",
       "email": "john.doe@example.com",
       "firstName": "John",
       "lastName": "Doe",
-      "isActive": true,
-      "isVerified": true,
-      "role": "USER",
-      "createdAt": "2026-01-15T10:00:00Z",
-      "lastLoginAt": "2026-02-16T09:00:00Z",
-      "organizations": [
-        {
-          "uuid": "550e8400-e29b-41d4-a716-446655440000",
-          "name": "Acme Corp",
-          "role": "OWNER"
-        }
-      ]
+      "fullName": "John Doe",
+      "phone": null,
+      "roles": ["ROLE_USER"],
+      "active": true,
+      "emailVerified": true,
+      "lastConnectedAt": "2026-02-16T09:00:00+00:00",
+      "createdAt": "2026-01-15T10:00:00+00:00"
     }
   ],
   "total": 1523,
   "page": 1,
-  "limit": 50,
-  "pages": 31
+  "limit": 10
 }
 ```
 
@@ -69,17 +60,17 @@ Get a paginated, searchable list of all users on the platform.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| id | integer | User database ID |
-| uuid | string | User UUID |
+| id | string | User UUID |
 | email | string | User email address |
 | firstName | string | First name |
 | lastName | string | Last name |
-| isActive | boolean | Account active status |
-| isVerified | boolean | Email verification status |
-| role | string | System role |
-| createdAt | string | ISO 8601 registration timestamp |
-| lastLoginAt | string\|null | ISO 8601 last login timestamp |
-| organizations | array | User's organizations and roles |
+| fullName | string | First and last name |
+| phone | string\|null | Phone number |
+| roles | array | System roles, for example `ROLE_USER` or `ROLE_SUPER_ADMIN` |
+| active | boolean | Account active status |
+| emailVerified | boolean | Email verification status |
+| lastConnectedAt | string\|null | Last login timestamp |
+| createdAt | string | Registration timestamp |
 
 ---
 
@@ -89,49 +80,13 @@ Get a paginated, searchable list of all users on the platform.
 GET /api/v1/admin/users/{id}
 ```
 
-Get detailed information about a specific user.
+Get one user. The response is a single user object with the fields above.
 
 ### Path Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | integer | User ID |
-
-### Response
-
-```json
-{
-  "id": 123,
-  "uuid": "123e4567-e89b-12d3-a456-426614174000",
-  "email": "john.doe@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "isActive": true,
-  "isVerified": true,
-  "role": "USER",
-  "createdAt": "2026-01-15T10:00:00Z",
-  "lastLoginAt": "2026-02-16T09:00:00Z",
-  "emailVerifiedAt": "2026-01-15T10:05:00Z",
-  "organizations": [
-    {
-      "uuid": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Acme Corp",
-      "role": "OWNER",
-      "joinedAt": "2026-01-15T10:00:00Z"
-    }
-  ],
-  "devices": [
-    {
-      "platform": "ios",
-      "registeredAt": "2026-02-10T14:00:00Z"
-    }
-  ],
-  "stats": {
-    "invoiceCount": 234,
-    "organizationCount": 1
-  }
-}
-```
+| id | string | User UUID |
 
 ---
 
@@ -141,29 +96,24 @@ Get detailed information about a specific user.
 POST /api/v1/admin/users/{id}/toggle-active
 ```
 
-Toggle a user's active status (activate/deactivate account).
+Switch a user's `active` flag. An active user becomes inactive and the other way round.
 
 ### Path Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | integer | User ID |
+| id | string | User UUID |
 
 ### Response
 
 ```json
 {
-  "id": 123,
-  "isActive": false,
-  "message": "User account deactivated"
+  "active": false,
+  "message": "User deactivated."
 }
 ```
 
-### Notes
-
-- Deactivated users cannot log in
-- Existing sessions remain valid until expiry
-- Cannot deactivate SUPER_ADMIN users
+`message` is `User activated.` when the user is now active.
 
 ---
 
@@ -173,21 +123,19 @@ Toggle a user's active status (activate/deactivate account).
 POST /api/v1/admin/users/{id}/verify-email
 ```
 
-Manually verify a user's email address.
+Mark a user's email address as verified.
 
 ### Path Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | integer | User ID |
+| id | string | User UUID |
 
 ### Response
 
 ```json
 {
-  "id": 123,
-  "isVerified": true,
-  "message": "User email verified"
+  "message": "Email verified."
 }
 ```
 
@@ -199,36 +147,27 @@ Manually verify a user's email address.
 POST /api/v1/admin/users/{id}/resend-confirmation
 ```
 
-Resend the email confirmation link to a user.
+Queue the email confirmation message again.
 
 ### Path Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | integer | User ID |
+| id | string | User UUID |
 
 ### Response
 
 ```json
 {
-  "message": "Confirmation email sent"
+  "message": "Confirmation email sent."
 }
 ```
 
 ### Error Responses
 
-All endpoints return:
-
 | Status | Description |
 |--------|-------------|
-| 401 | Unauthorized - invalid authentication |
-| 403 | Forbidden - requires SUPER_ADMIN role |
+| 400 | Resend only: the email is already verified |
+| 401 | Unauthorized, invalid authentication |
+| 403 | Forbidden, requires SUPER_ADMIN role |
 | 404 | User not found |
-| 422 | Validation error |
-
-### Notes
-
-- All user management actions are logged
-- Cannot modify other SUPER_ADMIN accounts
-- Email changes require re-verification
-- Use with caution - affects user access

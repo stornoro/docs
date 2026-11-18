@@ -5,7 +5,7 @@ description: Create a new email template for invoice communications.
 
 # Create email template
 
-Creates a new email template for the authenticated company. Templates support dynamic variables that are replaced with actual invoice data when emails are sent.
+Creates a new email template for the company. Templates support `[[name]]` placeholders that are replaced when the email is sent. Needs the Professional or Business plan, otherwise the call returns `402` with `code: "PLAN_LIMIT"`.
 
 ```http
 POST /api/v1/email-templates
@@ -18,7 +18,7 @@ POST /api/v1/email-templates
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ### Body Parameters
@@ -28,11 +28,12 @@ POST /api/v1/email-templates
 | `name` | string | Yes | Template name for internal reference |
 | `subject` | string | Yes | Email subject line (supports variables) |
 | `body` | string | Yes | Email body content (supports variables) |
-| `isDefault` | boolean | No | Set as default template (default: false) |
+| `category` | string | No | `invoice`, `delivery_note` or `receipt`. Default `invoice`. Any other value is treated as `invoice` |
+| `isDefault` | boolean | No | Set as the default template of its category (default: false) |
 
 ## Response
 
-Returns the created email template object with a `201 Created` status.
+Returns `201 Created` with the template object: `id`, `name`, `subject`, `body`, `isDefault` and `category`.
 
 ## Example Request
 
@@ -42,9 +43,9 @@ curl -X POST 'https://api.storno.ro/api/v1/email-templates' \
   -H 'X-Company: company-uuid' \
   -H 'Content-Type: application/json' \
   -d '{
-    "name": "Factura cu reminder plată",
-    "subject": "Reminder: Factura {{invoice_number}} scadentă pe {{due_date}}",
-    "body": "Bună ziua {{client_name}},\n\nVă reamintim că factura {{invoice_number}} în valoare de {{total}} {{currency}} este scadentă pe {{due_date}}.\n\nVă rugăm să efectuați plata cât mai curând posibil pentru a evita penalitățile de întârziere.\n\nDetalii facturã:\n- Număr: {{invoice_number}}\n- Dată emitere: {{issue_date}}\n- Dată scadență: {{due_date}}\n- Total: {{total}} {{currency}}\n\nVă mulțumim pentru colaborare,\n{{company_name}}",
+    "name": "Factura cu reminder plata",
+    "subject": "Reminder: Factura [[invoice_number]] scadenta pe [[due_date]]",
+    "body": "Buna ziua [[client_name]],\n\nVa reamintim ca factura [[invoice_number]] in valoare de [[total]] [[currency]] este scadenta pe [[due_date]].\n\nVa multumim pentru colaborare,\n[[company_name]]",
     "isDefault": false
   }'
 ```
@@ -53,54 +54,39 @@ curl -X POST 'https://api.storno.ro/api/v1/email-templates' \
 
 ```json
 {
-  "uuid": "template-uuid-3",
-  "name": "Factura cu reminder plată",
-  "subject": "Reminder: Factura {{invoice_number}} scadentă pe {{due_date}}",
-  "body": "Bună ziua {{client_name}},\n\nVă reamintim că factura {{invoice_number}} în valoare de {{total}} {{currency}} este scadentă pe {{due_date}}.\n\nVă rugăm să efectuați plata cât mai curând posibil pentru a evita penalitățile de întârziere.\n\nDetalii facturã:\n- Număr: {{invoice_number}}\n- Dată emitere: {{issue_date}}\n- Dată scadență: {{due_date}}\n- Total: {{total}} {{currency}}\n\nVă mulțumim pentru colaborare,\n{{company_name}}",
+  "id": "9e1a8891-9647-42f0-b66d-a29ce3d12c09",
+  "name": "Factura cu reminder plata",
+  "subject": "Reminder: Factura [[invoice_number]] scadenta pe [[due_date]]",
+  "body": "Buna ziua [[client_name]],\n\nVa reamintim ca factura [[invoice_number]] in valoare de [[total]] [[currency]] este scadenta pe [[due_date]].\n\nVa multumim pentru colaborare,\n[[company_name]]",
   "isDefault": false,
-  "createdAt": "2026-02-16T17:00:00Z",
-  "updatedAt": "2026-02-16T17:00:00Z"
+  "category": "invoice"
 }
 ```
 
 ## Available Variables
 
-Use these variables in your subject and body. They will be replaced with actual data when emails are sent:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `{{invoice_number}}` | Full invoice number | FAC00245 |
-| `{{client_name}}` | Client name | Acme Corporation SRL |
-| `{{total}}` | Total amount (formatted) | 2,380.00 |
-| `{{currency}}` | Currency code | RON |
-| `{{due_date}}` | Due date (formatted) | 15 martie 2026 |
-| `{{issue_date}}` | Issue date (formatted) | 15 februarie 2026 |
-| `{{company_name}}` | Your company name | My Company SRL |
+See [List email templates](/api-reference/email-templates/list#available-variables) for the placeholders. They are written `[[name]]`.
 
 ## Default Template Behavior
 
-- If `isDefault` is `true`, any existing default template will be set to non-default
-- Only one template can be marked as default
-- The default template is used when sending invoices without explicitly specifying a template
+- If `isDefault` is `true`, the existing default template of the same category is set to non-default
+- Only one template per category can be the default
 
-## Template Use Cases
+## Errors
 
-### Standard Invoice Email
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `name`, `subject` or `body` is missing or empty |
+| 401 | Invalid or missing authentication token |
+| 402 | The plan does not include email templates. Body has `code: "PLAN_LIMIT"` |
+| 403 | Missing the `email_template.manage` permission |
+| 404 | Company not found |
 
-Basic template for sending invoices to clients.
+## Related Endpoints
 
-### Payment Reminder
-
-Template with stronger language for overdue invoices.
-
-### Recurring Invoice
-
-Template specifically for automated recurring invoice emails.
-
-### Thank You Email
-
-Template sent after payment is received.
-
+- [List email templates](/api-reference/email-templates/list)
+- [Update email template](/api-reference/email-templates/update)
+- [Delete email template](/api-reference/email-templates/delete)
 ## Errors
 
 | Status Code | Error Code | Description |

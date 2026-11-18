@@ -74,11 +74,10 @@ const options = await response.json();
   "timeout": 60000,
   "attestation": "none",
   "authenticatorSelection": {
-    "authenticatorAttachment": "platform",
-    "requireResidentKey": true,
-    "residentKey": "required",
-    "userVerification": "required"
-  }
+    "residentKey": "preferred",
+    "userVerification": "preferred"
+  },
+  "excludeCredentials": []
 }
 ```
 
@@ -94,8 +93,8 @@ Complete passkey registration with the credential response from the browser.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `name` | string | Yes | Friendly name for the passkey (e.g., "iPhone 15", "YubiKey") |
-| `response` | object | Yes | WebAuthn credential creation response from browser |
+| `name` | string | No | Friendly name for the passkey (e.g., "iPhone 15", "YubiKey") |
+| `credential` | object | Yes | WebAuthn credential creation response from the browser |
 
 #### Request
 
@@ -107,7 +106,7 @@ curl -X POST https://api.storno.ro/api/v1/passkey/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "iPhone 15 Pro",
-    "response": {
+    "credential": {
       "id": "AaFdkcE...",
       "rawId": "AaFdkcE...",
       "response": {
@@ -145,7 +144,7 @@ const registerResponse = await fetch('/api/v1/passkey/register', {
   },
   body: JSON.stringify({
     name: 'iPhone 15 Pro',
-    response: credential,
+    credential: credential,
   }),
 });
 
@@ -158,10 +157,9 @@ const result = await registerResponse.json();
 
 ```json
 {
-  "id": "01HQZX1234ABCDEF5678WXYZ",
+  "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
   "name": "iPhone 15 Pro",
-  "createdAt": "2026-02-16T10:30:00Z",
-  "lastUsedAt": null
+  "createdAt": "2026-02-16T10:30:00+00:00"
 }
 ```
 
@@ -177,11 +175,7 @@ Generate a WebAuthn challenge for authentication.
 
 **Authentication**: Not required (public endpoint)
 
-#### Body Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `email` | string | No | User's email (optional, for filtering available passkeys) |
+No body is needed.
 
 #### Request
 
@@ -189,10 +183,7 @@ Generate a WebAuthn challenge for authentication.
 {% tab label="cURL" %}
 ```bash
 curl -X POST https://api.storno.ro/api/auth/passkey/login/options \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com"
-  }'
+  -H "Content-Type: application/json"
 ```
 {% /tab %}
 {% tab label="JavaScript" %}
@@ -202,9 +193,6 @@ const response = await fetch('https://api.storno.ro/api/auth/passkey/login/optio
   headers: {
     'Content-Type': 'application/json',
   },
-  body: JSON.stringify({
-    email: 'user@example.com', // Optional
-  }),
 });
 
 const options = await response.json();
@@ -219,15 +207,12 @@ const options = await response.json();
   "challenge": "Z3vY8KpMqWr4TnxBftauDw",
   "timeout": 60000,
   "rpId": "storno.ro",
-  "allowCredentials": [
-    {
-      "type": "public-key",
-      "id": "AaFdkcE..."
-    }
-  ],
-  "userVerification": "required"
+  "userVerification": "preferred",
+  "sessionId": "9f2c1e7a5b3d4c8e6a0b1d2f3e4c5a6b"
 }
 ```
+
+The response has no `allowCredentials`: the authenticator offers its own discoverable passkeys. Keep `sessionId` and send it with the login request. The challenge expires after 5 minutes.
 
 ### 2. Login with Passkey
 
@@ -241,7 +226,8 @@ Authenticate using a passkey credential.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `response` | object | Yes | WebAuthn assertion response from browser |
+| `sessionId` | string | Yes | The `sessionId` returned by the login options |
+| `credential` | object | Yes | WebAuthn assertion response from the browser |
 
 #### Request
 
@@ -251,7 +237,8 @@ Authenticate using a passkey credential.
 curl -X POST https://api.storno.ro/api/auth/passkey/login \
   -H "Content-Type: application/json" \
   -d '{
-    "response": {
+    "sessionId": "9f2c1e7a5b3d4c8e6a0b1d2f3e4c5a6b",
+    "credential": {
       "id": "AaFdkcE...",
       "rawId": "AaFdkcE...",
       "response": {
@@ -270,7 +257,6 @@ curl -X POST https://api.storno.ro/api/auth/passkey/login \
 const optionsResponse = await fetch('/api/auth/passkey/login/options', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: 'user@example.com' }),
 });
 const options = await optionsResponse.json();
 
@@ -284,7 +270,8 @@ const loginResponse = await fetch('/api/auth/passkey/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    response: assertion,
+    sessionId: options.sessionId,
+    credential: assertion,
   }),
 });
 
@@ -341,19 +328,19 @@ const passkeys = await response.json();
 ```json
 [
   {
-    "id": "01HQZX1234ABCDEF5678WXYZ",
+    "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
     "name": "iPhone 15 Pro",
     "createdAt": "2026-02-15T14:22:00Z",
     "lastUsedAt": "2026-02-16T09:15:00Z"
   },
   {
-    "id": "01HQZY5678GHIJKL9012STUV",
+    "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c",
     "name": "MacBook Pro",
     "createdAt": "2026-02-10T11:30:00Z",
     "lastUsedAt": "2026-02-16T08:00:00Z"
   },
   {
-    "id": "01HR0Z9012MNOPQR3456UVWX",
+    "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5d",
     "name": "YubiKey 5",
     "createdAt": "2026-02-01T16:45:00Z",
     "lastUsedAt": "2026-02-14T10:30:00Z"
@@ -380,7 +367,7 @@ Remove a registered passkey.
 {% tabs %}
 {% tab label="cURL" %}
 ```bash
-curl -X DELETE https://api.storno.ro/api/v1/me/passkeys/01HQZX1234ABCDEF5678WXYZ \
+curl -X DELETE https://api.storno.ro/api/v1/me/passkeys/0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b \
   -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 {% /tab %}
@@ -409,32 +396,12 @@ No response body.
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Invalid request parameters or WebAuthn response |
-| `401` | Unauthorized - Invalid or expired authentication token |
-| `403` | Forbidden - User verification failed |
+| `400` | Bad Request - Missing `sessionId`, challenge expired or not found, wrong response type, or attestation verification failed |
+| `401` | Unauthorized - Invalid or expired authentication token, or assertion verification failed at login |
 | `404` | Not Found - Passkey not found or doesn't belong to user |
-| `409` | Conflict - Passkey already registered for this credential |
-| `422` | Unprocessable Entity - WebAuthn verification failed |
+| `429` | Too Many Requests - Login options and login are limited to 10 per minute per IP address |
 
-### Error Response Examples
-
-**Invalid WebAuthn Response (422)**
-
-```json
-{
-  "code": 422,
-  "message": "WebAuthn verification failed: Invalid signature."
-}
-```
-
-**Passkey Already Registered (409)**
-
-```json
-{
-  "code": 409,
-  "message": "This passkey is already registered."
-}
-```
+Error bodies use the form `{"error": "..."}`.
 
 ---
 
@@ -464,12 +431,12 @@ if (window.PublicKeyCredential) {
 3. **Allow multiple passkeys** per user for redundancy
 4. **Handle errors gracefully** with clear user messaging
 5. **Test across devices** to ensure compatibility
-6. **Update lastUsedAt** tracking for security monitoring
+6. **Check lastUsedAt** in the passkey list to spot unused passkeys
 
 ## Security Notes
 
 - Passkeys use public-key cryptography, making them phishing-resistant
 - Private keys never leave the user's device
-- User verification (biometrics/PIN) is required by default
+- User verification (biometrics/PIN) is requested with the `preferred` setting
 - Passkeys cannot be reused across different domains
 - Server-side challenge validation prevents replay attacks

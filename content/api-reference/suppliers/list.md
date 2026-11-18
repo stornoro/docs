@@ -1,11 +1,11 @@
 ---
 title: List suppliers
-description: Retrieve a paginated, alphabetically grouped list of suppliers.
+description: Retrieve a paginated list of suppliers with incoming invoice statistics.
 ---
 
 # List suppliers
 
-Retrieves a paginated list of suppliers for the authenticated company, grouped alphabetically by the first letter of their name. Results can be searched by name or tax identification number.
+Retrieves a paginated list of suppliers for the authenticated company, with the number and total of incoming invoices received from each. Results can be searched, filtered and sorted.
 
 ```http
 GET /api/v1/suppliers
@@ -18,56 +18,63 @@ GET /api/v1/suppliers
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company |
 
 ### Query Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `page` | integer | No | Page number (default: 1) |
-| `limit` | integer | No | Items per page (default: 50, max: 200) |
-| `search` | string | No | Search term to filter by name, CUI, or email |
+| `limit` | integer | No | Items per page (default: 10, maximum: 20) |
+| `search` | string | No | Matches name, CIF or VAT code |
+| `sort` | string | No | `recent` (default), `mostInvoiced`, `mostInvoices`, `recentActivity` or `name` |
+| `vatPayer` | string | No | `yes` or `no` |
+| `hasInvoices` | string | No | `active` (at least one incoming invoice) or `dormant` (none) |
+| `source` | string | No | `anaf_sync` or `manual` |
 
 ## Response
-
-Returns a paginated object with suppliers grouped alphabetically.
 
 ### Response Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `data` | object | Object with alphabetic keys (A-Z, #) containing arrays of suppliers |
-| `total` | integer | Total number of suppliers matching filters |
+| `data` | array | Array of supplier objects |
+| `total` | integer | Total number of suppliers matching the filters |
 | `page` | integer | Current page number |
 | `limit` | integer | Items per page |
-| `pages` | integer | Total number of pages |
+| `currency` | string | Default currency of the company, used for `invoiceTotal` |
+| `hasForeignCurrencies` | boolean | Whether the company has incoming invoices in other currencies |
 
 ### Supplier Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
+| `id` | string | Unique identifier |
 | `name` | string | Supplier name |
-| `cui` | string \| null | Tax identification number (CUI) |
-| `email` | string \| null | Email address |
-| `phone` | string \| null | Phone number |
+| `cif` | string \| null | Tax identification number |
+| `vatCode` | string \| null | Full VAT code with country prefix |
+| `isVatPayer` | boolean | Whether the supplier is registered for VAT |
 | `address` | string \| null | Street address |
 | `city` | string \| null | City |
-| `county` | string \| null | County |
-| `country` | string | Country code (default: "RO") |
-| `postalCode` | string \| null | Postal code |
-| `bankName` | string \| null | Bank name |
-| `bankAccount` | string \| null | Bank account (IBAN) |
-| `notes` | string \| null | Internal notes |
+| `email` | string \| null | Email address |
+| `lastSyncedAt` | string \| null | Timestamp of the last synchronization |
+| `source` | string | `anaf_sync` or `manual` |
+| `affiliated` | boolean | Affiliated party flag |
+| `inactive` | boolean \| null | Inactive taxpayer status from the last verification |
+| `vatRegistered` | boolean \| null | VAT registration from the last verification |
+| `vatOnCollection` | boolean \| null | VAT on collection from the last verification |
+| `efacturaRegistered` | boolean \| null | Presence in the e-Factura register |
+| `viesValid` | boolean \| null | VIES validation result |
+| `vatStatusCheckedAt` | string \| null | Timestamp of the last verification |
+| `createdAt` | string | Creation timestamp |
 | `invoiceCount` | integer | Number of incoming invoices from this supplier |
-| `totalExpenses` | number | Total expenses from this supplier |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
+| `invoiceTotal` | number | Total of those invoices, converted to the company currency |
+| `lastInvoiceDate` | string \| null | Issue date of the most recent incoming invoice |
 
 ## Example Request
 
 ```bash
-curl -X GET 'https://api.storno.ro/api/v1/suppliers?page=1&limit=50' \
+curl -X GET 'https://api.storno.ro/api/v1/suppliers?page=1&limit=10&sort=name' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid'
 ```
@@ -76,83 +83,75 @@ curl -X GET 'https://api.storno.ro/api/v1/suppliers?page=1&limit=50' \
 
 ```json
 {
-  "data": {
-    "E": [
-      {
-        "uuid": "supplier-uuid-1",
-        "name": "Enel Energie Muntenia SA",
-        "cui": "RO13267221",
-        "email": "relatii.clienti@enel.ro",
-        "phone": "+40214029700",
-        "address": "Bd. Unirii, Nr. 74",
-        "city": "București",
-        "county": "București",
-        "country": "RO",
-        "postalCode": "030823",
-        "bankName": "Banca Transilvania",
-        "bankAccount": "RO49BTRL01304402S0390901",
-        "notes": "Furnizor energie electrică",
-        "invoiceCount": 12,
-        "totalExpenses": 4580.50,
-        "createdAt": "2025-06-01T08:00:00Z",
-        "updatedAt": "2026-02-10T10:15:00Z"
-      }
-    ],
-    "O": [
-      {
-        "uuid": "supplier-uuid-2",
-        "name": "Orange România SA",
-        "cui": "RO10625813",
-        "email": "office@orange.ro",
-        "phone": "+40214037777",
-        "address": "Str. Laminorului, Nr. 39",
-        "city": "București",
-        "county": "București",
-        "country": "RO",
-        "postalCode": "020251",
-        "bankName": "BCR",
-        "bankAccount": "RO49RNCB0082034687510001",
-        "notes": "Servicii telefonie și internet",
-        "invoiceCount": 8,
-        "totalExpenses": 1240.00,
-        "createdAt": "2025-06-15T09:30:00Z",
-        "updatedAt": "2026-02-05T14:20:00Z"
-      }
-    ]
-  },
+  "data": [
+    {
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Energie Exemplu SA",
+      "cif": "12345678",
+      "vatCode": "RO12345678",
+      "isVatPayer": true,
+      "address": "Bd. Exemplu, Nr. 74",
+      "city": "Bucuresti Sectorul 3",
+      "email": "relatii@energie.example",
+      "lastSyncedAt": "2026-02-10 10:15:00",
+      "source": "anaf_sync",
+      "affiliated": false,
+      "inactive": false,
+      "vatRegistered": true,
+      "vatOnCollection": false,
+      "efacturaRegistered": true,
+      "viesValid": null,
+      "vatStatusCheckedAt": "2026-02-10 06:40:12",
+      "createdAt": "2025-06-01 08:00:00",
+      "invoiceCount": 12,
+      "invoiceTotal": 4580.5,
+      "lastInvoiceDate": "2026-02-10"
+    }
+  ],
   "total": 23,
   "page": 1,
-  "limit": 50,
-  "pages": 1
+  "limit": 10,
+  "currency": "RON",
+  "hasForeignCurrencies": false
 }
 ```
 
-## Alphabetical Grouping
+## Create a supplier
 
-Suppliers are grouped by the first character of their name:
+```http
+POST /api/v1/suppliers
+```
 
-- Letters A-Z: Standard alphabetic grouping
-- "#": Used for names starting with numbers or special characters
+Suppliers are created from incoming invoices during synchronization, and can also be created manually.
 
-If a letter has no suppliers, it will not appear in the response object.
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Supplier name |
+| `county` | string | Yes | County |
+| `city` | string | Yes | City |
+| `address` | string | Yes | Street address |
+| `registrationNumber` | string | Yes | Trade register number |
+| `cif` | string | No | Tax identification number |
+| `vatCode` | string | No | Full VAT code with country prefix |
+| `isVatPayer` | boolean | No | Default `false` |
+| `country` | string | No | Default `RO` |
+| `postalCode`, `email`, `phone`, `bankName`, `bankAccount`, `notes` | string | No | Contact and banking details |
+| `affiliated` | boolean | No | Affiliated party flag |
+
+Returns `201` with `{"supplier": {...}}`. If a supplier with the same `cif` already exists, returns `200` with `{"supplier": {...}, "existing": true}`. A missing required field returns `422` with `{"error": "County is required."}` (or the matching message).
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 422 | validation_error | Invalid query parameters |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found |
 
-## Important Notes
-
-- Suppliers in Storno.ro are sync-only and come from incoming invoices via ANAF e-Factura
-- Supplier data is automatically created from incoming invoice metadata
-- Manual supplier updates are limited to contact information and notes
-- Use the [ANAF sync endpoint](/api-reference/anaf/sync-invoices) to fetch latest supplier data
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 
 - [Get supplier](/api-reference/suppliers/get)
 - [Update supplier](/api-reference/suppliers/update)
-- [Sync from ANAF](/api-reference/anaf/sync-invoices)
+- [Delete supplier](/api-reference/suppliers/delete)

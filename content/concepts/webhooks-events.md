@@ -16,10 +16,18 @@ Outbound webhooks send HTTP POST requests to your server whenever business event
 ### How it works
 
 1. You [create a webhook endpoint](/api-reference/webhooks/create-webhook) with a destination URL and the events you want to receive
-2. Storno.ro generates an HMAC-SHA256 signing secret (shown only once — store it securely)
+2. Storno.ro generates a signing secret (shown in full only on creation and on regeneration, so store it securely)
 3. When a subscribed event occurs, Storno.ro sends a signed POST request to your URL
 4. Your server verifies the signature and processes the payload
-5. If delivery fails, Storno.ro retries up to 3 times with exponential backoff
+5. If delivery fails, Storno.ro tries again, up to 3 attempts in total (see [Retry policy](#retry-policy))
+
+### Requirements
+
+- Webhooks are available on the Professional and Business plans. Other plans receive `402` with `code: "PLAN_LIMIT"` when they create a webhook.
+- An organization can register at most 10 endpoints across all its companies. The next one returns `409` with `code: "WEBHOOK_LIMIT"`.
+- The URL must be a public HTTPS URL on port 443, without credentials. HTTP, other ports and hosts that resolve to private addresses are rejected with `400`. The address is checked again before every delivery.
+- `events` must list exact event names. The wildcard `["*"]` is not accepted.
+- Redirects are not followed. A `3xx` answer counts as a failed attempt.
 
 ### Webhook payload format
 
@@ -43,10 +51,10 @@ Every webhook delivery sends a JSON payload with this structure:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique delivery ID (UUID v7) |
+| `id` | string | Unique ID of the event (UUID v7). It differs from the delivery ID in `X-Webhook-Id` |
 | `event` | string | Event type that triggered the webhook |
-| `created_at` | string | ISO 8601 timestamp of when the event occurred |
-| `data` | object | Event-specific payload (varies by event type) |
+| `created_at` | string | ISO 8601 timestamp of when the event was created |
+| `data` | object | Event-specific payload (see [Event types](#event-types)) |
 
 ### HTTP headers
 
@@ -55,14 +63,14 @@ Each delivery includes these headers:
 | Header | Description |
 |--------|-------------|
 | `Content-Type` | `application/json` |
-| `X-Webhook-Signature` | HMAC-SHA256 hex digest of the raw body, signed with your secret |
-| `X-Webhook-Event` | Event type name (e.g., `invoice.validated`) |
-| `X-Webhook-Id` | Unique delivery ID (same as payload `id`) |
+| `X-Webhook-Signature` | Lowercase hexadecimal HMAC-SHA256 of the raw request body, computed with your endpoint secret. No prefix |
+| `X-Webhook-Event` | Event type name (for example `invoice.validated`) |
+| `X-Webhook-Id` | Delivery ID. The same ID is returned by the delivery endpoints and stays the same across retries |
 | `User-Agent` | `Storno-Webhook/1.0` |
 
 ### Verifying signatures
 
-Always verify the `X-Webhook-Signature` header to ensure the request came from Storno.ro. Compute the HMAC-SHA256 of the raw request body using your signing secret and compare:
+Always verify the `X-Webhook-Signature` header to ensure the request came from Storno.ro. Compute the HMAC-SHA256 of the raw request body, before any JSON parsing, using your signing secret, and compare the hexadecimal digest:
 
 {% code-snippet-group %}
 
@@ -76,10 +84,9 @@ function verifyWebhook(rawBody, signatureHeader, secret) {
     .update(rawBody)
     .digest('hex');
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signatureHeader)
-  );
+  const a = Buffer.from(expected);
+  const b = Buffer.from(signatureHeader || '');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 // Express middleware example
@@ -142,7 +149,7 @@ Always use constant-time comparison (`timingSafeEqual`, `hash_equals`, `hmac.com
 
 ### Retry policy
 
-If your endpoint returns a non-2xx status code or the connection fails, Storno.ro retries with exponential backoff:
+If your endpoint returns a non-2xx status code, does not answer within 10 seconds or the connection fails, Storno.ro retries the same delivery:
 
 | Attempt | Delay | Total elapsed |
 |---------|-------|---------------|
@@ -150,7 +157,7 @@ If your endpoint returns a non-2xx status code or the connection fails, Storno.r
 | 2 | 1 minute | 1 min |
 | 3 | 5 minutes | 6 min |
 
-After 3 failed attempts the delivery is marked as `failed` and no further retries are attempted. You can monitor delivery status and errors through the [delivery log endpoints](/api-reference/webhooks/list-deliveries).
+A delivery makes at most 3 attempts. After the third failed attempt it is marked `failed` and no further retries happen. A URL that no longer passes the URL rules fails at once, without retries. You can monitor delivery status and errors through the [delivery log endpoints](/api-reference/webhooks/list-deliveries).
 
 **Best practices for your endpoint:**
 
@@ -170,49 +177,54 @@ After 3 failed attempts the delivery is marked as `failed` and no further retrie
 
 ---
 
-## Event Types
+## Event types
 
-Storno.ro supports 15 event types organized into 5 categories. Retrieve the full list from the API via [`GET /api/v1/webhooks/events`](/api-reference/webhooks/list-events).
+The registry accepts 16 event types in 5 categories. Retrieve the list from the API with [`GET /api/v1/webhooks/events`](/api-reference/webhooks/list-events). The `webhook.test` event is sent only by the test endpoint and cannot be subscribed to.
+
+`invoice.updated` is accepted on subscription but Storno.ro never sends it as a webhook.
 
 ### Invoice events
 
-| Event | Description | Payload fields |
-|-------|-------------|----------------|
-| `invoice.created` | New invoice created or synced from e-invoice provider | `id`, `number`, `status`, `direction`, `total`, `currency` |
-| `invoice.issued` | Invoice issued (draft finalized) | `id`, `number`, `status`, `direction`, `total`, `currency` |
-| `invoice.validated` | E-invoice provider validated an outgoing invoice | `id`, `number`, `status`, `direction`, `total`, `currency` |
-| `invoice.rejected` | E-invoice provider rejected an outgoing invoice | `id`, `number`, `status`, `direction`, `total`, `currency` |
-| `invoice.sent_to_provider` | Invoice submitted to e-invoice provider | `id`, `number`, `status`, `direction`, `total`, `currency` |
+| Event | Description | `data` fields |
+|-------|-------------|---------------|
+| `invoice.created` | An invoice was created | `id`, `number`, `status`, `direction`, `total`, `currency` |
+| `invoice.issued` | An invoice was issued | `id`, `number`, `status`, `direction`, `total`, `currency` |
+| `invoice.validated` | The provider validated an outgoing invoice | `id`, `number`, `status`, `direction`, `total`, `currency` |
+| `invoice.rejected` | The provider rejected an outgoing invoice | `id`, `number`, `status`, `direction`, `total`, `currency` |
+| `invoice.sent_to_provider` | An invoice was submitted to the e-invoice provider | `id`, `number`, `status`, `direction`, `total`, `currency` |
+| `invoice.updated` | Accepted on subscription, never sent | none |
 
 ### Company events
 
-| Event | Description | Payload fields |
-|-------|-------------|----------------|
-| `company.created` | New company added to the organization | `id`, `name`, `cif` |
-| `company.updated` | Company data modified | `id`, `name`, `cif` |
-| `company.removed` | Company soft-deleted | `id`, `name`, `cif` |
-| `company.restored` | Company restored from soft-delete | `id`, `name`, `cif` |
-| `company.reset` | Company data reset (invoices, clients cleared) | `id`, `name`, `cif` |
+| Event | Description | `data` fields |
+|-------|-------------|---------------|
+| `company.created` | A company was added to the organization | `companyId`, `companyName` |
+| `company.updated` | Company data changed | `companyId`, `companyName` |
+| `company.removed` | A company was deleted | `companyId`, `companyName` |
+| `company.restored` | A company was restored | `companyId`, `companyName` |
+| `company.reset` | Company data was reset | `companyId`, `companyName` |
 
 ### Sync events
 
-| Event | Description | Payload fields |
-|-------|-------------|----------------|
-| `sync.started` | E-invoice sync process started | `company_id`, `cif` |
-| `sync.completed` | E-invoice sync finished successfully | `company_id`, `cif`, `invoices_synced` |
-| `sync.error` | E-invoice sync encountered an error | `company_id`, `cif`, `error` |
+| Event | Description | `data` fields |
+|-------|-------------|---------------|
+| `sync.started` | An ANAF sync run started | `total` |
+| `sync.completed` | An ANAF sync run finished | `stats` (`newInvoices`, `skippedDuplicates`, `newClients`, `newProducts`, `newSeries`, `expired`, `errors`) |
+| `sync.error` | An ANAF sync run reported errors | `errors`, `companyId` |
 
 ### Payment events
 
-| Event | Description | Payload fields |
-|-------|-------------|----------------|
-| `payment.received` | Payment recorded on an invoice | `id`, `invoice_id`, `amount`, `currency`, `payment_method` |
+| Event | Description | `data` fields |
+|-------|-------------|---------------|
+| `payment.received` | A payment was recorded on an invoice | `paymentId`, `invoiceId`, `amount`, `paymentMethod`, `currency` |
 
-### Provider Authentication Events
+Some payments recorded automatically from Stripe also carry `invoice_number` and `companyId`.
 
-| Event | Description | Payload fields |
-|-------|-------------|----------------|
-| `anaf.token_created` | New ANAF OAuth token obtained | `company_id`, `cif`, `expires_at` |
+### ANAF events
+
+| Event | Description | `data` fields |
+|-------|-------------|---------------|
+| `anaf.token_created` | An ANAF token was saved | `tokenId`, `companyId` |
 
 ---
 
@@ -233,7 +245,7 @@ curl -X POST https://api.storno.ro/api/v1/webhooks \
 ```
 
 {% callout type="warning" %}
-The signing `secret` is returned in full only on creation and on [regenerate-secret](/api-reference/webhooks/regenerate-secret). Store it securely — all subsequent reads return a masked value.
+The signing `secret` is returned in full only on creation and on [regenerate-secret](/api-reference/webhooks/regenerate-secret). Store it securely. Later reads return a masked value.
 {% /callout %}
 
 ### Testing a webhook
@@ -246,7 +258,7 @@ curl -X POST https://api.storno.ro/api/v1/webhooks/{uuid}/test \
   -H "X-Company: {company_uuid}"
 ```
 
-The test sends a `webhook.test` event synchronously and returns the HTTP result immediately:
+The test sends a `webhook.test` event synchronously and returns the HTTP result immediately. It is limited to 10 test and retry calls per 10 minutes per user.
 
 ```json
 {
@@ -265,14 +277,14 @@ curl https://api.storno.ro/api/v1/webhooks/{uuid}/deliveries?page=1&limit=20 \
   -H "X-Company: {company_uuid}"
 ```
 
-Each delivery record includes the event type, HTTP status code, response time, attempt number, and any error message. Use the [delivery detail endpoint](/api-reference/webhooks/get-delivery) to inspect the full request payload and response body.
+Each delivery record includes the event type, status, HTTP status code, response time, attempt number, error message and timestamps. Use the [delivery detail endpoint](/api-reference/webhooks/get-delivery) to inspect the full request payload and response body.
 
 ### Permissions
 
 | Permission | Roles | Actions |
 |------------|-------|---------|
 | `webhook.view` | Admin, Accountant | List endpoints, view details, view delivery log |
-| `webhook.manage` | Admin | Create, update, delete, test, regenerate secret |
+| `webhook.manage` | Admin | Create, update, delete, test, retry a delivery, regenerate secret |
 
 ### API endpoints
 
@@ -288,6 +300,7 @@ Each delivery record includes the event type, HTTP status code, response time, a
 | `POST` | [`/api/v1/webhooks/{uuid}/regenerate-secret`](/api-reference/webhooks/regenerate-secret) | Regenerate signing secret |
 | `GET` | [`/api/v1/webhooks/{uuid}/deliveries`](/api-reference/webhooks/list-deliveries) | List delivery history |
 | `GET` | [`/api/v1/webhooks/{uuid}/deliveries/{id}`](/api-reference/webhooks/get-delivery) | Get delivery detail |
+| `POST` | [`/api/v1/webhooks/{uuid}/deliveries/{id}/retry`](/api-reference/webhooks/get-delivery#retry-a-delivery) | Send a past delivery again |
 
 ---
 
@@ -313,22 +326,21 @@ curl -X POST https://api.storno.ro/api/v1/centrifugo/subscription-token \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{
-    "channel": "user:{user_id}"
+    "channel": "notifications:user_{user_id}"
   }'
 ```
 
-### WebSocket event types
+### Channels and events
 
-Events are published to user-specific and company-specific channels:
+A client can subscribe to `notifications:user_{user_id}` for its own user, and to `{namespace}:company_{company_uuid}` for a company it can access. The namespaces are `invoices`, `notifications`, `dashboard`, `user`, `import` and `backup`. Any other channel is refused with `403`. See [Centrifugo subscription token](/api-reference/centrifugo/subscription-token).
 
-| Event | Description |
-|-------|-------------|
-| `invoice.created` | New invoice created (including synced from e-invoice provider) |
-| `invoice.updated` | Invoice status or data changed |
-| `invoice.paid` | Payment recorded on invoice |
-| `sync.completed` | E-invoice sync finished |
-| `sync.error` | E-invoice sync encountered an error |
-| `notification.new` | New notification for the user |
+| Channel | Messages |
+|---------|----------|
+| `invoices:company_{uuid}` | `invoice.created`, `invoice.updated`, `invoice.issued`, `invoice.submitted`, `invoice.cancelled`, `invoice.restored`, and the sync events `sync.started`, `sync.progress`, `sync.completed`, `sync.skipped`, `sync.error` |
+| `notifications:user_{id}` | New in-app notifications, and `company.created`, `company.updated`, `company.removed`, `company.restored`, `company.reset` |
+| `import:company_{uuid}`, `backup:company_{uuid}` | Import and backup progress |
+
+Realtime access needs a plan with realtime notifications. Other plans receive `402` with `code: "PLAN_LIMIT"` from the token endpoints.
 
 ---
 
@@ -343,17 +355,11 @@ Storno.ro sends user-facing notifications through multiple channels.
 | `in_app` | In-app notifications (visible in notification panel) |
 | `email` | Email notifications |
 | `push` | Push notifications (iOS, Android, Web) |
+| `telegram`, `whatsapp`, `sms` | Optional external channels. SMS and WhatsApp need a phone number and a paid plan |
 
 ### Notification types
 
-| Type | Description |
-|------|-------------|
-| `invoice.validated` | E-invoice provider validated an outgoing invoice |
-| `invoice.rejected` | E-invoice provider rejected an outgoing invoice |
-| `invoice.overdue` | Invoice past its due date |
-| `payment.received` | Payment recorded on an invoice |
-| `invoice.issued` | Invoice issued |
-| `invoice.paid` | Invoice fully paid |
+The `type` of a notification is a dotted event name, such as `invoice.validated`, `invoice.rejected`, `invoice.overdue`, `payment.received`, `token.expiring_soon` or `sync.error`. The preference list in [Get notification preferences](/api-reference/notification-preferences/get) shows the event types users can configure.
 
 ### Managing preferences
 
@@ -369,11 +375,10 @@ curl -X PUT https://api.storno.ro/api/v1/notification-preferences \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{
-    "preferences": {
-      "invoiceValidated": { "email": true, "inApp": true, "push": false },
-      "invoiceRejected": { "email": true, "inApp": true, "push": true },
-      "paymentReceived": { "email": true, "inApp": true, "push": false }
-    }
+    "preferences": [
+      { "eventType": "invoice.validated", "emailEnabled": true, "inAppEnabled": true, "pushEnabled": false },
+      { "eventType": "invoice.rejected", "emailEnabled": true, "pushEnabled": true }
+    ]
   }'
 ```
 
@@ -386,7 +391,7 @@ curl -X POST https://api.storno.ro/api/v1/devices \
   -H "Authorization: Bearer {token}" \
   -H "Content-Type: application/json" \
   -d '{
-    "token": "firebase_device_token_here",
+    "token": "fcm-device-token-0123456789abcdef",
     "platform": "android"
   }'
 ```

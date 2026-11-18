@@ -1,16 +1,16 @@
 ---
 title: Create Credit Note
-description: Create a new credit note to reverse or partially reverse an invoice
+description: Create a credit note that reverses or partially reverses an invoice
 method: POST
 endpoint: /api/v1/invoices
 ---
 
 # Create Credit Note
 
-Creates a new credit note that reverses or partially reverses an original invoice. Credit notes are created using the same endpoint as invoices but with `isCreditNote: true` and a reference to the parent invoice.
+Creates a credit note as a draft invoice with `documentType: "credit_note"` and a reference to the original invoice. Credit notes have no endpoint of their own: they are created with `POST /api/v1/invoices`, the same endpoint and body as an invoice.
 
 {% callout type="info" %}
-Credit notes are not the only way to issue refunds. You can also create a regular invoice with negative quantities — no `parentDocumentId` or `isCreditNote` flag needed. See the [Refund an invoice](/api-reference/invoices/refund) guide for a comparison of both approaches.
+A credit note is not the only way to refund. `POST /api/v1/invoices/bulk-storno` creates a full reversal of an issued invoice, and a regular invoice with negative quantities works without any link to a parent. See the [Refund an invoice](/api-reference/invoices/refund) guide.
 {% /callout %}
 
 ## Headers
@@ -18,44 +18,49 @@ Credit notes are not the only way to issue refunds. You can also create a regula
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | Yes | Company UUID to scope the request. Optional when the organization has a single company |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Request Body
 
+The body is the invoice body described in [Create invoice](/api-reference/invoices/create). The fields that make the document a credit note:
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `isCreditNote` | boolean | Yes | Must be `true` for credit notes |
-| `direction` | string | Yes | Must be `outgoing` for credit notes |
-| `parentDocumentId` | string | Yes | UUID of the original invoice being credited |
-| `clientId` | string | Yes | UUID of the client (must match parent invoice) |
-| `seriesId` | string | Yes | UUID of the credit note series |
-| `issueDate` | string | Yes | Date of issue (YYYY-MM-DD) |
-| `dueDate` | string | Yes | Due date (YYYY-MM-DD) |
-| `currency` | string | Yes | Currency code (must match parent invoice) |
-| `exchangeRate` | number | No | Exchange rate (defaults to 1.0 for RON) |
-| `invoiceTypeCode` | string | No | Invoice type code (default: "381" - Credit Note) |
+| `documentType` | string | No | Send `credit_note`. Without it the document is created as a regular `invoice` |
+| `parentDocumentId` | string | No | Id of the original invoice. It must belong to the same company; an id that is not found or belongs to another company is ignored without an error and the credit note is created without a parent |
+| `documentSeriesId` | string | No | Id of the series to number the credit note from. Without it the company's default series of type `credit_note` is used. The number is assigned when the credit note is issued |
+| `clientId` | string | No | Id of the client. Alternatively send `receiverName` and `receiverCif` |
+| `issueDate` | string | No | Date of issue (YYYY-MM-DD). Defaults to today; a future date is refused |
+| `dueDate` | string | No | Due date (YYYY-MM-DD) |
+| `currency` | string | No | Currency code. Defaults to the company currency |
+| `exchangeRate` | number | No | Exchange rate |
+| `invoiceTypeCode` | string | No | One of `standard`, `reverse_charge`, `exempt_with_deduction`, `services_art_311`, `sales_art_312`, `non_taxable`, `special_regime_art_314_315`, `non_transfer`, `simplified`, `services_art_278`, `exempt_art_294_ab`, `exempt_art_294_cd`, `self_billing`. Any other value is refused. Not set when omitted |
 | `notes` | string | No | Public notes explaining the credit |
-| `paymentTerms` | string | No | Payment/refund terms |
-| `issuerName` | string | No | Name of person issuing the credit note |
-| `issuerId` | string | No | UUID of the issuer user |
+| `paymentTerms` | string | No | Payment or refund terms |
+| `issuerName` | string | No | Name of the person issuing the credit note |
+| `issuerId` | string | No | Issuer identification number |
 | `mentions` | string | No | Additional mentions |
-| `internalNote` | string | No | Internal note (not visible to client) |
+| `internalNote` | string | No | Internal note (not visible to the client) |
 | `lines` | array | Yes | Array of line items (minimum 1 item) |
 
 ### Line Item Object
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `description` | string | Yes | Item description (typically from original invoice) |
-| `quantity` | number | Yes | **Negative** quantity or positive with negative unit price |
-| `unitPrice` | number | Yes | Unit price (positive if quantity is negative) |
-| `vatRateId` | string | Yes | UUID of the VAT rate (must match original) |
-| `unitOfMeasure` | string | No | Unit of measure |
-| `productId` | string | No | UUID of related product |
-| `discount` | number | No | Discount amount (positive, reduces credit) |
-| `discountPercent` | number | No | Discount percentage (0-100) |
-| `vatIncluded` | boolean | No | Whether unit price includes VAT (default: false) |
+| `description` | string | Yes | Item description (typically from the original invoice) |
+| `quantity` | number | Yes | Must not be zero. Use a negative quantity to credit |
+| `unitPrice` | number | Yes | Must not be negative. Keep it positive and credit with a negative `quantity` |
+| `vatRate` | number | No | VAT rate percentage. Default 21.00 when neither `vatRate` nor `vatRateId` is sent, whatever the VAT status of the company |
+| `vatCategoryCode` | string | No | UBL VAT category code (default `S`; a 0% rate becomes `Z` on its own) |
+| `vatRateId` | string | No | Id of one of the company's VAT rates (`GET /api/v1/vat-rates`). The line takes its percentage and category. Ignored when `vatRate` is sent; an error when it is not a rate of the company |
+| `unitOfMeasure` | string | No | Unit of measure (default `buc`) |
+| `productId` | string | No | Id of a product of the company |
+| `discount` | number | No | Fixed amount subtracted from the line (`quantity * unitPrice - discount`) |
+| `discountPercent` | number | No | Discount percentage |
+| `vatIncluded` | boolean | No | Whether the unit price includes VAT (default: false) |
+
+> **VAT on a line.** Send `vatRate` (a percentage) or `vatRateId` (the id of one of the company's rates from `GET /api/v1/vat-rates`; the line takes that rate's percentage and category). When both are sent `vatRate` wins. When neither is sent the line gets **21%**, also when the issuing company is not a VAT payer. For a company that is not a VAT payer send `vatRate: "0.00"` on every line. A `vatRateId` that is not a rate of the company is refused with an error; it never falls back to 21%.
 
 ## Request
 
@@ -65,30 +70,26 @@ curl -X POST https://api.storno.ro/api/v1/invoices \
   -H "X-Company: company-uuid-here" \
   -H "Content-Type: application/json" \
   -d '{
-    "isCreditNote": true,
-    "direction": "outgoing",
+    "documentType": "credit_note",
     "parentDocumentId": "650e8400-e29b-41d4-a716-446655440111",
     "clientId": "750e8400-e29b-41d4-a716-446655440000",
-    "seriesId": "750e8400-e29b-41d4-a716-446655440000",
+    "documentSeriesId": "760e8400-e29b-41d4-a716-446655440000",
     "issueDate": "2026-02-20",
     "dueDate": "2026-03-20",
     "currency": "RON",
-    "exchangeRate": 1.0,
-    "invoiceTypeCode": "381",
     "notes": "Partial refund - hosting services cancelled by client request",
     "paymentTerms": "Immediate refund",
     "issuerName": "John Doe",
-    "mentions": "Credit note for invoice FAC-2026-045",
+    "mentions": "Credit note for invoice FAC0045",
     "internalNote": "Client cancelled annual hosting, refund via original payment method",
     "lines": [
       {
         "description": "Hosting Services - Annual (CREDIT)",
         "quantity": -1,
-        "unitPrice": 1200,
+        "unitPrice": 1000,
         "unitOfMeasure": "service",
         "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
         "productId": "460e8400-e29b-41d4-a716-446655440000",
-        "discount": 200,
         "vatIncluded": false
       }
     ]
@@ -104,255 +105,156 @@ const response = await fetch('https://api.storno.ro/api/v1/invoices', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    isCreditNote: true,
-    direction: 'outgoing',
+    documentType: 'credit_note',
     parentDocumentId: '650e8400-e29b-41d4-a716-446655440111',
     clientId: '750e8400-e29b-41d4-a716-446655440000',
-    seriesId: '750e8400-e29b-41d4-a716-446655440000',
+    documentSeriesId: '760e8400-e29b-41d4-a716-446655440000',
     issueDate: '2026-02-20',
     dueDate: '2026-03-20',
     currency: 'RON',
-    exchangeRate: 1.0,
-    invoiceTypeCode: '381',
     notes: 'Partial refund - hosting services cancelled by client request',
     paymentTerms: 'Immediate refund',
     issuerName: 'John Doe',
-    mentions: 'Credit note for invoice FAC-2026-045',
+    mentions: 'Credit note for invoice FAC0045',
     internalNote: 'Client cancelled annual hosting, refund via original payment method',
     lines: [
       {
         description: 'Hosting Services - Annual (CREDIT)',
         quantity: -1,
-        unitPrice: 1200,
+        unitPrice: 1000,
         unitOfMeasure: 'service',
         vatRateId: '350e8400-e29b-41d4-a716-446655440000',
         productId: '460e8400-e29b-41d4-a716-446655440000',
-        discount: 200,
         vatIncluded: false
       }
     ]
   })
 });
-
 const data = await response.json();
 ```
 
 ## Response
 
-```json
-{
-  "uuid": "850e8400-e29b-41d4-a716-446655440000",
-  "number": "CN-2026-005",
-  "direction": "outgoing",
-  "isCreditNote": true,
-  "seriesId": "750e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
-    "name": "CN",
-    "nextNumber": 6,
-    "prefix": "CN-",
-    "year": 2026
-  },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
-  "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
-    "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "address": "Str. Exemplu 123, București",
-    "email": "contact@client.ro"
-  },
-  "parentDocumentId": "650e8400-e29b-41d4-a716-446655440111",
-  "parentDocument": {
-    "uuid": "650e8400-e29b-41d4-a716-446655440111",
-    "number": "FAC-2026-045",
-    "issueDate": "2026-02-18",
-    "total": "8330.00"
-  },
-  "status": "draft",
-  "anafStatus": null,
-  "issueDate": "2026-02-20",
-  "dueDate": "2026-03-20",
-  "currency": "RON",
-  "exchangeRate": 1.0,
-  "invoiceTypeCode": "381",
-  "notes": "Partial refund - hosting services cancelled by client request",
-  "paymentTerms": "Immediate refund",
-  "issuerName": "John Doe",
-  "mentions": "Credit note for invoice FAC-2026-045",
-  "internalNote": "Client cancelled annual hosting, refund via original payment method",
-  "lines": [
-    {
-      "uuid": "910e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 1,
-      "description": "Hosting Services - Annual (CREDIT)",
-      "quantity": "-1.00",
-      "unitPrice": "1200.00",
-      "unitOfMeasure": "service",
-      "productId": "460e8400-e29b-41d4-a716-446655440000",
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "discount": "200.00",
-      "vatIncluded": false,
-      "subtotal": "-1000.00",
-      "vatAmount": "-190.00",
-      "total": "-1190.00"
-    }
-  ],
-  "subtotal": "-1000.00",
-  "totalDiscount": "200.00",
-  "vatAmount": "-190.00",
-  "total": "-1190.00",
-  "anafUploadIndex": null,
-  "createdAt": "2026-02-20T09:00:00Z",
-  "updatedAt": "2026-02-20T09:00:00Z"
-}
-```
-
-## Validation Rules
-
-### Parent Invoice
-- `parentDocumentId` must reference an existing invoice
-- Parent invoice must belong to the same company
-- Parent invoice must be validated by ANAF (recommended)
-- Parent invoice cannot be a credit note itself
-
-### Client Match
-- `clientId` must match the parent invoice's client
-- Cannot create credit note for different client
-
-### Currency Match
-- `currency` must match parent invoice currency
-- `exchangeRate` should match parent invoice (if applicable)
-
-### Amounts
-- All calculated amounts (subtotal, vat, total) will be negative
-- Line item quantities should be negative (or unit prices negative)
-- Total credit should not exceed original invoice (warning, not error)
-
-### Dates
-- `issueDate` should be on or after parent invoice `issueDate`
-- `issueDate` should not be in the future
-- `dueDate` must be equal to or after `issueDate`
-
-### Line Items
-- Minimum 1 line item required
-- Line totals must be negative
-- VAT rates must match those used in parent invoice (recommended)
-
-### Series
-- `seriesId` must reference a series configured for credit notes
-- Series must belong to the same company
-
-## Invoice Type Codes
-
-Common type codes for credit notes:
-- **381** - Credit note (most common)
-- **383** - Corrective invoice
-- **384** - Corrected invoice
-
-Default is 381 if not specified.
-
-## Error Codes
-
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid request body structure |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Parent invoice, client, series, or VAT rate not found |
-| 422 | `validation_error` | Validation failed (see error details) |
-| 500 | `internal_error` | Server error occurred |
-
-## Example Validation Error Response
+`201 Created` with the invoice object and the UBL validation result. Amounts are strings and dates are ISO 8601 date-times. A credit note with a negative total is settled at creation: `amountPaid` equals `total` and `balance` is `"0.00"`.
 
 ```json
 {
-  "error": {
-    "code": "validation_error",
-    "message": "Validation failed",
-    "details": {
-      "parentDocumentId": ["Parent invoice not found"],
-      "clientId": ["Client must match parent invoice client"],
-      "currency": ["Currency must match parent invoice currency"],
-      "lines.0.quantity": ["Quantity must be negative for credit notes"],
-      "issueDate": ["Issue date must be after parent invoice date"]
-    }
+  "invoice": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "number": "DRAFT-0a1b2c3d",
+    "documentType": "credit_note",
+    "status": "draft",
+    "direction": "outgoing",
+    "documentSeries": {
+      "id": "760e8400-e29b-41d4-a716-446655440000",
+      "prefix": "CN",
+      "nextNumber": "CN0006"
+    },
+    "client": {
+      "id": "750e8400-e29b-41d4-a716-446655440000",
+      "name": "Client SRL",
+      "cui": "12345678",
+      "country": "RO",
+      "email": "contact@client.ro"
+    },
+    "parentDocumentId": "650e8400-e29b-41d4-a716-446655440111",
+    "parentDocumentNumber": "FAC0045",
+    "parentDocumentDate": "2026-02-18",
+    "issueDate": "2026-02-20T00:00:00+00:00",
+    "dueDate": "2026-03-20T00:00:00+00:00",
+    "currency": "RON",
+    "notes": "Partial refund - hosting services cancelled by client request",
+    "paymentTerms": "Immediate refund",
+    "issuerName": "John Doe",
+    "mentions": "Credit note for invoice FAC0045",
+    "internalNote": "Client cancelled annual hosting, refund via original payment method",
+    "lines": [
+      {
+        "id": "910e8400-e29b-41d4-a716-446655440000",
+        "position": 1,
+        "description": "Hosting Services - Annual (CREDIT)",
+        "quantity": "-1",
+        "unitOfMeasure": "service",
+        "unitPrice": "1000",
+        "vatRate": "19.00",
+        "vatCategoryCode": "S",
+        "vatAmount": "-190.00",
+        "lineTotal": "-1000.00",
+        "discount": "0.00",
+        "discountPercent": "0.00",
+        "vatIncluded": false,
+        "productId": "460e8400-e29b-41d4-a716-446655440000"
+      }
+    ],
+    "subtotal": "-1000.00",
+    "vatTotal": "-190.00",
+    "discount": "0.00",
+    "total": "-1190.00",
+    "amountPaid": "-1190.00",
+    "balance": "0.00"
+  },
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "schematronAvailable": true
   }
 }
 ```
 
-## Credit Note Scenarios
+## After creation
 
-### Full Refund
-Credit all line items from original invoice:
-```javascript
+The credit note is a draft. [Issue it](/api-reference/invoices/issue) to assign the number: because it has a parent, its status becomes `refund` and the status of the parent invoice becomes `refunded`, whatever the amount credited. Issuing a credit note also sets `paidAt`. Submit an issued credit note to ANAF with [Submit invoice](/api-reference/invoices/submit).
+
+## Error codes
+
+Errors have the body `{"error": "message"}`.
+
+| Code | Description |
+|------|-------------|
+| `400` | Missing or invalid lines (`At least one line is required.`, `Line 0: description is required.`, `Line 0: quantity must be non-zero.`, `Line 0: unitPrice must be non-negative.`), client not found, `vatRateId` that is not a rate of the company, invalid `invoiceTypeCode`, future `issueDate` |
+| `401` | Missing or invalid authentication token |
+| `402` | Monthly invoice limit of the plan reached. The body has `"code": "PLAN_LIMIT"` and `limit` |
+| `403` | The user lacks the permission to create invoices |
+| `404` | `Company not found.`: the `X-Company` company does not exist or is not accessible |
+
+## Credit note scenarios
+
+### Full refund
+
+Send every line of the original invoice with its quantity negated. To reverse an invoice in full without composing the lines, use [`POST /invoices/bulk-storno`](/api-reference/invoices/refund#option-2-storno-of-an-issued-invoice).
+
+### Partial refund
+
+Send only the lines to credit:
+
+```json
 {
-  // ... other fields
-  lines: [
-    { quantity: -40, unitPrice: 150, ... },  // All web dev hours
-    { quantity: -1, unitPrice: 1200, ... }   // All hosting
+  "lines": [
+    { "description": "Hosting Services - Annual", "quantity": -1, "unitPrice": 1000, "vatRate": "19.00" }
   ]
-  // Result: -8,330.00 RON (full credit)
 }
 ```
 
-### Partial Refund
-Credit only specific line items:
-```javascript
+### Quantity adjustment
+
+Credit part of a quantity:
+
+```json
 {
-  // ... other fields
-  lines: [
-    { quantity: -1, unitPrice: 1200, ... }   // Only hosting
+  "lines": [
+    { "description": "Web Development Services", "quantity": -10, "unitPrice": 150, "vatRate": "19.00" }
   ]
-  // Result: -1,190.00 RON (partial credit)
 }
 ```
 
-### Quantity Adjustment
-Credit partial quantity of a line:
-```javascript
-{
-  // ... other fields
-  lines: [
-    { quantity: -10, unitPrice: 150, ... }   // Only 10 of 40 hours
-  ]
-  // Result: -1,785.00 RON (partial credit)
-}
-```
+### Error correction
 
-### Error Correction
-Full credit + new invoice with correct amounts:
-```javascript
-// Step 1: Credit Note (full)
-{ lines: [{ quantity: -40, unitPrice: 150, ... }] }
+Create a credit note for the original lines, then create a new invoice with the correct data.
 
-// Step 2: New Invoice (corrected)
-{ lines: [{ quantity: 45, unitPrice: 150, ... }] }
-```
+## Next steps
 
-## Best Practices
-
-1. **Reference original clearly** - Include original invoice number in notes
-2. **Explain the reason** - Clear notes about why credit is issued
-3. **Use negative quantities** - More intuitive than negative prices
-4. **Match original details** - Use same products, VAT rates when possible
-5. **Check parent status** - Ensure parent invoice is validated first
-6. **Upload promptly** - Submit to ANAF after creation
-7. **Notify client** - Send credit note with clear explanation
-8. **Track cumulative credits** - Monitor total credited per invoice
-9. **Coordinate refunds** - Link credit note to actual payment refund
-10. **Update accounting** - Sync to accounting system immediately
-
-## Next Steps
-
-After creating a credit note:
-1. Upload to ANAF (`POST /api/v1/invoices/{uuid}/upload`)
-2. Generate PDF for client
-3. Send to client via email
-4. Process refund payment if applicable
-5. Update accounting records
-6. Track against original invoice
+- [Get credit note](/api-reference/credit-notes/get)
+- [List credit notes](/api-reference/credit-notes/list)
+- [Update credit note](/api-reference/credit-notes/update)
+- [Issue invoice](/api-reference/invoices/issue)

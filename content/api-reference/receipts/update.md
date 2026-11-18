@@ -1,20 +1,22 @@
 ---
 title: Update Receipt
-description: Update an existing receipt (draft status only)
+description: Update an existing receipt (draft or issued status)
 method: PUT
 endpoint: /api/v1/receipts/{uuid}
 ---
 
 # Update Receipt
 
-Updates an existing fiscal receipt. Only receipts in `draft` status can be updated. Once issued, invoiced, or cancelled, a receipt becomes immutable.
+Updates an existing fiscal receipt. Receipts in `draft` and `issued` status can be updated. Once a receipt is invoiced or cancelled, it can no longer be updated.
+
+Only the fields present in the body are changed. When `lines` is present, it replaces all existing lines.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Path Parameters
@@ -25,74 +27,78 @@ Updates an existing fiscal receipt. Only receipts in `draft` status can be updat
 
 ## Request Body
 
-All fields from the create endpoint can be updated. The entire receipt is replaced with the new data.
+All fields are optional.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `documentSeriesId` | string | No | UUID of the receipt document series. Can be changed to any active `receipt` series; if omitted, the existing series is preserved |
-| `issueDate` | string | Yes | Date of issue (YYYY-MM-DD) |
-| `currency` | string | Yes | Currency code |
-| `cashRegisterName` | string | Yes | Name or label of the cash register |
-| `fiscalNumber` | string | Yes | Fiscal serial number of the cash register |
-| `paymentMethod` | string | Yes | Payment method: `cash`, `card`, `mixed`, `other` |
-| `cashPayment` | number | No | Amount paid in cash |
-| `cardPayment` | number | No | Amount paid by card |
-| `otherPayment` | number | No | Amount paid by other method |
-| `customerName` | string | No | Customer name |
-| `customerCif` | string | No | Customer CIF/CUI |
-| `clientId` | string | No | UUID of a linked Client object |
-| `notes` | string | No | Public notes |
-| `internalNote` | string | No | Internal note |
-| `lines` | array | Yes | Array of line items (replaces all existing lines) |
+| Field | Type | Description |
+|-------|------|-------------|
+| `documentSeriesId` | string \| null | UUID of the receipt document series. `null` removes the series. A series of another company is ignored |
+| `issueDate` | string | Date of issue (YYYY-MM-DD) |
+| `currency` | string | Currency code |
+| `exchangeRate` | string \| null | Exchange rate |
+| `cashRegisterName` | string \| null | Name or label of the cash register |
+| `fiscalNumber` | string \| null | Fiscal serial number of the cash register |
+| `paymentMethod` | string \| null | Payment method, stored as sent |
+| `cashPayment` | number \| null | Amount paid in cash |
+| `cardPayment` | number \| null | Amount paid by card |
+| `otherPayment` | number \| null | Amount paid by other method |
+| `customerName` | string \| null | Customer name |
+| `customerCif` | string \| null | Customer CIF/CUI |
+| `clientId` | string | UUID of a linked client of the company |
+| `notes` | string \| null | Public notes |
+| `mentions` | string \| null | Additional mentions |
+| `internalNote` | string \| null | Internal note |
+| `projectReference` | string \| null | Project reference |
+| `issuerName` | string \| null | Issuer name |
+| `issuerId` | string \| null | Issuer identifier |
+| `salesAgent` | string \| null | Sales agent |
+| `lines` | array | Array of line items. Replaces all existing lines |
 
 ### Line Item Object
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `uuid` | string | No | UUID of existing line (if updating); omit to create new line |
 | `description` | string | Yes | Item description |
-| `quantity` | number | Yes | Quantity (must be > 0) |
-| `unitPrice` | number | Yes | Price per unit (excluding VAT) |
-| `vatRateId` | string | Yes | UUID of the VAT rate |
-| `unitOfMeasure` | string | No | Unit of measure |
-| `productId` | string | No | UUID of related product |
+| `quantity` | number | Yes | Quantity |
+| `unitPrice` | number | Yes | Price per unit. Excludes VAT unless `vatIncluded` is true |
+| `vatRate` | number | No | VAT rate percentage. Default 21.00 when neither `vatRate` nor `vatRateId` is sent, whatever the VAT status of the company |
+| `vatCategoryCode` | string | No | UBL VAT category code (default `S`; a 0% rate becomes `Z` on its own) |
+| `vatRateId` | string | No | Id of one of the company's VAT rates (`GET /api/v1/vat-rates`). The line takes its percentage and category. Ignored when `vatRate` is sent; an error when it is not a rate of the company |
+| `vatIncluded` | boolean | No | Whether `unitPrice` includes VAT (default false) |
+| `discount` | number | No | Line discount amount (default 0) |
+| `discountPercent` | number | No | Line discount percentage (default 0) |
+| `unitOfMeasure` | string | No | Unit of measure (default `buc`) |
+| `productCode` | string | No | Product code printed on the line |
+
+> **VAT on a line.** Send `vatRate` (a percentage) or `vatRateId` (the id of one of the company's rates from `GET /api/v1/vat-rates`; the line takes that rate's percentage and category). When both are sent `vatRate` wins. When neither is sent the line gets **21%**, also when the issuing company is not a VAT payer. For a company that is not a VAT payer send `vatRate: "0.00"` on every line. A `vatRateId` that is not a rate of the company is refused with an error; it never falls back to 21%.
 
 ## Request
 
 ```bash {% title="cURL" %}
 curl -X PUT https://api.storno.ro/api/v1/receipts/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Company: company-uuid-here" \
   -H "Content-Type: application/json" \
   -d '{
-    "documentSeriesId": "850e8400-e29b-41d4-a716-446655440000",
-    "issueDate": "2026-02-18",
-    "currency": "RON",
-    "cashRegisterName": "Casa 1 - Front Desk",
-    "fiscalNumber": "AAAA123456",
     "paymentMethod": "card",
     "cashPayment": 0.00,
-    "cardPayment": 130.00,
+    "cardPayment": 48.49,
     "otherPayment": 0.00,
     "customerName": "Acme SRL",
     "customerCif": "RO12345678",
     "notes": "Updated order",
     "lines": [
       {
-        "uuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
         "description": "Coffee - Espresso",
         "quantity": 2,
         "unitPrice": 12.61,
         "unitOfMeasure": "pcs",
-        "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-        "productId": "d4e5f6a7-b8c9-0123-defa-234567890123"
+        "vatRateId": "350e8400-e29b-41d4-a716-446655440000"
       },
       {
         "description": "Pen Blue",
         "quantity": 5,
         "unitPrice": 4.20,
         "unitOfMeasure": "pcs",
-        "vatRateId": "360e8400-e29b-41d4-a716-446655440000"
+        "vatRate": 19
       }
     ]
   }'
@@ -103,38 +109,30 @@ const response = await fetch('https://api.storno.ro/api/v1/receipts/a1b2c3d4-e5f
   method: 'PUT',
   headers: {
     'Authorization': 'Bearer YOUR_TOKEN',
-    'X-Company': 'company-uuid-here',
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    documentSeriesId: '850e8400-e29b-41d4-a716-446655440000',
-    issueDate: '2026-02-18',
-    currency: 'RON',
-    cashRegisterName: 'Casa 1 - Front Desk',
-    fiscalNumber: 'AAAA123456',
     paymentMethod: 'card',
     cashPayment: 0.00,
-    cardPayment: 130.00,
+    cardPayment: 48.49,
     otherPayment: 0.00,
     customerName: 'Acme SRL',
     customerCif: 'RO12345678',
     notes: 'Updated order',
     lines: [
       {
-        uuid: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
         description: 'Coffee - Espresso',
         quantity: 2,
         unitPrice: 12.61,
         unitOfMeasure: 'pcs',
-        vatRateId: '350e8400-e29b-41d4-a716-446655440000',
-        productId: 'd4e5f6a7-b8c9-0123-defa-234567890123'
+        vatRateId: '350e8400-e29b-41d4-a716-446655440000'
       },
       {
         description: 'Pen Blue',
         quantity: 5,
         unitPrice: 4.20,
         unitOfMeasure: 'pcs',
-        vatRateId: '360e8400-e29b-41d4-a716-446655440000'
+        vatRate: 19
       }
     ]
   })
@@ -145,114 +143,100 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated receipt object with recalculated totals:
+Returns the updated receipt with recalculated totals, in the same shape as [Get receipt](/api-reference/receipts/get):
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "number": "BON-2026-042",
-  "documentSeriesId": "850e8400-e29b-41d4-a716-446655440000",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "number": "BON-3f9c2a10",
+  "documentSeries": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "prefix": "BON",
+    "nextNumber": "BON0043"
+  },
   "status": "draft",
-  "issueDate": "2026-02-18",
   "currency": "RON",
-  "cashRegisterName": "Casa 1 - Front Desk",
-  "fiscalNumber": "AAAA123456",
+  "issueDate": "2026-02-18T00:00:00+02:00",
+  "subtotal": "42.87",
+  "vatTotal": "5.62",
+  "total": "48.49",
+  "discount": "0.00",
   "paymentMethod": "card",
   "cashPayment": "0.00",
-  "cardPayment": "130.00",
+  "cardPayment": "48.49",
   "otherPayment": "0.00",
   "customerName": "Acme SRL",
   "customerCif": "RO12345678",
   "notes": "Updated order",
   "lines": [
     {
-      "uuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-      "lineNumber": 1,
+      "id": "g7h8i9j0-k1l2-3456-mnop-678901234567",
+      "position": 1,
       "description": "Coffee - Espresso",
-      "quantity": "2.00",
-      "unitPrice": "12.61",
+      "quantity": "2.0000",
       "unitOfMeasure": "pcs",
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "subtotal": "25.22",
+      "unitPrice": "12.61",
+      "vatRate": "9.00",
+      "vatCategoryCode": "S",
       "vatAmount": "2.27",
-      "total": "27.49"
+      "lineTotal": "25.22",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false
     },
     {
-      "uuid": "g7h8i9j0-k1l2-3456-mnop-678901234567",
-      "lineNumber": 2,
+      "id": "h8i9j0k1-l2m3-4567-nopq-789012345678",
+      "position": 2,
       "description": "Pen Blue",
-      "quantity": "5.00",
-      "unitPrice": "4.20",
+      "quantity": "5.0000",
       "unitOfMeasure": "pcs",
-      "vatRateId": "360e8400-e29b-41d4-a716-446655440000",
-      "subtotal": "17.65",
+      "unitPrice": "4.20",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
       "vatAmount": "3.35",
-      "total": "21.00"
+      "lineTotal": "17.65",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false
     }
   ],
-  "subtotal": "42.87",
-  "vatAmount": "5.62",
-  "total": "48.49",
-  "createdAt": "2026-02-18T10:14:00Z",
-  "updatedAt": "2026-02-18T10:20:00Z"
+  "convertedInvoice": null,
+  "issuedAt": null,
+  "cancelledAt": null,
+  "refundOf": null,
+  "refundedBy": []
 }
 ```
 
 ## Line Item Behavior
 
-When updating lines:
-- Lines with existing `uuid` values are updated
-- Lines without `uuid` are created as new lines
-- Existing lines not included in the request are **deleted**
-- Line numbers are automatically reassigned sequentially
+When `lines` is sent:
+- All existing lines are deleted and the lines in the request are created, so every line gets a new `id`
+- Positions are assigned sequentially from 1
+
+When `lines` is omitted, the existing lines stay as they are.
 
 ## Validation Rules
 
-### Status Restriction
-- Receipt must be in `draft` status
-- Cannot update after it is issued, invoiced, or cancelled
+- The receipt must be in `draft` or `issued` status
+- `clientId`, when sent, must be a client of the company
+- `vatRateId`, when sent without `vatRate`, must be a VAT rate of the company
 
-### Payment Amounts
-- The sum of `cashPayment + cardPayment + otherPayment` must equal `total`
-- All payment amounts must be >= 0
-
-### Line Items
-- Minimum 1 line required
-- All line validation rules from the create endpoint apply
+The request is not checked further. Line values and payment amounts are stored as sent, and payment amounts are not compared with `total`.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid request body structure |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
-| 409 | `conflict` | Receipt status prevents updates (not in draft) |
-| 422 | `validation_error` | Validation failed (see error details) |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+| 422 | The receipt cannot be edited (invoiced or cancelled), the client was not found, or a `vatRateId` is not a rate of the company |
 
-## Example Error Response
-
-### Status Conflict
-
-```json
-{
-  "error": {
-    "code": "conflict",
-    "message": "Receipt cannot be updated",
-    "details": {
-      "status": "issued",
-      "reason": "Only draft receipts can be updated",
-      "issuedAt": "2026-02-18T10:15:00Z"
-    }
-  }
-}
-```
+Error responses have the form `{"error": "message"}`.
 
 ## Best Practices
 
-1. **Update before issuing** - Make all corrections while in draft status; receipts become immutable after issuing
-2. **Verify payment totals** - Ensure payment amounts sum correctly to the receipt total
-3. **Match fiscal device** - The `fiscalNumber` and `cashRegisterName` should match the actual device that printed the receipt
-4. **Correct before printing** - Update data while still in draft, before the physical receipt is printed on the fiscal device
+1. **Update before printing** - Make corrections while the receipt is still a draft
+2. **Verify payment totals** - Check that the payment amounts add up to the receipt total, because the API does not
+3. **Match fiscal device** - The `fiscalNumber` and `cashRegisterName` should match the device that printed the receipt

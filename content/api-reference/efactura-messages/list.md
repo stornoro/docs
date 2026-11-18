@@ -5,7 +5,7 @@ description: List e-Factura messages from ANAF with filtering
 
 # List E-Factura Messages
 
-Retrieve e-Factura messages from ANAF SPV platform with pagination and filtering.
+Retrieve the e-Factura messages Storno has received from the ANAF SPV platform, with pagination and filtering. Results are ordered by creation date, newest first.
 
 ---
 
@@ -15,22 +15,24 @@ Retrieve e-Factura messages from ANAF SPV platform with pagination and filtering
 GET /api/v1/efactura-messages
 ```
 
-Get e-Factura messages (responses, notifications, errors) from ANAF with optional filtering.
+Get e-Factura messages (received invoices, sent invoice results, errors) from ANAF with optional filtering. Requires the `efactura.view` permission.
 
 ### Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | Authorization | string | Yes | Bearer token for authentication |
+| X-Company | string | Yes | Company UUID to scope the request |
 
 ### Query Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | page | integer | No | Page number (default: 1) |
-| limit | integer | No | Items per page (default: 20, max: 100) |
-| messageType | string | No | Filter by message type |
-| status | string | No | Filter by status |
+| limit | integer | No | Items per page (default: 10, max: 20) |
+| messageType | string | No | Filter by message type, exactly as ANAF names it (see below) |
+| status | string | No | Filter by status: `received`, `processed`, `error`, `expired` |
+| search | string | No | Matches the ANAF message id or the message details |
 
 ### Response
 
@@ -38,102 +40,114 @@ Get e-Factura messages (responses, notifications, errors) from ANAF with optiona
 {
   "data": [
     {
-      "uuid": "990e8400-e29b-41d4-a716-446655440005",
-      "invoiceId": "123e4567-e89b-12d3-a456-426614174000",
-      "messageType": "response",
-      "status": "ok",
-      "messageId": "12345678",
-      "details": {
-        "code": "200",
-        "message": "Factura a fost acceptată"
+      "id": "990e8400-e29b-41d4-a716-446655440005",
+      "anafMessageId": "3012345678",
+      "messageType": "FACTURA PRIMITA",
+      "cif": "12345678",
+      "details": "Factura cu id_incarcare=5012345678 emisa de cif_emitent=87654321",
+      "uploadId": "5012345678",
+      "status": "processed",
+      "errorMessage": null,
+      "invoice": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "number": "FINV2026001"
       },
-      "receivedAt": "2026-02-16T11:30:00Z"
+      "createdAt": "2026-02-16T11:30:00+00:00"
     },
     {
-      "uuid": "aa0e8400-e29b-41d4-a716-446655440006",
-      "invoiceId": "223e4567-e89b-12d3-a456-426614174001",
-      "messageType": "error",
+      "id": "aa0e8400-e29b-41d4-a716-446655440006",
+      "anafMessageId": "3012345679",
+      "messageType": "ERORI FACTURA",
+      "cif": "12345678",
+      "details": "Factura cu id_incarcare=5012345680 ...",
+      "uploadId": "5012345680",
       "status": "error",
-      "messageId": "12345679",
-      "details": {
-        "code": "ERR_XML_001",
-        "message": "Eroare validare XML: CIF invalid"
-      },
-      "receivedAt": "2026-02-16T11:35:00Z"
+      "errorMessage": "Eroare validare XML",
+      "invoice": null,
+      "createdAt": "2026-02-16T11:35:00+00:00"
     }
   ],
   "total": 145,
   "page": 1,
-  "limit": 20,
-  "pages": 8
+  "limit": 10
 }
 ```
 
 ### Response Fields
 
 #### Pagination
+
 | Field | Type | Description |
 |-------|------|-------------|
 | data | array | Array of message objects |
-| total | integer | Total number of messages |
+| total | integer | Total number of messages matching the filters |
 | page | integer | Current page number |
 | limit | integer | Items per page |
-| pages | integer | Total number of pages |
 
 #### Message Object
+
 | Field | Type | Description |
 |-------|------|-------------|
-| uuid | string | Message UUID |
-| invoiceId | string\|null | Related invoice UUID |
-| messageType | string | Message type (see types below) |
-| status | string | Message status (see statuses below) |
-| messageId | string | ANAF message identifier |
-| details | object | Message-specific details |
-| receivedAt | string | ISO 8601 timestamp when received |
+| id | string | Message UUID |
+| anafMessageId | string | ANAF message identifier |
+| messageType | string | ANAF message type (see below) |
+| cif | string \| null | CIF the message was addressed to |
+| details | string \| null | The message text as ANAF sent it |
+| uploadId | string \| null | ANAF upload index, read from the details when present |
+| status | string | Message status (see below) |
+| errorMessage | string \| null | Error text when the message could not be processed |
+| invoice | object \| null | The related invoice, `{id, number}`, when one is linked |
+| createdAt | string | ISO 8601 timestamp when Storno stored the message |
 
 ### Message Types
 
+`messageType` holds the type ANAF assigns to the message. The values Storno processes are:
+
 | Type | Description |
 |------|-------------|
-| response | ANAF response to uploaded invoice |
-| notification | Status notification (accepted, rejected) |
-| error | Error message from ANAF |
-| warning | Warning about invoice issues |
-| info | Informational message |
+| `FACTURA PRIMITA` | An invoice received from a supplier |
+| `FACTURA TRIMISA` | The result for an invoice you sent |
+| `ERORI FACTURA` | Validation errors for an invoice you sent |
+
+ANAF can send other types; they are stored with the type ANAF gave them.
 
 ### Message Statuses
 
 | Status | Description |
 |--------|-------------|
-| ok | Message processed successfully |
-| error | Error occurred |
-| warning | Warning issued |
-| pending | Processing pending |
+| received | Stored, not processed yet |
+| processed | Processed |
+| error | Processing failed; see `errorMessage` |
+| expired | ANAF no longer serves the file (after 60 days) |
 
 ### Filtering Examples
 
 ```http
 # Get only error messages
-GET /api/v1/efactura-messages?messageType=error
+GET /api/v1/efactura-messages?messageType=ERORI%20FACTURA
 
-# Get responses with OK status
-GET /api/v1/efactura-messages?messageType=response&status=ok
+# Get received invoices that were processed
+GET /api/v1/efactura-messages?messageType=FACTURA%20PRIMITA&status=processed
 
-# Get recent messages (page 1)
-GET /api/v1/efactura-messages?page=1&limit=50
+# Search by ANAF message id or details text
+GET /api/v1/efactura-messages?search=5012345678
+
+# Second page
+GET /api/v1/efactura-messages?page=2&limit=20
 ```
 
 ### Error Responses
 
+Errors have the body `{"error": "message"}`.
+
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
-| 422 | Invalid query parameters |
+| 403 | The caller lacks the `efactura.view` permission |
+| 404 | Company not found |
 
 ### Notes
 
 - Messages are synced automatically during e-Factura sync
-- Each message relates to a specific invoice (when applicable)
-- Details field structure varies by message type
-- Messages are retained for audit purposes
+- A message is linked to an invoice when one matches
 - Use filters to troubleshoot invoice upload issues

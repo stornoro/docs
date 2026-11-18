@@ -30,7 +30,7 @@ We appreciate responsible disclosure and will credit researchers who report vali
 | Method | Second Factor Required |
 |--------|----------------------|
 | Email + Password | Yes (if MFA enabled) |
-| Google OAuth | Yes (if MFA enabled) |
+| Google and Apple sign-in | Yes (if MFA enabled) |
 | Passkeys (WebAuthn) | No (inherently multi-factor) |
 | API Keys | No (long-lived, scoped tokens) |
 
@@ -47,12 +47,11 @@ We appreciate responsible disclosure and will credit researchers who report vali
 - RSA-signed (RS256) access tokens
 - Access tokens expire after 1 hour (configurable)
 - Refresh tokens expire after 30 days (configurable)
-- Refresh tokens are rotated on each use
-- Tokens are invalidated on password change
+- A refresh returns a new access token and the same refresh token
 
 ### API Keys
 
-- Scoped permissions (read-only, write, admin)
+- Each key carries a list of permission scopes, limited to the permissions its owner has
 - Stored as hashed values — the full key is shown only once at creation
 - Can be revoked instantly
 - No MFA bypass — API keys are for programmatic access only
@@ -82,17 +81,17 @@ We appreciate responsible disclosure and will credit researchers who report vali
 ### Data Isolation
 
 - **Multi-tenant architecture**: Organizations are fully isolated at the database level
-- **Company context**: API requests require an `X-Company` header; cross-company access is denied
-- **Role-based access control (RBAC)**: 40+ granular permissions across Owner, Admin, Accountant, and Viewer roles
+- **Company context**: API requests carry an `X-Company` header (optional for a single-company organization); a company outside the caller's organization is not found
+- **Role-based access control (RBAC)**: 40+ granular permissions across Owner, Admin, Accountant, and Employee roles
 - **Soft deletion**: Deleted records are retained for audit trails but excluded from API responses
 
 ---
 
 ## Rate Limiting
 
-All endpoints are rate-limited to prevent abuse. Authentication endpoints have stricter limits:
+Authentication, ANAF calls and a few other endpoints are rate limited. There is no general per-request limit. The authentication limits are:
 
-- Login: 5 attempts per minute
+- Login: 5 attempts per minute, answered with 401
 - Registration: 10 attempts per hour
 - MFA verification: 5 attempts per minute
 - Password reset: 3 attempts per 15 minutes
@@ -105,9 +104,10 @@ See [Rate Limiting](/getting-started/rate-limiting) for the complete reference.
 
 ### License Validation
 
-- License keys are signed JWTs validated entirely offline via RSA signature verification
-- No network calls are made to the SaaS server — no data is transmitted
-- Works fully offline, air-gapped, or behind a firewall
+- JWT license keys are validated offline with an RSA signature check and send nothing to the SaaS server
+- A legacy non-JWT key is checked against the SaaS server every 6 hours, sending the key, the instance URL and four counters (organizations, active users, companies, invoices this month)
+- The instance also checks the SaaS server for the latest version, cached for 6 hours
+- Invoices, clients and other business data are never sent
 
 ### Recommendations
 

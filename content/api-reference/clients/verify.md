@@ -22,7 +22,7 @@ Partners are also re-checked automatically every day at 06:40 when their last ch
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 
 ### Path Parameters
 

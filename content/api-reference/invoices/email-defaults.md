@@ -24,12 +24,6 @@ GET /api/v1/invoices/{uuid}/email-defaults
 |------|------|----------|-------------|
 | `uuid` | string | Yes | Invoice UUID |
 
-## Query parameters
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `language` | string | ro | Email language: `ro` or `en` |
-
 ## Request
 
 {% code-snippet-group %}
@@ -53,7 +47,6 @@ const response = await fetch('https://api.storno.ro/api/v1/invoices/7c9e6679-742
 });
 
 const emailDefaults = await response.json();
-
 // Use to populate email form
 document.getElementById('email-to').value = emailDefaults.to;
 document.getElementById('email-subject').value = emailDefaults.subject;
@@ -63,24 +56,18 @@ document.getElementById('email-body').value = emailDefaults.body;
 
 {% /code-snippet-group %}
 
+The endpoint takes no query parameters.
+
 ## Response
 
-Returns pre-filled email data with template variables replaced.
+Returns the pre-filled email data with template variables replaced.
 
 ```json
 {
   "to": "billing@acme.ro",
-  "cc": "accounting@acme.ro",
-  "bcc": null,
   "subject": "Factura FAC-2024-001 de la Your Company SRL",
-  "body": "Buna ziua,\n\nGasiti atasat factura FAC-2024-001 in valoare de 1,190.00 RON.\n\nDetalii factura:\n- Numar: FAC-2024-001\n- Data emiterii: 15.02.2024\n- Scadenta: 15.03.2024\n- Total: 1,190.00 RON\n\nPuteti efectua plata aici: https://pay.storno.ro/inv_abc123\n\nMultumim!\n\nYour Company SRL\ncontact@yourcompany.ro\n+40 123 456 789",
-  "attachPdf": true,
-  "attachXml": false,
-  "from": {
-    "email": "contact@yourcompany.ro",
-    "name": "Your Company SRL"
-  },
-  "replyTo": "accounting@yourcompany.ro"
+  "body": "Buna ziua,\n\nVa trimitem atasat factura FAC-2024-001.\n\nCu stima,\nYour Company SRL",
+  "templateId": "3f1c2a9e-7b4d-4e0a-9c55-2d6a1b8e4f10"
 }
 ```
 
@@ -88,97 +75,38 @@ Returns pre-filled email data with template variables replaced.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `to` | string | Client billing email (from client record) |
-| `cc` | string\|null | CC address (from company settings) |
-| `bcc` | string\|null | BCC address (from company settings) |
-| `subject` | string | Pre-filled subject with variables replaced |
-| `body` | string | Pre-filled body with variables replaced |
-| `attachPdf` | boolean | Default PDF attachment setting |
-| `attachXml` | boolean | Default XML attachment setting |
-| `from` | object | Sender email and name |
-| `replyTo` | string | Reply-to email address |
+| `to` | string \| null | The client's email, or the supplier's email when the invoice has no client email. `null` when neither exists |
+| `subject` | string | Subject with variables replaced |
+| `body` | string | Body with variables replaced |
+| `templateId` | string \| null | UUID of the company's default `invoice` template when one is set, otherwise `null` |
+
+When the company has no default invoice template, `subject` is `Factura {number} - {company name}` and `body` is a short Romanian greeting that mentions the invoice number.
 
 ## Template variables
 
-The following variables are automatically replaced in subject and body:
+Variables are written between double square brackets and replaced in the subject and body.
 
 | Variable | Example value | Description |
 |----------|---------------|-------------|
-| `{invoice_number}` | FAC-2024-001 | Invoice number |
-| `{invoice_total}` | 1,190.00 RON | Formatted total with currency |
-| `{invoice_subtotal}` | 1,000.00 RON | Subtotal before VAT |
-| `{invoice_vat}` | 190.00 RON | Total VAT amount |
-| `{client_name}` | Acme Corporation SRL | Client company name |
-| `{client_contact}` | John Smith | Client contact person |
-| `{company_name}` | Your Company SRL | Your company name |
-| `{company_cif}` | RO12345678 | Your company CIF |
-| `{company_email}` | contact@yourcompany.ro | Company email |
-| `{company_phone}` | +40 123 456 789 | Company phone |
-| `{due_date}` | 15.03.2024 | Payment due date |
-| `{issue_date}` | 15.02.2024 | Invoice issue date |
-| `{payment_link}` | https://pay.storno.ro/inv_abc123 | Payment link (if enabled) |
-| `{days_until_due}` | 28 | Days until payment is due |
-| `{series_name}` | Facturi 2024 | Invoice series name |
+| `[[invoice_number]]` | FAC-2024-001 | Invoice number |
+| `[[total]]` | 1190.00 | Invoice total, plain decimal |
+| `[[balance]]` | 690.00 | Remaining balance |
+| `[[currency]]` | RON | Invoice currency |
+| `[[client_name]]` | Acme Corporation SRL | Client name |
+| `[[client_outstanding]]` | 1500.00 | Client's outstanding balance in the invoice currency |
+| `[[company_name]]` | Your Company SRL | Your company name |
+| `[[due_date]]` | 15.03.2024 | Payment due date |
+| `[[issue_date]]` | 15.02.2024 | Invoice issue date |
 
-## Customizing email templates
-
-Email templates can be customized in company settings:
-
-### Subject template
-```
-Factura {invoice_number} de la {company_name} - Scadenta: {due_date}
-```
-
-### Body template
-```
-Stimate {client_name},
-
-Va transmitem factura {invoice_number} in valoare totala de {invoice_total}.
-
-Detalii:
-- Data emiterii: {issue_date}
-- Termen de plata: {due_date} ({days_until_due} zile)
-- Subtotal: {invoice_subtotal}
-- TVA: {invoice_vat}
-- TOTAL: {invoice_total}
-
-Puteti efectua plata online: {payment_link}
-
-Cu stima,
-{company_name}
-```
-
-### Conditional sections
-
-Templates support basic conditional logic:
-
-```
-{if payment_link}
-Plata online: {payment_link}
-{endif}
-
-{if overdue}
-ATENTIE: Aceasta factura este restanta!
-{endif}
-```
-
-## Client email resolution
-
-The `to` field is automatically populated from:
-
-1. Client billing email (if set)
-2. Client primary email
-3. Client contact person email
-4. Empty (user must fill manually)
+Templates are managed with the email templates endpoints. There is no conditional syntax.
 
 ## Error codes
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
+| `403` | No permission to view the invoice |
 | `404` | Invoice not found |
-| `422` | Invalid language parameter |
 
 ## Use cases
 

@@ -16,7 +16,7 @@ GET /api/v1/invoices/{uuid}/events
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -54,164 +54,89 @@ const events = await response.json();
 
 ## Response
 
-Returns an array of event objects, ordered by timestamp (newest first).
+Returns an array of event objects, newest first. There is no pagination and no filtering.
 
 ```json
 [
   {
     "id": "9a0b1c2d-3e4f-5a6b-7c8d-9e0f1a2b3c4d",
-    "type": "anaf_validated",
-    "status": "validated",
-    "timestamp": "2024-02-15T10:00:00Z",
-    "details": "Invoice validated by e-invoice provider successfully",
-    "user": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "System",
-      "email": null
-    },
+    "previousStatus": "sent_to_provider",
+    "newStatus": "validated",
     "metadata": {
-      "validationId": "ANAF-VAL-123456",
+      "action": "anaf_validated",
       "downloadId": "DL-987654"
-    }
+    },
+    "createdAt": "2024-02-15T10:00:00+00:00",
+    "createdBy": null
   },
   {
     "id": "8f9a0b1c-2d3e-4f5a-6b7c-8d9e0f1a2b3c",
-    "type": "anaf_submitted",
-    "status": "sent_to_provider",
-    "timestamp": "2024-02-15T09:30:00Z",
-    "details": "Invoice submitted to e-invoice provider",
-    "user": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "John Doe",
-      "email": "john@yourcompany.ro"
-    },
+    "previousStatus": "issued",
+    "newStatus": "sent_to_provider",
     "metadata": {
-      "submissionId": "ANAF-2024-123456"
-    }
-  },
-  {
-    "id": "7e8f9a0b-1c2d-3e4f-5a6b-7c8d9e0f1a2b",
-    "type": "status_change",
-    "status": "issued",
-    "timestamp": "2024-02-15T09:00:00Z",
-    "details": "Invoice issued successfully",
-    "user": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "John Doe",
-      "email": "john@yourcompany.ro"
+      "action": "submitted_to_anaf"
     },
-    "metadata": {
-      "xmlGenerated": true,
-      "pdfGenerated": true
-    }
-  },
-  {
-    "id": "6d7e8f9a-0b1c-2d3e-4f5a-6b7c8d9e0f1a",
-    "type": "payment_received",
-    "status": null,
-    "timestamp": "2024-02-20T14:30:00Z",
-    "details": "Payment of 500.00 RON received",
-    "user": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "Jane Smith",
-      "email": "jane@yourcompany.ro"
-    },
-    "metadata": {
-      "paymentId": "4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a",
-      "amount": 500.00,
-      "currency": "RON",
-      "method": "bank_transfer"
-    }
-  },
-  {
-    "id": "5c6d7e8f-9a0b-1c2d-3e4f-5a6b7c8d9e0f",
-    "type": "email_sent",
-    "status": null,
-    "timestamp": "2024-02-15T09:05:00Z",
-    "details": "Invoice emailed to billing@acme.ro",
-    "user": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "John Doe",
-      "email": "john@yourcompany.ro"
-    },
-    "metadata": {
-      "to": "billing@acme.ro",
-      "subject": "Invoice FAC-2024-001",
-      "attachments": ["pdf", "xml"]
-    }
+    "createdAt": "2024-02-15T09:30:00+00:00",
+    "createdBy": "john@yourcompany.example"
   },
   {
     "id": "4b5c6d7e-8f9a-0b1c-2d3e-4f5a6b7c8d9e",
-    "type": "created",
-    "status": "draft",
-    "timestamp": "2024-02-15T08:30:00Z",
-    "details": "Invoice created",
-    "user": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "John Doe",
-      "email": "john@yourcompany.ro"
+    "previousStatus": null,
+    "newStatus": "draft",
+    "metadata": {
+      "action": "created"
     },
-    "metadata": null
+    "createdAt": "2024-02-15T08:30:00+00:00",
+    "createdBy": "john@yourcompany.example"
   }
 ]
 ```
-
-## Event types
-
-| Type | Description | Status change |
-|------|-------------|---------------|
-| `created` | Invoice was created | draft |
-| `updated` | Invoice data was modified | - |
-| `status_change` | Status changed manually | varies |
-| `issued` | Invoice was issued | issued |
-| `anaf_submitted` | Submitted to e-invoice provider | sent_to_provider |
-| `anaf_validated` | Provider validation passed | validated |
-| `anaf_rejected` | Provider validation failed | rejected |
-| `email_sent` | Invoice emailed to client | - |
-| `payment_received` | Payment recorded | - |
-| `payment_deleted` | Payment removed | - |
-| `cancelled` | Invoice cancelled | cancelled |
-| `restored` | Invoice restored from cancelled | draft |
-| `pdf_generated` | PDF file generated | - |
-| `xml_generated` | XML file generated | - |
-| `viewed` | Invoice viewed by client | - |
-| `downloaded` | Invoice downloaded | - |
 
 ## Event object fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Event UUID |
-| `type` | string | Event type identifier |
-| `status` | string\|null | New status (if status changed) |
-| `timestamp` | string | ISO 8601 timestamp |
-| `details` | string | Human-readable event description |
-| `user` | object\|null | User who triggered the event |
-| `metadata` | object\|null | Additional event-specific data |
+| `previousStatus` | string or null | Status before the event. `null` for the first event |
+| `newStatus` | string | Status after the event. For events that do not change the status, the current one |
+| `metadata` | object or null | Details of the event. `metadata.action` names the kind of event |
+| `createdAt` | string | ISO 8601 timestamp |
+| `createdBy` | string or null | Email of the user who triggered the event, `null` for system events |
 
-## Use cases
+## Actions
 
-- **Audit trail** - Track who did what and when
-- **Debugging** - Understand why an invoice is in a certain state
-- **Timeline display** - Show invoice history to users
-- **Compliance** - Maintain records of all invoice actions
-- **Notifications** - Trigger alerts based on events
-- **Analytics** - Analyze invoice lifecycle patterns
+The kind of event is in `metadata.action`. Values written by the API include:
 
-## Filtering events (future)
+| Action | Description |
+|--------|-------------|
+| `created` | Invoice created |
+| `created_from_recurring` | Invoice generated from a recurring template |
+| `issued` | Invoice issued (`metadata` carries `efacturaDelayHours` and `scheduledSendAt`) |
+| `refund_issued` | Credit note or storno issued |
+| `refunded` | The invoice was refunded by an issued credit note or storno |
+| `storno_created` | Storno draft created |
+| `submitted_to_anaf` | Submitted to ANAF |
+| `submitted_to_einvoice` | Submitted to another e-invoice provider |
+| `anaf_validated` | ANAF validated the invoice |
+| `anaf_rejected` | ANAF rejected the invoice (`metadata.error` holds the message) |
+| `synced_from_anaf` | Received invoice synced from ANAF |
+| `payment_recorded` | Payment recorded, or the invoice was settled automatically |
+| `payment_deleted`, `all_payments_deleted` | Payment removed |
+| `receipt_issued` | Cash receipt issued for a payment |
+| `efactura_message_sent` | Message sent to the issuer of a received invoice |
+| `cancelled` | Invoice cancelled (`metadata.reason`) |
+| `restored` | Invoice restored to draft |
 
-While not currently supported, future versions may support filtering:
-
-```
-GET /api/v1/invoices/{uuid}/events?type=status_change&from=2024-01-01
-```
+Events that do not change the status have equal `previousStatus` and `newStatus`, or no `previousStatus`.
 
 ## Error codes
+
+Error bodies have the form `{"error": "message"}`.
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
+| `403` | The invoice belongs to another organization, or the user cannot view invoices |
 | `404` | Invoice not found |
 
 ## Related endpoints

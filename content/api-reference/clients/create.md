@@ -20,7 +20,7 @@ POST /api/v1/clients
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ### Request body
@@ -31,12 +31,12 @@ POST /api/v1/clients
 | `type` | string | No | Client type: `company` or `individual` (default: `company`) |
 | `cui` | string | No | CUI (tax identification number) for companies |
 | `cnp` | string | No | CNP (personal identification number) for individuals |
-| `vatCode` | string | No | Full VAT code with country prefix (e.g., `RO12345678`, `DE812526315`) |
+| `vatCode` | string | No | Full VAT code with country prefix (e.g., `RO12345678`, `DE000000000`) |
 | `isVatPayer` | boolean | No | Whether the client is registered for VAT (default: false) |
-| `registrationNumber` | string | Conditional | Company registration number — required for Romanian companies |
-| `address` | string | Yes | Street address |
-| `city` | string | Yes | City name |
-| `county` | string | Conditional | County — required for Romanian clients |
+| `registrationNumber` | string | No | Company registration number |
+| `address` | string | Conditional | Street address. Required unless the client is a Romanian company with a `cui`, in which case it is filled from ANAF |
+| `city` | string | Conditional | City name. Same rule as `address` |
+| `county` | string | Conditional | County. Required for `country` `RO` under the same rule as `address` |
 | `country` | string | No | ISO 3166-1 alpha-2 country code (default: `RO`) |
 | `postalCode` | string | No | Postal/ZIP code |
 | `email` | string | No | Email address |
@@ -48,6 +48,9 @@ POST /api/v1/clients
 | `notes` | string | No | Internal notes |
 | `idNumber` | string | No | Client identification number (personal ID, passport, etc.) |
 | `currency` | string | No | Preferred currency for this client (ISO 4217: EUR, USD, RON, etc.) |
+| `status` | string | No | `active`, `warning` or `blocked` |
+| `creditLimit` | number \| null | No | Credit limit in the company currency |
+| `affiliated` | boolean | No | Affiliated party flag |
 
 ## Example Request
 
@@ -59,13 +62,13 @@ curl -X POST 'https://api.storno.ro/api/v1/clients' \
   -d '{
     "name": "Example GmbH",
     "type": "company",
-    "vatCode": "DE812526315",
+    "vatCode": "DE000000000",
     "isVatPayer": true,
     "address": "Musterstrasse 1",
     "city": "Berlin",
     "country": "DE",
     "postalCode": "10115",
-    "email": "billing@example.de"
+    "email": "billing@example.com"
   }'
 ```
 
@@ -81,22 +84,22 @@ Returns the created client object with status `201 Created`.
     "name": "Example GmbH",
     "cui": null,
     "cnp": null,
-    "vatCode": "DE812526315",
+    "vatCode": "DE000000000",
     "isVatPayer": true,
     "address": "Musterstrasse 1",
     "city": "Berlin",
-    "county": null,
     "country": "DE",
-    "postalCode": "10115",
-    "email": "billing@example.de",
+    "email": "billing@example.com",
     "viesValid": true,
-    "viesValidatedAt": "2026-03-02T12:00:00+02:00",
-    "viesName": "EXAMPLE GMBH",
-    "source": "manual",
-    "createdAt": "2026-03-02T12:00:00+02:00"
-  }
+    "status": "active",
+    "creditLimit": null,
+    "affiliated": false
+  },
+  "anafValidated": false
 }
 ```
+
+`anafValidated` is `true` when a Romanian company was matched in ANAF and its data filled in. The client object carries the list fields. `viesValidatedAt`, `viesName`, `source`, `county`, `postalCode` and `phone` are returned by [Get client](/api-reference/clients/get).
 
 ### Duplicate CUI handling
 
@@ -113,8 +116,7 @@ If a client with the same CUI already exists for this company, the endpoint retu
 
 When a foreign EU client is created with a VAT code, the system automatically validates it against the EU VIES system. The result is stored in:
 - `viesValid` — `true` if valid, `false` if invalid, `null` if not applicable
-- `viesValidatedAt` — timestamp of validation
-- `viesName` — company name as registered in VIES
+- `viesValidatedAt` and `viesName` — timestamp and registered name, returned by Get client
 
 This only applies to EU member state countries (AT, BE, BG, CY, CZ, DE, DK, EE, EL, ES, FI, FR, HR, HU, IE, IT, LT, LU, LV, MT, NL, PL, PT, SE, SI, SK). Romanian and non-EU clients are not validated.
 
@@ -125,7 +127,9 @@ This only applies to EU member state countries (AT, BE, BG, CY, CZ, DE, DK, EE, 
 | 401 | Invalid or missing authentication token |
 | 403 | Permission denied |
 | 404 | Company not found |
-| 422 | Validation error (missing required fields) |
+| 422 | Missing required fields, returned as `{"errors": [{"key": "name", "message": "Name is required."}]}` |
+
+Other errors have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

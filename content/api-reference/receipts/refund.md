@@ -13,7 +13,7 @@ Creates a refund (counter-)receipt that mirrors the parent receipt's lines with 
 POST /api/v1/receipts/{uuid}/refund
 ```
 
-Use this when a customer returns goods or you need to undo a sale that's already been issued. The original receipt remains intact for audit; the refund records the money-out event in your cash-register ledger.
+Use this when a customer returns goods or you need to undo a sale that's already been issued. The original receipt remains intact for audit; the refund carries negative payment amounts, which reduce the cash register balance.
 
 ## Path parameters
 
@@ -52,7 +52,7 @@ A receipt can be partially refunded multiple times; each call carves off some of
 
 **Cancelling a refund returns its quantities to the pool.** Refund receipts are auto-issued and can be cancelled like any other issued receipt via `POST /api/v1/receipts/{uuid}/cancel`. Once cancelled, the parent's refunded-quantity tally drops the cancelled refund's lines, so a fresh `/refund` call can re-refund those quantities. The parent's `refundedBy` JSON field also stops listing cancelled refunds (it's populated from active refunds only).
 
-When `lineSelections` is provided, the refund's `cashPayment` / `cardPayment` / `otherPayment` amounts are scaled proportionally to the refunded gross share so the cash-register ledger stays consistent. Per-line discounts are also scaled by the same fraction for the partial line.
+When `lineSelections` is provided, the refund's `cashPayment` / `cardPayment` / `otherPayment` amounts are scaled proportionally to the refunded gross share so the cash register balance stays consistent. Per-line discounts are also scaled by the same fraction for the partial line.
 
 ## Preconditions
 
@@ -61,13 +61,13 @@ When `lineSelections` is provided, the refund's `cashPayment` / `cardPayment` / 
 - For a full refund (no `lineSelections`): the parent must not have any `refundedBy` entries.
 - For a partial refund: each requested `quantity` must be > 0 and ≤ the source line's remaining refundable quantity.
 
-Violating any of these returns `422 Unprocessable Entity` with a Romanian-language explanation in `error`.
+Violating any of these returns `422 Unprocessable Entity` with an explanation in `error`. Some messages are in Romanian.
 
 ## Behaviour
 
 The new receipt:
 
-- Gets a fresh UUID and sequential number from the same document series as the parent.
+- Gets a fresh UUID and, when the parent has a series, the next number of that series.
 - Inherits company, client, customer fiscal info, currency, exchange rate, issuer, sales agent, notes, mentions, project reference, and cash-register identifiers from the parent.
 - Mirrors **every line** with `quantity = -original` and `discount = -original`. Unit prices, VAT rates, and units of measure are unchanged so totals come out correctly negative.
 - Mirrors `cashPayment`, `cardPayment`, and `otherPayment` as negative amounts.
@@ -80,22 +80,22 @@ Requires `invoice.refund`.
 
 ## Response
 
-`201 Created`. Returns the new refund receipt under the `receipt:detail` group.
+`201 Created`. Returns the new refund receipt in the same shape as [Get receipt](/api-reference/receipts/get) (shown abbreviated).
 
 ```json
 {
-  "id": "f1d3a4b5-...",
-  "number": "BON-2026-099",
+  "id": "f1d3a4b5-0000-4000-8000-000000000001",
+  "number": "BON0099",
   "status": "issued",
   "total": "-125.50",
   "subtotal": "-105.46",
   "vatTotal": "-20.04",
   "currency": "RON",
-  "issueDate": "2026-04-25",
+  "issueDate": "2026-04-25T00:00:00+03:00",
   "issuedAt": "2026-04-25T18:14:33+03:00",
   "refundOf": {
-    "id": "a1b2c3d4-...",
-    "number": "BON-2026-042"
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "number": "BON0042"
   },
   "lines": [
     {
@@ -117,11 +117,13 @@ The parent receipt's `refundedBy` array is updated to include the new refund's i
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthenticated |
-| 403 | Permission denied or wrong company |
-| 404 | Receipt not found |
-| 422 | Parent isn't issued / is itself a refund / has already been refunded |
+| 403 | Permission denied (requires `invoice.refund`) |
+| 404 | Company or receipt not found |
+| 422 | Parent isn't issued / is itself a refund / has already been refunded / a line selection is invalid |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Related
 
-- [Cancel receipt](/api-reference/receipts/cancel) — for receipts that haven't been issued yet, or to void an issued one without producing an audit record
-- [Cash register ledger](/api-reference/cash-register/ledger) — refunds appear here as negative amounts
+- [Cancel receipt](/api-reference/receipts/cancel) — cancels a receipt, or a refund receipt to release its quantities
+- [Cash register balance](/api-reference/cash-register/balance) — refund amounts reduce the cash receipts total

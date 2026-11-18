@@ -1,13 +1,13 @@
 ---
 title: List webhook event types
-description: Retrieve all available webhook event types that can be subscribed to
+description: Retrieve the event types a webhook endpoint can subscribe to, with the payload of each event
 method: GET
 endpoint: /api/v1/webhooks/events
 ---
 
 # List webhook event types
 
-Returns an array of all supported webhook event types available for subscription. Use this endpoint to discover which events can be configured on a webhook endpoint. Authentication requires a valid JWT token; no company scope is needed.
+Returns the event types accepted when you create or update a webhook endpoint. The request needs a valid token. No company is required.
 
 ```
 GET /api/v1/webhooks/events
@@ -39,7 +39,7 @@ const response = await fetch('https://api.storno.ro/api/v1/webhooks/events', {
   }
 });
 
-const events = await response.json();
+const { data, categories } = await response.json();
 ```
 {% /code-snippet %}
 
@@ -47,105 +47,115 @@ const events = await response.json();
 
 ## Response
 
-Returns an array of event type objects describing each available event.
+`data` is the flat list of events. `categories` holds the same entries grouped by category. Descriptions are in Romanian.
 
 ```json
-[
-  {
-    "name": "invoice.created",
-    "description": "Triggered when a new invoice is created, including those synced from ANAF",
-    "category": "invoices"
-  },
-  {
-    "name": "invoice.updated",
-    "description": "Triggered when an invoice is updated (status change, data edit, payment recorded)",
-    "category": "invoices"
-  },
-  {
-    "name": "invoice.issued",
-    "description": "Triggered when an invoice transitions to the issued state",
-    "category": "invoices"
-  },
-  {
-    "name": "invoice.submitted",
-    "description": "Triggered when an invoice is submitted to ANAF e-Factura",
-    "category": "invoices"
-  },
-  {
-    "name": "invoice.validated",
-    "description": "Triggered when ANAF validates an outgoing invoice",
-    "category": "invoices"
-  },
-  {
-    "name": "invoice.rejected",
-    "description": "Triggered when ANAF rejects an outgoing invoice",
-    "category": "invoices"
-  },
-  {
-    "name": "invoice.cancelled",
-    "description": "Triggered when an invoice is cancelled",
-    "category": "invoices"
-  },
-  {
-    "name": "invoice.paid",
-    "description": "Triggered when a payment is recorded and the invoice is fully paid",
-    "category": "invoices"
-  },
-  {
-    "name": "payment.created",
-    "description": "Triggered when a payment record is created on an invoice",
-    "category": "payments"
-  },
-  {
-    "name": "payment.deleted",
-    "description": "Triggered when a payment record is removed from an invoice",
-    "category": "payments"
-  },
-  {
-    "name": "client.created",
-    "description": "Triggered when a new client is added to the company",
-    "category": "clients"
-  },
-  {
-    "name": "client.updated",
-    "description": "Triggered when a client record is updated",
-    "category": "clients"
-  },
-  {
-    "name": "sync.completed",
-    "description": "Triggered when an ANAF sync run finishes successfully",
-    "category": "sync"
-  },
-  {
-    "name": "sync.failed",
-    "description": "Triggered when an ANAF sync run encounters a fatal error",
-    "category": "sync"
-  },
-  {
-    "name": "proforma.created",
-    "description": "Triggered when a new proforma invoice is created",
-    "category": "proforma"
-  },
-  {
-    "name": "proforma.accepted",
-    "description": "Triggered when a proforma invoice is accepted by the client",
-    "category": "proforma"
-  },
-  {
-    "name": "proforma.rejected",
-    "description": "Triggered when a proforma invoice is rejected by the client",
-    "category": "proforma"
+{
+  "data": [
+    {
+      "event": "invoice.created",
+      "category": "invoice",
+      "description": "Factura noua creata"
+    },
+    {
+      "event": "invoice.updated",
+      "category": "invoice",
+      "description": "Factura actualizata"
+    }
+  ],
+  "categories": {
+    "invoice": [
+      {
+        "event": "invoice.created",
+        "category": "invoice",
+        "description": "Factura noua creata"
+      },
+      {
+        "event": "invoice.updated",
+        "category": "invoice",
+        "description": "Factura actualizata"
+      }
+    ]
   }
-]
+}
 ```
+
+The example is shortened. The real response lists every event in the table below.
 
 ### Response fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | string | Unique event type identifier used when subscribing to events |
-| `description` | string | Human-readable description of when the event fires |
-| `category` | string | Logical grouping of the event (invoices, payments, clients, sync, proforma) |
+| `data` | array | Event objects |
+| `data[].event` | string | Event name to use in the `events` array of a webhook endpoint |
+| `data[].category` | string | `invoice`, `company`, `sync`, `payment` or `anaf` |
+| `data[].description` | string | Short description |
+| `categories` | object | The same events grouped by `category` |
+
+## Events
+
+The registry accepts 16 event names. Subscribe with these exact names. Wildcards such as `["*"]` are not accepted, and an unknown name is rejected with `400`.
+
+The test endpoint also sends a `webhook.test` event. You do not subscribe to it.
+
+{% callout type="warning" %}
+`invoice.updated` is accepted when you subscribe, but Storno.ro never sends it as a webhook. An endpoint subscribed only to it receives nothing. It is published on the real-time channels only.
+{% /callout %}
+
+Every delivery uses the [envelope](/concepts/webhooks-events#webhook-payload-format) `{id, event, created_at, data}`. The `data` object depends on the event.
+
+### Invoice events
+
+`data` for `invoice.created`, `invoice.issued`, `invoice.validated`, `invoice.rejected` and `invoice.sent_to_provider`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Invoice UUID |
+| `number` | string\|null | Invoice number |
+| `status` | string | Invoice status |
+| `direction` | string\|null | `outgoing` or `incoming` |
+| `total` | string | Invoice total |
+| `currency` | string | Currency code |
+
+| Event | Sent when |
+|-------|-----------|
+| `invoice.created` | An invoice is created |
+| `invoice.issued` | An invoice is issued |
+| `invoice.sent_to_provider` | An invoice is submitted to the e-invoice provider |
+| `invoice.validated` | The provider validates an outgoing invoice |
+| `invoice.rejected` | The provider rejects an outgoing invoice |
+| `invoice.updated` | Accepted on subscription, never sent |
+
+### Company events
+
+`data` for `company.created`, `company.updated`, `company.removed`, `company.restored` and `company.reset`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `companyId` | string | Company UUID |
+| `companyName` | string | Company name |
+
+### Sync events
+
+| Event | Sent when | `data` |
+|-------|-----------|--------|
+| `sync.started` | An ANAF sync run starts | `total` (number of messages to process) |
+| `sync.completed` | An ANAF sync run finishes | `stats` object with `newInvoices`, `skippedDuplicates`, `newClients`, `newProducts`, `newSeries`, `expired` and `errors` |
+| `sync.error` | An ANAF sync run reports errors | `errors` (array of messages) and `companyId` |
+
+### Payment events
+
+| Event | Sent when | `data` |
+|-------|-----------|--------|
+| `payment.received` | A payment is recorded on an invoice through the API, or received through Stripe | `paymentId`, `invoiceId`, `amount`, `paymentMethod`, `currency` |
+
+Some payments recorded automatically from Stripe also carry `invoice_number` and `companyId`.
+
+### ANAF events
+
+| Event | Sent when | `data` |
+|-------|-----------|--------|
+| `anaf.token_created` | An ANAF token is saved for the company | `tokenId`, `companyId` |
 
 ## Error codes
 

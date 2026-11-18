@@ -7,7 +7,7 @@ endpoint: /api/v1/declarations/{uuid}/recipisa
 
 # Download Recipisa
 
-Downloads the ANAF recipisa (confirmation receipt) PDF for a declaration that has been accepted by ANAF. The recipisa is the official document confirming that ANAF received and accepted the filing. It is available only when the declaration status is `accepted`.
+Downloads the ANAF recipisa (receipt) PDF of a declaration. The recipisa is stored once ANAF has answered the filing, so it exists for accepted declarations and also for rejected ones, where it lists the errors.
 
 ## Headers
 
@@ -56,29 +56,20 @@ a.click();
 | Header | Value |
 |--------|-------|
 | `Content-Type` | `application/pdf` |
-| `Content-Disposition` | `attachment; filename="d394-2026-01-recipisa.pdf"` |
+| `Content-Disposition` | `attachment; filename="d394_2026_01_recipisa.pdf"` |
 
-The response body is the binary PDF document issued by ANAF confirming acceptance of the declaration.
+The response body is the binary PDF document issued by ANAF.
 
 ## Availability
 
-The recipisa is available only when `recipisaPath` is set on the declaration object. This occurs when the declaration status is `accepted`.
-
-| Status | Recipisa Available |
-|--------|-------------------|
-| `draft` | No |
-| `validated` | No |
-| `submitted` | No |
-| `processing` | No |
-| `accepted` | Yes |
-| `rejected` | No |
-| `error` | No |
+The recipisa is available once Storno has downloaded it from ANAF. Until then the request answers 404 (`Recipisa not available.`).
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Declaration not found, doesn't belong to the company, or recipisa is not yet available |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.view` permission |
+| 404 | Declaration not found, it belongs to another company, or the recipisa is not available yet |

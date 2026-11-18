@@ -16,7 +16,7 @@ POST /api/v1/invoices/{uuid}/validate
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -24,19 +24,21 @@ POST /api/v1/invoices/{uuid}/validate
 |------|------|----------|-------------|
 | `uuid` | string | Yes | Invoice UUID |
 
-## Query parameters
+## Request body
+
+The mode is read from the JSON body. A query parameter is ignored. Without a body, `quick` is used.
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `mode` | string | quick | Validation mode: `quick` or `full` |
+| `mode` | string | `quick` | `quick` or `full`. Any value other than `full` runs the quick validation |
 
 ### Validation modes
 
-- **quick** - Fast validation against basic business rules and data integrity
-- **full** - Comprehensive validation including Schematron rules and UBL 2.1 schema compliance
+- **quick**: business rules and XSD schema validation of the generated UBL XML.
+- **full**: the quick checks plus Schematron validation (EN 16931 and CIUS-RO rules). Schematron is skipped when the XSD check already fails, and it needs the Schematron service (`schematronAvailable` in the response).
 
 {% callout type="info" %}
-The `full` validation mode can take several seconds for complex invoices. Use `quick` mode for real-time validation feedback in the UI.
+The `full` mode can take several seconds for complex invoices. Use `quick` for real-time feedback in a UI.
 {% /callout %}
 
 ## Request
@@ -46,30 +48,29 @@ The `full` validation mode can take several seconds for complex invoices. Use `q
 {% code-snippet title="cURL" %}
 ```bash
 # Quick validation
-curl -X POST "https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/validate?mode=quick" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Company: 550e8400-e29b-41d4-a716-446655440000"
+curl -X POST "https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/validate" \
+  -H "Authorization: Bearer YOUR_TOKEN"
 
 # Full validation
-curl -X POST "https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/validate?mode=full" \
+curl -X POST "https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/validate" \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Company: 550e8400-e29b-41d4-a716-446655440000"
+  -H "Content-Type: application/json" \
+  -d '{"mode": "full"}'
 ```
 {% /code-snippet %}
 
 {% code-snippet title="JavaScript" %}
 ```javascript
-// Quick validation
-const response = await fetch('https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/validate?mode=quick', {
+const response = await fetch('https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/validate', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_TOKEN',
-    'X-Company': '550e8400-e29b-41d4-a716-446655440000'
-  }
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ mode: 'full' })
 });
 
 const validation = await response.json();
-
 if (!validation.valid) {
   console.error('Validation errors:', validation.errors);
 }
@@ -80,7 +81,7 @@ if (!validation.valid) {
 
 ## Response
 
-Returns validation results with any errors or warnings found.
+Always `200 OK` for an existing invoice, whether or not it is valid.
 
 ### Valid invoice response
 
@@ -88,7 +89,8 @@ Returns validation results with any errors or warnings found.
 {
   "valid": true,
   "errors": [],
-  "warnings": []
+  "warnings": [],
+  "schematronAvailable": true
 }
 ```
 
@@ -98,14 +100,15 @@ Returns validation results with any errors or warnings found.
 {
   "valid": false,
   "errors": [
-    "Client VAT number (CIF) is required for invoices over 1000 RON",
-    "Invoice line 1: Unit price must be greater than zero",
-    "Due date cannot be before issue date"
+    {
+      "message": "Client tax identifier is missing",
+      "source": "business",
+      "ruleId": null,
+      "location": null
+    }
   ],
-  "warnings": [
-    "No payment terms specified",
-    "Internal note is very long (over 500 characters)"
-  ]
+  "warnings": [],
+  "schematronAvailable": true
 }
 ```
 
@@ -113,57 +116,23 @@ Returns validation results with any errors or warnings found.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `valid` | boolean | Whether the invoice passes all validation checks |
-| `errors` | array | Critical validation errors that must be fixed |
-| `warnings` | array | Non-critical issues or suggestions |
-
-## Validation rules
-
-### Quick mode checks
-
-- Required fields are present (client, issue date, lines)
-- Numeric values are valid (positive amounts, valid percentages)
-- Date logic (due date after issue date)
-- Line item calculations are correct
-- VAT rates are valid
-- Currency code is valid
-- Client and supplier information is complete
-- Total amounts match line item sums
-
-### Full mode additional checks
-
-- UBL 2.1 schema compliance
-- Schematron business rules (EN 16931)
-- Cross-field validation rules
-- Romanian e-Factura specific rules
-- Tax identification number formats
-- Address format validation
-- Payment terms codelist compliance
-- Unit of measure codelist compliance
-
-## Common validation errors
-
-| Error | Description | Solution |
-|-------|-------------|----------|
-| Missing client CIF | VAT identification number required | Add client CIF/VAT number |
-| Invalid VAT rate | VAT rate not in allowed list | Use a valid VAT rate (0, 5, 9, 19) |
-| Negative amounts | Line price or quantity is negative | Use positive values |
-| Date mismatch | Due date before issue date | Adjust dates |
-| Missing lines | Invoice has no line items | Add at least one line |
-| Invalid currency | Currency code not ISO 4217 | Use valid 3-letter code (RON, EUR, USD) |
-| Total mismatch | Calculated total doesn't match line sums | Recalculate line items |
+| `valid` | boolean | Whether the invoice passes all checks of the chosen mode |
+| `errors` | array | Errors that must be fixed. Each has `message` and, when known, `source`, `ruleId` and `location` (keys with no value are left out) |
+| `warnings` | array | Non-critical findings |
+| `schematronAvailable` | boolean | Whether the Schematron service is available on the server |
 
 ## Error codes
+
+Error bodies have the form `{"error": "message"}`.
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
+| `403` | The invoice belongs to another organization, or the user cannot view invoices |
 | `404` | Invoice not found |
-| `422` | Invalid validation mode parameter |
 
 ## Related endpoints
 
-- [Issue invoice](/api-reference/invoices/issue) - Issue invoice after validation passes
-- [Submit invoice](/api-reference/invoices/submit) - Submit validated invoice to e-invoice provider
+- [Issue invoice](/api-reference/invoices/issue) - Issue the invoice once it is valid
+- [Submit invoice](/api-reference/invoices/submit) - Send an issued invoice to ANAF
 - [Update invoice](/api-reference/invoices/update) - Fix validation errors

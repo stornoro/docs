@@ -73,6 +73,6 @@ All previous backup codes are immediately invalidated. Prompt the user to save t
 
 | Code | Description |
 |------|-------------|
-| `400` | MFA is not enabled |
+| `400` | MFA is not enabled (checked after the password) |
 | `401` | Unauthorized — missing or invalid JWT token |
-| `422` | Invalid password |
+| `422` | Invalid or missing password |

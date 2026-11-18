@@ -23,7 +23,7 @@ POST /api/v1/accounting-export/zip
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `target` | string | Yes | Currently only `saga` is supported (`winmentor` and `ciel` return a friendly error). |
+| `target` | string | No | Default `saga`. Only `saga` is supported. `winmentor` and `ciel` are accepted values but answer 400, and any other value answers 400. |
 | `dateFrom` | string | No | ISO date (`YYYY-MM-DD`) — start of the invoices/receipts/payments window. |
 | `dateTo` | string | No | ISO date (`YYYY-MM-DD`) — end of the window. |
 | `options` | object | No | Per-target options (see below). |
@@ -65,10 +65,10 @@ Any individual field left empty falls back to the corresponding RON default (`ac
 
 When receipts (or payments) span multiple currencies, the exporter splits them into one SAGA XML file per currency and uses the matching account map:
 
-- All-RON receipts → `inc_<date>.xml` (legacy filename, unchanged).
-- Mixed RON/USD → `inc_<date>_RON.xml` + `inc_<date>_USD.xml`.
+- All-RON receipts → `i_<range>.xml`.
+- Mixed RON/USD → `i_<range>_RON.xml` + `i_<range>_USD.xml`.
 
-Same rule for `plt_<date>*.xml`. This is necessary because SAGA’s `<Suma>` element has no currency tag — a single file is always imported under one currency analytic.
+Same rule for `p_<range>*.xml`. `<range>` is the first and last payment date in the file as `dd-mm-yyyy_dd-mm-yyyy`. This is necessary because SAGA’s `<Suma>` element has no currency tag — a single file is always imported under one currency analytic.
 
 ## Example request
 
@@ -106,16 +106,24 @@ Content-Type: application/zip
 Content-Disposition: attachment; filename="saga-export_<CIF>_<DD_MM_YYYY>.zip"
 ```
 
-The archive contains:
+The archive contains the files below. `<date>` is the day of the export as `dd_mm_yyyy`.
 
 - `cli_<date>.xml` — clients
 - `frn_<date>.xml` — suppliers
 - `art_<date>.xml` — products
-- `F_<CIF>_multiple_<date>.xml` — outgoing invoices
-- `inc_<date>.xml` — receipts (incasari) on outgoing invoices (or `inc_<date>_<CCY>.xml` per currency when receipts span multiple currencies)
-- `plt_<date>.xml` — payments (plati) on incoming invoices (or `plt_<date>_<CCY>.xml` per currency)
+- `f_<range>.xml` — outgoing invoices, `<range>` being the first and last invoice issue date as `dd-mm-yyyy_dd-mm-yyyy`
+- `i_<range>.xml` — receipts (incasari) on outgoing invoices (or `i_<range>_<CCY>.xml` per currency when receipts span multiple currencies)
+- `p_<range>.xml` — payments (plati) on incoming invoices (or `p_<range>_<CCY>.xml` per currency)
 - `conturi_cli_<date>.xml`, `conturi_frn_<date>.xml` — when `exportAccounts=true`
 - `curs_bnr_<date>.xml` — when `exportBnr=true`
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| 400 | `target` is not `saga`, `winmentor` or `ciel`, or is `winmentor` or `ciel` (not available yet) |
+| 403 | The caller lacks the `export.data` permission |
+| 404 | Company not found |
 
 ## Notes on SAGA partner matching
 

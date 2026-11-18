@@ -73,8 +73,8 @@ See [Authentication](/getting-started/authentication) for details on obtaining t
 - Dates use ISO 8601 format (`YYYY-MM-DD`)
 - Timestamps use ISO 8601 with timezone (`YYYY-MM-DDTHH:mm:ssZ`)
 - Monetary amounts are numeric (not string-encoded)
-- Pagination uses `page` and `limit` query parameters
-- List responses include `total`, `page`, `limit`, and `pages` metadata
+- Pagination uses `page` and `limit` query parameters (default 10, maximum 20)
+- List responses include `total`, `page`, and `limit` metadata
 - Soft-deleted resources are excluded from list endpoints by default
 
 ## HTTP Methods
@@ -89,7 +89,7 @@ See [Authentication](/getting-started/authentication) for details on obtaining t
 
 ## Rate Limiting
 
-API requests are subject to rate limiting. Authentication endpoints have stricter limits to prevent abuse. See the [Rate Limiting](/getting-started/rate-limiting) guide for full details on limits per endpoint.
+Specific endpoints are rate limited: authentication, ANAF calls and a few public tools. See the [Rate Limiting](/getting-started/rate-limiting) guide for the limits per endpoint. Handle `429` responses and honor `Retry-After` when present.
 
 ## Versioning
 

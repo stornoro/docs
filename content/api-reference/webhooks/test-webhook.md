@@ -14,7 +14,7 @@ POST /api/v1/webhooks/{uuid}/test
 ```
 
 {% callout type="note" %}
-The test delivery uses a synthetic payload with event type `webhook.test`. Your endpoint must respond within 10 seconds with any `2xx` HTTP status code for the test to be considered successful. The delivery is recorded in the webhook's delivery history.
+The test delivery uses a fixed payload with event `webhook.test`. Your endpoint must answer with a `2xx` status within 10 seconds. The delivery is recorded in the delivery history. Testing needs the Professional or Business plan, and it works on inactive endpoints too. Test and retry calls share a limit of 10 requests per 10 minutes per user.
 {% /callout %}
 
 ## Headers
@@ -22,22 +22,17 @@ The test delivery uses a synthetic payload with event type `webhook.test`. Your 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
-| `Content-Type` | string | No | Optionally `application/json` if providing a body |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 
 ## Path parameters
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `uuid` | string | Yes | Webhook endpoint UUID |
+| `uuid` | string | Yes | Webhook endpoint ID |
 
 ## Request body
 
-The request body is optional. If omitted, a default test payload is used.
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `eventType` | string | No | Override the test event type name (default: `webhook.test`) |
+The endpoint takes no body.
 
 ## Request
 
@@ -64,7 +59,7 @@ const response = await fetch(`https://api.storno.ro/api/v1/webhooks/${uuid}/test
 });
 
 const result = await response.json();
-console.log('Test result:', result.status, result.responseCode);
+console.log('Test result:', result.success, result.statusCode);
 ```
 {% /code-snippet %}
 
@@ -72,33 +67,14 @@ console.log('Test result:', result.status, result.responseCode);
 
 ## Response
 
-Returns the outcome of the synchronous test delivery with status `200 OK`.
+Returns `200` with the outcome of the delivery.
 
 ```json
 {
-  "deliveryUuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-  "status": "success",
-  "eventType": "webhook.test",
-  "requestPayload": {
-    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-    "type": "webhook.test",
-    "createdAt": "2026-02-18T10:00:00Z",
-    "company": "550e8400-e29b-41d4-a716-446655440000",
-    "data": {
-      "message": "This is a test delivery from Storno.ro",
-      "webhookUuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-    }
-  },
-  "requestHeaders": {
-    "Content-Type": "application/json",
-    "X-Storno-Event": "webhook.test",
-    "X-Storno-Signature": "sha256=3e7b3a...",
-    "X-Storno-Delivery": "c3d4e5f6-a7b8-9012-cdef-123456789012"
-  },
-  "responseCode": 200,
-  "responseBody": "OK",
+  "success": true,
+  "statusCode": 200,
   "durationMs": 143,
-  "deliveredAt": "2026-02-18T10:00:00Z"
+  "error": null
 }
 ```
 
@@ -106,37 +82,35 @@ Returns the outcome of the synchronous test delivery with status `200 OK`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `deliveryUuid` | string | UUID of the delivery record created for this test |
-| `status` | string | Outcome: `success` (2xx response received) or `failed` (timeout or non-2xx) |
-| `eventType` | string | The event type name used for the test payload |
-| `requestPayload` | object | The exact JSON body sent to your endpoint |
-| `requestHeaders` | object | HTTP headers included in the delivery request |
-| `responseCode` | integer | HTTP status code returned by your endpoint |
-| `responseBody` | string | First 1,024 characters of your endpoint's response body |
+| `success` | boolean | `true` when your endpoint answered with a `2xx` status |
+| `statusCode` | integer\|null | HTTP status returned by your endpoint. `null` when no response was received |
 | `durationMs` | integer | Round-trip time in milliseconds |
-| `deliveredAt` | string | ISO 8601 timestamp of the delivery attempt |
+| `error` | string\|null | `HTTP <status>` for a non-2xx answer, `Delivery failed.` for a connection error or timeout, `Endpoint URL is not allowed.` when the stored URL no longer passes the URL rules. `null` on success |
 
-### Delivery payload structure
+### Test payload
 
-Every webhook delivery (including test deliveries) sends a JSON body with this shape:
+Your endpoint receives the standard [envelope](/concepts/webhooks-events#webhook-payload-format):
 
 ```json
 {
-  "id": "<delivery-uuid>",
-  "type": "<event-type>",
-  "createdAt": "<ISO 8601 timestamp>",
-  "company": "<company-uuid>",
-  "data": { }
+  "id": "0192b3a4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
+  "event": "webhook.test",
+  "created_at": "2026-02-18T10:00:00+00:00",
+  "data": {
+    "message": "This is a test webhook from Storno.ro."
+  }
 }
 ```
 
-The `X-Storno-Signature` header contains `sha256=<hmac-hex>` where the HMAC is computed over the raw request body using your webhook's signing secret.
+The `X-Webhook-Signature` header holds the lowercase hexadecimal HMAC-SHA256 of the raw body, computed with the endpoint secret. The other headers are `X-Webhook-Event` and `X-Webhook-Id`.
 
 ## Error codes
 
 | Code | Description |
 |------|-------------|
+| `400` | No company selected |
 | `401` | Missing or invalid authentication token |
-| `403` | Insufficient permissions — requires `webhook.manage` permission |
+| `402` | The plan does not include webhooks. Body has `code: "PLAN_LIMIT"` |
+| `403` | Insufficient permissions. Requires `webhook.manage` |
 | `404` | Webhook endpoint not found for this company |
-| `422` | Webhook is inactive — activate it before sending a test delivery |
+| `429` | More than 10 test or retry requests in 10 minutes |

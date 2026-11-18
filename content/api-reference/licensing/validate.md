@@ -20,6 +20,7 @@ Validate a license key issued to a self-hosted instance. Returns the current pla
 | `licenseKey` | string | Yes | 64-character hex license key |
 | `instanceName` | string | No | Human-readable name for this instance |
 | `instanceUrl` | string | No | Public URL of the self-hosted instance |
+| `metrics` | object | No | Usage metrics of the instance. Stored, and checked against the plan limits |
 
 ### Example Request
 
@@ -74,7 +75,7 @@ $data = json_decode($response->getBody(), true);
 ```json
 {
   "valid": true,
-  "plan": "pro",
+  "plan": "business",
   "features": {
     "maxCompanies": 5,
     "maxInvoicesPerMonth": 500,
@@ -83,7 +84,9 @@ $data = json_decode($response->getBody(), true);
     "apiAccess": true,
     "prioritySupport": false
   },
-  "organizationName": "SC Firma Mea SRL",
+  "organizationId": "550e8400-e29b-41d4-a716-446655440000",
+  "organizationName": "Example Company SRL",
+  "violations": [],
   "currentPeriodEnd": "2026-03-20T00:00:00+00:00",
   "billingUrl": "https://app.storno.ro/settings/billing"
 }
@@ -92,10 +95,12 @@ $data = json_decode($response->getBody(), true);
 | Field | Type | Description |
 |-------|------|-------------|
 | `valid` | boolean | Whether the license key is valid |
-| `plan` | string | Current plan: `free`, `pro`, or `business` |
+| `plan` | string | Current plan. A key validates only for plans that include self-hosting, which is `business` |
 | `features` | object | Plan feature limits and flags |
+| `organizationId` | string | UUID of the organization that owns this key |
 | `organizationName` | string | Name of the organization that owns this key |
-| `currentPeriodEnd` | string | ISO 8601 timestamp of the billing period end |
+| `violations` | array | Plan limit violations found in the reported `metrics`. Empty without metrics |
+| `currentPeriodEnd` | string | ISO 8601 timestamp of the billing period end (only present with a subscription) |
 | `trialEndsAt` | string | ISO 8601 timestamp (only present during trial) |
 | `trialDaysLeft` | integer | Days remaining in trial (only present during trial) |
 | `billingUrl` | string | URL to manage the subscription on the SaaS |
@@ -107,9 +112,11 @@ When the organization is in a trial period, additional fields are included:
 ```json
 {
   "valid": true,
-  "plan": "pro",
+  "plan": "business",
   "features": { ... },
-  "organizationName": "SC Firma Mea SRL",
+  "organizationId": "550e8400-e29b-41d4-a716-446655440000",
+  "organizationName": "Example Company SRL",
+  "violations": [],
   "trialEndsAt": "2026-03-06T00:00:00+00:00",
   "trialDaysLeft": 14,
   "billingUrl": "https://app.storno.ro/settings/billing"
@@ -122,7 +129,8 @@ When the organization is in a trial period, additional fields are included:
 |------|-------------|
 | `400` | Bad Request — `licenseKey` is missing |
 | `401` | Unauthorized — Invalid or revoked license key |
-| `403` | Forbidden — Organization is inactive |
+| `403` | Forbidden — Organization is inactive, or its plan does not include self-hosting |
+| `429` | Too Many Requests — more than 10 validations per hour from one IP address |
 
 ### Error Response Examples
 
@@ -149,6 +157,18 @@ When the organization is in a trial period, additional fields are included:
 {
   "valid": false,
   "error": "Organization is inactive"
+}
+```
+
+**Plan without self-hosting (403)**
+
+The body has `valid: false`, an `error` text, the current `plan` and `billingUrl`.
+
+**Rate limited (429)**
+
+```json
+{
+  "error": "Too many requests."
 }
 ```
 

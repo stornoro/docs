@@ -17,7 +17,7 @@ GET /api/v1/invoices/export/payments-saga-xml
 
 | Endpoint | Returns | Root element |
 |----------|---------|--------------|
-| `/invoices/export/saga-xml` | Outgoing invoices issued in the period. Accepts the same query filters as the invoice list. | `<Facturi>` |
+| `/invoices/export/saga-xml` | Invoices issued in the period; cancelled invoices are left out. Accepts the invoice list filters, except `status`, `sort` and `order`, which are ignored. | `<Facturi>` |
 | `/invoices/export/receipts-saga-xml` | Receipts (incasari) on **outgoing** invoices, by payment date. | `<Incasari>` |
 | `/invoices/export/payments-saga-xml` | Payments (plati) on **incoming** invoices, by payment date. | `<Plati>` |
 
@@ -64,10 +64,10 @@ curl -G 'https://api.storno.ro/api/v1/invoices/export/receipts-saga-xml' \
 
 ```http
 Content-Type: application/xml; charset=UTF-8
-Content-Disposition: attachment; filename="I_RO<CIF>_multiple_<DD_MM_YYYY>_<DD_MM_YYYY>.xml"
+Content-Disposition: attachment; filename="i_<DD-MM-YYYY>_<DD-MM-YYYY>[_<CCY>].xml"
 ```
 
-Body is the SAGA XML file.
+The file name is a lowercase prefix (`f` for invoices, `i` for receipts, `p` for payments), the first and last date found in the exported documents (both today when nothing matches), and the currency when the `currency` filter is used. Body is the SAGA XML file.
 
 ## CodFiscal handling
 

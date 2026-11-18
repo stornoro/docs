@@ -16,7 +16,6 @@ Only delivery notes in `cancelled` status can be restored.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 
 ## Path Parameters
 
@@ -46,39 +45,26 @@ const data = await response.json();
 
 ## Response
 
-Returns the restored delivery note with `status = draft` and `cancelledAt` cleared:
+Returns the restored delivery note with `status = draft` and `cancelledAt` cleared. The object has the fields described in [Get delivery note](/api-reference/delivery-notes/get#response); the example is abridged:
 
 ```json
 {
-  "uuid": "950e8400-e29b-41d4-a716-446655440000",
-  "number": "DN-2026-012",
-  "seriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "DN",
-    "nextNumber": 13
-  },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
+  "id": "950e8400-e29b-41d4-a716-446655440000",
+  "number": "DN0012",
   "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
+    "id": "750e8400-e29b-41d4-a716-446655440000",
     "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "email": "contact@client.ro"
+    "cui": "12345678"
   },
   "status": "draft",
   "issueDate": "2026-02-18",
   "dueDate": "2026-03-18",
   "currency": "RON",
-  "exchangeRate": 1.0,
   "subtotal": "5000.00",
-  "vatAmount": "950.00",
-  "total": "5950.00",
-  "cancellationReason": null,
-  "cancellationNotes": null,
-  "issuedAt": null,
+  "vatTotal": "1050.00",
+  "total": "6050.00",
   "cancelledAt": null,
-  "createdAt": "2026-02-18T09:00:00Z",
-  "updatedAt": "2026-02-19T10:00:00Z"
+  "convertedInvoice": null
 }
 ```
 
@@ -86,9 +72,6 @@ Returns the restored delivery note with `status = draft` and `cancelledAt` clear
 
 - **Status:** Changed from `cancelled` → `draft`
 - **cancelledAt:** Cleared (set to `null`)
-- **cancellationReason:** Cleared (set to `null`)
-- **cancellationNotes:** Cleared (set to `null`)
-- **updatedAt:** Updated to current UTC timestamp
 
 After restoring, the delivery note can be edited, re-issued, or deleted.
 
@@ -99,28 +82,20 @@ After restoring, the delivery note can be edited, re-issued, or deleted.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Delivery note not found or doesn't belong to the company |
-| 422 | `validation_error` | Delivery note is not in cancelled status |
-| 500 | `internal_error` | Server error occurred |
+Errors have the form `{"error": "message"}`.
 
-## Example Error Response
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Delivery note not found or not in the caller's organization |
+| 422 | The delivery note is not in `cancelled` status |
 
-### Not Cancelled
+### Example error response
 
 ```json
 {
-  "error": {
-    "code": "validation_error",
-    "message": "Delivery note cannot be restored",
-    "details": {
-      "status": "draft",
-      "reason": "Only cancelled delivery notes can be restored"
-    }
-  }
+  "error": "Only cancelled delivery notes can be restored."
 }
 ```
 

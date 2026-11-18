@@ -7,7 +7,7 @@ endpoint: /api/v1/pdf-template-config
 
 # Get PDF Template Configuration
 
-Returns the current PDF template configuration for the company. If no configuration exists, returns a default configuration with the `classic` template.
+Returns the PDF template configuration of the company. If none exists yet, a default one with the `classic` template is created and returned.
 
 ```
 GET /api/v1/pdf-template-config
@@ -18,7 +18,7 @@ GET /api/v1/pdf-template-config
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token or API key for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 
 ## Request
 
@@ -39,8 +39,14 @@ curl https://api.storno.ro/api/v1/pdf-template-config \
   "showLogo": true,
   "showBankInfo": true,
   "showVatInRon": true,
+  "bankDisplaySection": "both",
+  "bankDisplayMode": "stacked",
+  "defaultNotes": null,
+  "defaultPaymentTerms": null,
+  "defaultPaymentMethod": null,
   "footerText": null,
-  "customCss": null
+  "customCss": null,
+  "labelOverrides": null
 }
 ```
 
@@ -55,8 +61,14 @@ curl https://api.storno.ro/api/v1/pdf-template-config \
 | `showLogo` | boolean | Whether the company logo is displayed |
 | `showBankInfo` | boolean | Whether bank account info is displayed |
 | `showVatInRon` | boolean | Whether the VAT amount in RON is displayed on foreign-currency invoices (Fiscal Code art. 319 (20) j) |
+| `bankDisplaySection` | string | Where bank accounts are shown: `supplier`, `payment` or `both` |
+| `bankDisplayMode` | string | `stacked` or `inline` |
+| `defaultNotes` | string\|null | Default notes text |
+| `defaultPaymentTerms` | string\|null | Default payment terms text |
+| `defaultPaymentMethod` | string\|null | `bank_transfer`, `cash`, `card`, `cheque`, `other` or `null` |
 | `footerText` | string\|null | Custom footer text |
 | `customCss` | string\|null | Custom CSS injected into the template |
+| `labelOverrides` | object\|null | Per-label overrides, keyed by label name, each with optional `visible` (boolean) and `text` (string, up to 200 characters) |
 
 ## Error Codes
 

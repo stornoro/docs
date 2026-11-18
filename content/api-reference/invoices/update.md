@@ -16,7 +16,7 @@ PUT /api/v1/invoices/{uuid}
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Path parameters
@@ -35,12 +35,13 @@ All fields are optional — only include the fields you want to update.
 | `receiverName` | string | Receiver name (when no client entity selected) |
 | `receiverCif` | string | Receiver tax ID / CIF (used with `receiverName`) |
 | `documentSeriesId` | string | Invoice series UUID (only changeable on draft invoices) |
-| `documentType` | string | Document type (e.g., `invoice`, `credit_note`) |
+| `documentType` | string | `invoice` or `credit_note` |
 | `issueDate` | string | Invoice issue date (ISO 8601: YYYY-MM-DD) |
 | `dueDate` | string | Payment due date (ISO 8601: YYYY-MM-DD) |
 | `currency` | string | ISO 4217 currency code |
 | `exchangeRate` | number | Exchange rate |
-| `invoiceTypeCode` | string | UBL invoice type code |
+| `scheduledEmailAt` | string | ISO 8601 date and time to email the invoice after issue, or `null` to cancel |
+| `invoiceTypeCode` | string | One of the values listed in [Create invoice](/api-reference/invoices/create), or `null` to clear |
 | `notes` | string | Public notes visible to client |
 | `paymentTerms` | string | Payment terms description |
 | `paymentMethod` | string | Payment method: `bank_transfer`, `cash`, `card`, `cheque`, `other` |
@@ -75,9 +76,9 @@ All fields are optional — only include the fields you want to update.
 | `description` | string | Yes | Line item description |
 | `quantity` | number | Yes | Quantity |
 | `unitPrice` | number | Yes | Unit price |
-| `vatRate` | number | No | VAT rate percentage (default: 21.00) |
+| `vatRate` | number | No | VAT rate percentage. Default 21.00 when neither `vatRate` nor `vatRateId` is sent, whatever the VAT status of the company |
 | `vatCategoryCode` | string | No | UBL VAT category code (default: `S`). Usually not needed — auto-determined from `vatRate`: 0% rate auto-corrects to `Z`, and zero-rate codes with rate > 0 auto-correct to `S`. Only set explicitly for special categories like `AE` (reverse charge), `E` (exempt), `K` (intra-community), `G` (export). |
-| `vatRateId` | string | No | VAT rate UUID |
+| `vatRateId` | string | No | Id of one of the company's VAT rates (`GET /api/v1/vat-rates`). The line takes its percentage and category. Ignored when `vatRate` is sent; an error when it is not a rate of the company |
 | `unitOfMeasure` | string | No | Unit of measure (e.g., "hours", "pcs", "kg") |
 | `productId` | string | No | Product UUID (optional reference) |
 | `discount` | number | No | Fixed discount amount |
@@ -85,6 +86,8 @@ All fields are optional — only include the fields you want to update.
 | `vatIncluded` | boolean | No | Whether price includes VAT (default: false) |
 | `productCode` | string | No | Product code for reference |
 | `ublExtensions` | object | No | Line-level UBL extensions (see below) |
+
+> **VAT on a line.** Send `vatRate` (a percentage) or `vatRateId` (the id of one of the company's rates from `GET /api/v1/vat-rates`; the line takes that rate's percentage and category). When both are sent `vatRate` wins. When neither is sent the line gets **21%**, also when the issuing company is not a VAT payer. For a company that is not a VAT payer send `vatRate: "0.00"` on every line. A `vatRateId` that is not a rate of the company is refused with an error; it never falls back to 21%.
 
 ### e-Factura BT fields
 
@@ -185,7 +188,7 @@ const response = await fetch('https://api.storno.ro/api/v1/invoices/7c9e6679-742
 });
 
 const data = await response.json();
-// data.invoice — the updated invoice
+// data.invoice: the updated invoice
 // data.validation — UBL validation results
 ```
 {% /code-snippet %}
@@ -194,39 +197,38 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated invoice object along with UBL validation results.
+Returns the updated invoice and the UBL validation result. The invoice object has the shape described in [Get invoice details](/api-reference/invoices/get): decimal amounts are strings, dates are ISO 8601 date-times, and `updatedAt` is not included.
 
 ```json
 {
   "invoice": {
     "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "number": "FAC-2024-001",
+    "number": "DRAFT-a1b2c3d4",
     "status": "draft",
     "direction": "outgoing",
     "currency": "RON",
-    "exchangeRate": 1.0,
-    "issueDate": "2024-02-15",
-    "dueDate": "2024-03-30",
-    "subtotal": 1500.00,
-    "vatTotal": 285.00,
-    "total": 1785.00,
-    "amountPaid": 0.00,
-    "balance": 1785.00,
+    "issueDate": "2024-02-15T00:00:00+00:00",
+    "dueDate": "2024-03-30T00:00:00+00:00",
+    "subtotal": "1500.00",
+    "vatTotal": "315.00",
+    "total": "1815.00",
+    "amountPaid": "0.00",
+    "balance": "1815.00",
     "notes": "Payment terms: 45 days net",
     "lines": [
       {
         "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
+        "position": 1,
         "description": "Web Development Services - Updated",
-        "quantity": 15.0,
-        "unitPrice": 100.00,
+        "quantity": "15.0000",
+        "unitPrice": "100.00",
         "unitOfMeasure": "hours",
-        "vatRate": 19.0,
-        "vatAmount": 285.00,
-        "subtotal": 1500.00,
-        "total": 1785.00
+        "vatRate": "21.00",
+        "vatCategoryCode": "S",
+        "vatAmount": "315.00",
+        "lineTotal": "1500.00"
       }
-    ],
-    "updatedAt": "2024-02-15T10:45:00Z"
+    ]
   },
   "validation": {
     "valid": true,
@@ -239,10 +241,11 @@ Returns the updated invoice object along with UBL validation results.
 
 ## Error codes
 
+Error bodies have the form `{"error": "message"}`.
+
 | Code | Description |
 |------|-------------|
-| `400` | Validation error - invalid data format |
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
+| `403` | The invoice belongs to another organization, or the user cannot edit invoices |
 | `404` | Invoice not found |
-| `422` | Invoice is not editable (cancelled, sent to provider, or already uploaded to ANAF) |
+| `422` | Invoice is not editable (cancelled, sent to provider, or already uploaded to ANAF), or a client or `vatRateId` is not found for the company |

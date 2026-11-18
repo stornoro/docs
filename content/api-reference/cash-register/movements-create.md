@@ -25,8 +25,8 @@ A cash account (`BankAccount` with `type=cash`) must be configured for the compa
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `kind` | string | Yes | `deposit` (cash leaves the till for the bank/safe), `withdrawal` (cash put into the till), or `other` (miscellaneous; `direction` must be supplied) |
-| `direction` | string | Conditional | `in` or `out`. Required only when `kind=other`; ignored otherwise (deposits are auto `out`, withdrawals auto `in`). |
+| `kind` | string | No | `deposit` (cash leaves the till for the bank/safe), `withdrawal` (cash put into the till), or `other` (miscellaneous, the default) |
+| `direction` | string | No | `in` or `out`. Used only when `kind=other` (default `out`); ignored otherwise (deposits are auto `out`, withdrawals auto `in`). |
 | `amount` | number | Yes | Positive amount, ≥ 0.01 |
 | `movementDate` | string | Yes | YYYY-MM-DD. Cannot be earlier than the cash account's `openingBalanceDate`. |
 | `description` | string | No | Free-form note shown in the ledger |
@@ -38,7 +38,7 @@ A cash account (`BankAccount` with `type=cash`) must be configured for the compa
 |------|-----------|----------------|
 | `deposit` | `out` (auto) | Till balance decreases — cash physically left the drawer |
 | `withdrawal` | `in` (auto) | Till balance increases — cash was added to the drawer |
-| `other` | `in` or `out` (required) | Caller decides; useful for petty-cash purchases (`out`) or unexpected cash income (`in`) |
+| `other` | `in` or `out` (default `out`) | Caller decides; useful for petty-cash purchases (`out`) or unexpected cash income (`in`) |
 
 ## Example
 
@@ -82,7 +82,10 @@ Requires `settings.manage`.
 
 | Status | Description |
 |--------|-------------|
-| 400 | Invalid `kind`, invalid `direction`, missing `amount`/`movementDate`, or `movementDate` before opening date |
+| 400 | Invalid `kind`, invalid `direction`, missing or non-positive `amount`, missing or invalid `movementDate`, or `movementDate` before opening date |
 | 401 | Unauthenticated |
-| 403 | Permission denied |
+| 403 | Permission denied, or the cash register module is disabled for the company |
+| 404 | Company not found |
 | 409 | No cash account configured for the company |
+
+Error bodies have the form `{"error": "message"}`.

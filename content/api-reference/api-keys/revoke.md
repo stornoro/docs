@@ -5,7 +5,7 @@ description: Revoke an API token, immediately preventing it from being used for 
 
 # Revoke API token
 
-Revokes an existing API token by recording a `revokedAt` timestamp on the record. Revocation is a soft operation — the token row is not hard-deleted from the database — but the token immediately stops working for authentication. Only the token's owner can perform this operation.
+Revokes an existing API token by recording a `revokedAt` timestamp on the record. Revocation is a soft operation — the token row is not hard-deleted from the database — but the token immediately stops working for authentication. Only the token's owner can perform this operation. Requires the `api_key.manage` permission and a browser session JWT: requests authenticated with an API token or an OAuth2 token return 403.
 
 ```http
 DELETE /api/v1/api-tokens/{uuid}
@@ -44,11 +44,13 @@ HTTP/1.1 204 No Content
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | The authenticated user is not the owner of this token |
-| 404 | not_found | API token not found |
+Errors return `{"error": "..."}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | The user is not the owner of the token, lacks `api_key.manage`, or used an API token or OAuth2 token |
+| 404 | API token not found |
 
 ## Important Notes
 

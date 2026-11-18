@@ -54,20 +54,27 @@ $user = json_decode($response->getBody(), true);
 
 ### Response (200 OK)
 
-Returns flat JSON with user profile, organization, memberships, and subscription information.
+Returns flat JSON with the user profile, the current organization, memberships and plan.
 
 ```json
 {
-  "id": "01HQZX1234ABCDEF5678WXYZ",
+  "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
   "email": "user@example.com",
   "firstName": "John",
   "lastName": "Doe",
+  "fullName": "John Doe",
   "phone": "+40721234567",
+  "locale": "ro",
   "timezone": "Europe/Bucharest",
   "respectQuietHours": true,
-  "emailConfirmed": true,
-  "createdAt": "2026-01-15T10:30:00Z",
-  "updatedAt": "2026-02-16T09:15:00Z",
+  "roles": [
+    "ROLE_USER"
+  ],
+  "active": true,
+  "emailVerified": true,
+  "mfaEnabled": false,
+  "hasPassword": true,
+  "createdAt": "2026-01-15T10:30:00+00:00",
   "preferences": {
     "language": "ro",
     "theme": "light",
@@ -76,31 +83,40 @@ Returns flat JSON with user profile, organization, memberships, and subscription
       "push": false
     }
   },
+  "avatarUrl": null,
   "organization": {
-    "id": "01HQZY5678GHIJKL9012STUV",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "My Company SRL",
-    "slug": "my-company-srl",
-    "createdAt": "2026-01-15T10:30:00Z"
+    "slug": "my-company-srl-a1b2c3",
+    "createdAt": "2026-01-15T10:30:00+00:00",
+    "whiteLabel": null
+  },
+  "plan": {
+    "plan": "professional",
+    "expired": false,
+    "features": {
+      "maxCompanies": 5,
+      "apiAccess": true
+    },
+    "selfHosted": false,
+    "communityEdition": false
   },
   "memberships": [
     {
-      "id": "01HR0Z9012MNOPQR3456UVWX",
-      "organizationId": "01HQZY5678GHIJKL9012STUV",
-      "organizationName": "My Company SRL",
+      "id": "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a61",
       "role": "owner",
-      "joinedAt": "2026-01-15T10:30:00Z"
+      "organization": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "My Company SRL",
+        "slug": "my-company-srl-a1b2c3"
+      }
     }
   ],
-  "subscription": {
-    "plan": "pro",
-    "status": "active",
-    "expiresAt": "2027-01-15T10:30:00Z",
-    "features": {
-      "maxInvoices": 1000,
-      "maxCompanies": 5,
-      "apiAccess": true
-    }
-  }
+  "permissions": [
+    "company.view",
+    "invoice.view"
+  ],
+  "currentRole": "owner"
 }
 ```
 
@@ -108,20 +124,30 @@ Returns flat JSON with user profile, organization, memberships, and subscription
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | User's unique identifier (ULID) |
+| `id` | string | User UUID |
 | `email` | string | User's email address |
-| `firstName` | string | User's first name |
-| `lastName` | string | User's last name |
-| `phone` | string | User's phone number |
+| `firstName` | string\|null | User's first name |
+| `lastName` | string\|null | User's last name |
+| `fullName` | string | First and last name combined |
+| `phone` | string\|null | User's phone number |
+| `locale` | string | Interface language, `ro` or `en` |
 | `timezone` | string | User's timezone (IANA format) |
 | `respectQuietHours` | boolean | When true, push notifications are skipped between 22:00 and 08:00 in the user's timezone |
-| `emailConfirmed` | boolean | Whether email has been confirmed |
+| `roles` | string[] | Platform roles, for example `ROLE_USER` |
+| `active` | boolean | Whether the account is active |
+| `emailVerified` | boolean | Whether email has been confirmed |
+| `mfaEnabled` | boolean | Whether TOTP two-factor authentication is enabled |
+| `hasPassword` | boolean | `false` for accounts that signed up with a social login only |
 | `createdAt` | string | Account creation timestamp (ISO 8601) |
-| `updatedAt` | string | Last profile update timestamp (ISO 8601) |
-| `preferences` | object | User preferences and settings |
-| `organization` | object | Current/default organization details |
-| `memberships` | array | All organization memberships |
-| `subscription` | object | Subscription plan and features |
+| `preferences` | object\|null | User preferences and settings |
+| `avatarUrl` | string\|null | Avatar path, `null` when there is no avatar |
+| `organization` | object | Current organization: `id`, `name`, `slug`, `createdAt`, `whiteLabel` (`appName`, `logoUrl`, `primaryColor`, `removeBranding`, or `null` when white label is off) |
+| `plan` | object | Plan status of the organization: `plan`, `expired`, `features`, `selfHosted`, `communityEdition`, and `trialEndsAt`, `trialActive`, `trialDaysLeft` when a trial exists |
+| `memberships` | array | Active memberships, each with `id`, `role` (lowercase) and `organization` (`id`, `name`, `slug`) |
+| `permissions` | string[] | Effective permissions of the user in the current organization |
+| `currentRole` | string\|null | Role in the current organization: `owner`, `admin`, `accountant` or `employee` |
+
+When the request carries an impersonation token, the response also has `impersonating` (`true`) and `impersonator` (`id`, `email`, `fullName`).
 
 ---
 
@@ -143,8 +169,9 @@ Update the authenticated user's profile information.
 | `timezone` | string | No | Timezone (IANA format, e.g., "Europe/Bucharest") |
 | `respectQuietHours` | boolean | No | Mute push notifications during quiet hours (22:00–08:00 user-local) |
 | `preferences` | object | No | User preferences object |
-| `password` | string | No | New password (requires `currentPassword`) |
-| `currentPassword` | string | No | Current password (required when changing password) |
+| `newPassword` | string | No | New password. Requires `currentPassword` |
+| `currentPassword` | string | With `newPassword` | Current password. Accounts without a password (social login only) send `verificationToken` instead |
+| `verificationToken` | string | Social-only accounts | Step-up MFA verification token, used to set a first password |
 
 ### Request
 
@@ -238,79 +265,35 @@ const response = await fetch('https://api.storno.ro/api/v1/me', {
   },
   body: JSON.stringify({
     currentPassword: 'OldPassword123!',
-    password: 'NewSecurePassword456!',
+    newPassword: 'NewSecurePassword456!',
   }),
 });
 ```
 
 ### Response (200 OK)
 
-Returns the updated user profile in the same format as `GET /api/v1/me`.
-
 ```json
 {
-  "id": "01HQZX1234ABCDEF5678WXYZ",
-  "email": "user@example.com",
-  "firstName": "John",
-  "lastName": "Smith",
-  "phone": "+40721234567",
-  "timezone": "Europe/Bucharest",
-  "respectQuietHours": true,
-  "emailConfirmed": true,
-  "createdAt": "2026-01-15T10:30:00Z",
-  "updatedAt": "2026-02-16T10:45:00Z",
-  "preferences": {
-    "language": "ro",
-    "theme": "dark",
-    "notifications": {
-      "email": true,
-      "push": true
-    }
-  },
-  "organization": { ... },
-  "memberships": [ ... ],
-  "subscription": { ... }
+  "message": "Profile updated."
 }
 ```
+
+Fetch the profile with `GET /api/v1/me` to read the new values.
 
 ### Error Codes
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Invalid parameters or validation failed |
 | `401` | Unauthorized - Invalid or expired token |
-| `403` | Forbidden - Incorrect current password |
-| `422` | Unprocessable Entity - Invalid timezone or phone format |
+| `422` | Unprocessable Entity - The current password is incorrect, or the verification token is missing or invalid |
 
-### Error Response Examples
-
-**Validation Error (400)**
-
-```json
-{
-  "code": 400,
-  "message": "Validation failed",
-  "errors": {
-    "phone": ["Phone number must be in E.164 format."],
-    "timezone": ["Invalid timezone identifier."]
-  }
-}
-```
-
-**Incorrect Current Password (403)**
-
-```json
-{
-  "code": 403,
-  "message": "Current password is incorrect."
-}
-```
+Error bodies use the form `{"error": "..."}`. The timezone and phone number are stored as sent, without validation.
 
 ---
 
 ## Delete Account
 
-Permanently delete the user's account. This action soft-deletes the account and anonymizes personally identifiable information (PII).
+Delete the user's account. The account is soft-deleted and deactivated at once, its personal information is anonymized, and the rest of the data is removed by a background job.
 
 **Endpoint**: `DELETE /api/v1/me`
 
@@ -321,6 +304,7 @@ Permanently delete the user's account. This action soft-deletes the account and 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `password` | string | Yes | Current password for confirmation |
+| `verificationToken` | string | Social-only accounts | Step-up MFA verification token, sent instead of `password` by accounts that have no password |
 
 ### Request
 
@@ -358,51 +342,23 @@ if (response.ok) {
 
 ### Response (204 No Content)
 
-No response body. The account is successfully deleted and all tokens are invalidated.
+No response body. The account is deactivated at once, so later API calls with its tokens are refused.
 
-### What Gets Deleted
+### What gets deleted
 
-When you delete your account:
-
-1. **User record** is soft-deleted (marked as deleted, not physically removed)
-2. **Personal information** is anonymized:
-   - Email replaced with `deleted-{timestamp}@example.com`
-   - First and last name removed
-   - Phone number removed
-   - Profile picture removed
-3. **Organization ownership** is transferred to the next admin (if any)
-4. **Memberships** are removed from all organizations
-5. **Sessions and tokens** are immediately revoked
-6. **Invoices and financial data** are preserved for legal/tax compliance (anonymized)
+1. The user record is soft-deleted and deactivated
+2. Email is replaced with `deleted_{userId}@deleted.local`
+3. First name, last name, phone, password, social login ids, Telegram link and preferences are cleared
+4. The avatar file is deleted
 
 ### Error Codes
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Missing password |
 | `401` | Unauthorized - Invalid or expired token |
-| `403` | Forbidden - Incorrect password |
-| `409` | Conflict - Cannot delete account with active subscriptions or pending invoices |
+| `422` | Unprocessable Entity - Wrong or missing password, or missing or invalid verification token |
 
-### Error Response Examples
-
-**Incorrect Password (403)**
-
-```json
-{
-  "code": 403,
-  "message": "Password is incorrect. Account not deleted."
-}
-```
-
-**Active Subscription (409)**
-
-```json
-{
-  "code": 409,
-  "message": "Cannot delete account with active subscription. Please cancel your subscription first."
-}
-```
+Error bodies use the form `{"error": "..."}`.
 
 ---
 
@@ -448,15 +404,7 @@ While any format is accepted, E.164 format is recommended for international comp
 - **E.164 format**: `+40721234567`
 - **Alternative**: `0721234567` (national format)
 
-### Security Best Practices
+### Security notes
 
-1. **Password changes** require the current password
-2. **Account deletion** requires password confirmation
-3. **Email changes** may require re-confirmation (check with support)
-4. **Token invalidation** occurs on password change (user must re-login)
-5. **Audit logging** tracks all profile changes for security
-
-### Rate Limiting
-
-- Profile updates: 10 requests per minute
-- Account deletion: 3 attempts per hour (failed password attempts)
+1. Password changes require the current password
+2. Account deletion requires password confirmation

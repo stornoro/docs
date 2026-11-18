@@ -25,7 +25,13 @@ Mark all user notifications as read. This is useful for "clear all" functionalit
 
 ### Response
 
-Returns `204 No Content` on success.
+Returns `200 OK`:
+
+```json
+{
+  "status": "ok"
+}
+```
 
 ### Error Responses
 

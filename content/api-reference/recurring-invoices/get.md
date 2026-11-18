@@ -5,7 +5,7 @@ description: Retrieve details of a specific recurring invoice including all line
 
 # Get recurring invoice
 
-Retrieves detailed information about a specific recurring invoice, including all line items that will be used as a template for generated invoices.
+Retrieves a recurring invoice with the line items used as a template for generated documents.
 
 ```http
 GET /api/v1/recurring-invoices/{uuid}
@@ -24,148 +24,163 @@ GET /api/v1/recurring-invoices/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
 
 ## Response
 
-Returns a detailed recurring invoice object with embedded line items.
+Returns the recurring invoice object.
 
-### Response Schema
+## Recurring invoice object
+
+Decimal amounts are strings and dates are ISO 8601 date-times. The object has `id`, not `uuid`. `client` is an embedded object. The series is not included, and `createdAt` and `updatedAt` are not returned.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `reference` | string | Human-readable reference |
-| `clientId` | string | UUID of the client |
-| `client` | object | Embedded client object |
-| `seriesId` | string | UUID of the document series |
-| `series` | object | Embedded series object |
-| `documentType` | string | `invoice` or `credit_note` |
+| `id` | string | Recurring invoice UUID |
+| `client` | object \| null | Embedded client |
+| `reference` | string \| null | Human-readable reference |
+| `documentType` | string | `invoice`, `credit_note` or `proforma` |
 | `currency` | string | ISO 4217 currency code |
-| `invoiceTypeCode` | string | e-Factura invoice type code |
-| `frequency` | string | Generation frequency |
-| `frequencyDay` | integer | Day of month for generation (1-31) |
-| `frequencyMonth` | integer \| null | Month for annual generation (1-12) |
-| `nextIssuanceDate` | string | ISO 8601 date of next generation |
-| `stopDate` | string \| null | ISO 8601 date to stop generation |
-| `dueDateType` | string | `fixed` or `relative` |
-| `dueDateDays` | integer \| null | Days after issue for relative due date |
-| `dueDateFixedDay` | integer \| null | Fixed day of month (1-31) |
+| `invoiceTypeCode` | string \| null | Invoice type copied to generated invoices |
+| `frequency` | string | `once`, `weekly`, `monthly`, `bimonthly`, `quarterly`, `semi_annually` or `yearly` |
+| `frequencyDay` | integer | Day of the week (1-7) for `weekly`, day of the month (1-28) otherwise |
+| `frequencyMonth` | integer \| null | Month (1-12) for `yearly` |
+| `nextIssuanceDate` | string \| null | Date of the next issuance |
+| `stopDate` | string \| null | Date after which nothing is generated |
+| `dueDateType` | string \| null | `days` or `fixed_day` |
+| `dueDateDays` | integer \| null | Days after the issue date, with `days` |
+| `dueDateFixedDay` | integer \| null | Day of the month, with `fixed_day` |
 | `isActive` | boolean | Whether generation is enabled |
-| `notes` | string \| null | Internal notes |
+| `lastIssuedAt` | string \| null | When the last document was generated |
+| `lastInvoiceNumber` | string \| null | Number of the last generated document |
+| `lastInvoiceId` | string \| null | Id of the last generated document |
+| `lastDocumentType` | string \| null | `invoice` or `proforma` |
+| `notes` | string \| null | Notes printed on generated documents |
 | `paymentTerms` | string \| null | Payment terms text |
-| `autoEmailEnabled` | boolean | Auto-send email on generation |
-| `autoEmailTime` | string \| null | Time to send (HH:mm) |
-| `autoEmailDayOffset` | integer | Days offset for email sending |
+| `balance` | string \| null | Running balance |
+| `balanceStep` | string \| null | Expression deducted per issuance |
+| `autoEmailEnabled` | boolean | Email scheduling on generated invoices |
+| `autoEmailTime` | string \| null | Time to send, `HH:MM` |
+| `autoEmailDayOffset` | integer | Days after the issue date |
 | `penaltyEnabled` | boolean | Late payment penalty enabled |
-| `penaltyPercentPerDay` | number \| null | Daily penalty percentage |
+| `penaltyPercentPerDay` | string \| null | Daily penalty percentage |
 | `penaltyGraceDays` | integer \| null | Grace period before penalties |
-| `lines` | array | Array of recurring invoice line items |
-| `subtotal` | number | Sum of line items before VAT |
-| `vatTotal` | number | Total VAT amount |
-| `totalAmount` | number | Total amount including VAT |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
+| `lines` | array | Line items |
+| `subtotal`, `vatTotal`, `total` | string | Sums of the lines |
+| `estimatedSubtotal`, `estimatedVatTotal`, `estimatedTotal` | string | Totals with reference-currency lines converted at today's rate; equal to the totals above when no line has a reference currency |
 
-### Line Item Object
+### Line item object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `description` | string | Line item description |
-| `quantity` | number | Quantity |
-| `unitPrice` | number | Price per unit |
-| `vatRateId` | string | UUID of VAT rate |
-| `vatRate` | number | VAT percentage |
-| `vatAmount` | number | Calculated VAT amount |
-| `totalAmount` | number | Line total including VAT |
-| `unitOfMeasure` | string | Unit of measure code |
-| `productId` | string \| null | UUID of linked product |
-| `priceRule` | string | `fixed`, `exchange_rate`, or `markup` |
-| `referenceCurrency` | string \| null | Currency for exchange rate pricing |
-| `markupPercent` | number \| null | Markup percentage |
+| `id` | string | Line UUID |
+| `productId` | string \| null | Linked product |
+| `productName` | string \| null | Name of the linked product |
 | `position` | integer | Display order |
+| `description` | string | Description, may contain placeholders |
+| `quantity` | string | Quantity |
+| `unitOfMeasure` | string | Unit of measure code |
+| `unitPrice` | string | Unit price |
+| `vatRate` | string | VAT percentage |
+| `vatCategoryCode` | string | UBL VAT category code |
+| `vatAmount` | string | VAT amount of the line |
+| `lineTotal` | string | Line amount before VAT |
+| `discount` | string | Discount amount |
+| `discountPercent` | string | Discount percentage |
+| `vatIncluded` | boolean | Whether the unit price includes VAT |
+| `priceRule` | string | `fixed`, `updated_product`, `bnr_rate`, `bnr_rate_markup` or `expression` |
+| `referenceCurrency` | string \| null | Currency of the price for BNR conversion |
+| `markupPercent` | string \| null | Markup percentage |
+| `priceExpression` | string \| null | Expression with `expression` |
 
 ## Example Request
 
 ```bash
 curl -X GET 'https://api.storno.ro/api/v1/recurring-invoices/rec-inv-uuid-1' \
-  -H 'Authorization: Bearer YOUR_TOKEN' \
-  -H 'X-Company: company-uuid'
+  -H 'Authorization: Bearer YOUR_TOKEN'
 ```
 
 ## Example Response
 
 ```json
 {
-  "uuid": "rec-inv-uuid-1",
-  "reference": "MONTHLY-001",
-  "clientId": "client-uuid-1",
+  "id": "rec-inv-uuid-1",
   "client": {
-    "uuid": "client-uuid-1",
+    "id": "client-uuid-1",
+    "type": "company",
     "name": "Acme Corporation SRL",
-    "cui": "RO12345678",
+    "cui": "12345678",
+    "city": "Bucuresti",
+    "country": "RO",
     "email": "contact@acme.ro"
   },
-  "seriesId": "series-uuid-1",
-  "series": {
-    "uuid": "series-uuid-1",
-    "prefix": "FRE",
-    "type": "invoice"
-  },
+  "reference": "MONTHLY-001",
   "documentType": "invoice",
   "currency": "RON",
-  "invoiceTypeCode": "380",
+  "invoiceTypeCode": null,
   "frequency": "monthly",
   "frequencyDay": 1,
   "frequencyMonth": null,
-  "nextIssuanceDate": "2026-03-01",
+  "nextIssuanceDate": "2026-03-01T00:00:00+00:00",
   "stopDate": null,
-  "dueDateType": "relative",
+  "dueDateType": "days",
   "dueDateDays": 30,
   "dueDateFixedDay": null,
   "isActive": true,
+  "lastIssuedAt": null,
+  "lastInvoiceNumber": null,
+  "lastInvoiceId": null,
+  "lastDocumentType": null,
   "notes": "Monthly hosting services",
   "paymentTerms": "Payment due within 30 days",
+  "balance": null,
+  "balanceStep": null,
   "autoEmailEnabled": true,
   "autoEmailTime": "09:00",
   "autoEmailDayOffset": 0,
   "penaltyEnabled": true,
-  "penaltyPercentPerDay": 0.05,
+  "penaltyPercentPerDay": "0.05",
   "penaltyGraceDays": 5,
   "lines": [
     {
-      "uuid": "line-uuid-1",
-      "description": "Cloud Hosting - Business Plan",
-      "quantity": 1,
-      "unitPrice": 1499.00,
-      "vatRateId": "vat-uuid-1",
-      "vatRate": 19,
-      "vatAmount": 284.81,
-      "totalAmount": 1783.81,
-      "unitOfMeasure": "buc",
+      "id": "line-uuid-1",
       "productId": "product-uuid-1",
+      "productName": "Cloud Hosting",
+      "position": 1,
+      "description": "Cloud Hosting - Business Plan",
+      "quantity": "1.0000",
+      "unitOfMeasure": "buc",
+      "unitPrice": "1499.00",
+      "vatRate": "19",
+      "vatCategoryCode": "S",
+      "vatAmount": "284.81",
+      "lineTotal": "1499.00",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
       "priceRule": "fixed",
       "referenceCurrency": null,
       "markupPercent": null,
-      "position": 1
+      "priceExpression": null
     }
   ],
-  "subtotal": 1499.00,
-  "vatTotal": 284.81,
-  "totalAmount": 1783.81,
-  "createdAt": "2026-01-15T10:30:00Z",
-  "updatedAt": "2026-02-10T14:20:00Z"
+  "subtotal": "1499.00",
+  "vatTotal": "284.81",
+  "total": "1783.81",
+  "estimatedSubtotal": "1499.00",
+  "estimatedVatTotal": "284.81",
+  "estimatedTotal": "1783.81"
 }
 ```
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Recurring invoice not found or doesn't belong to company |
+Errors have the form `{"error": "message"}`.
+
+| Status | Description |
+|--------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Missing permission |
+| 404 | Recurring invoice not found |
 
 ## Related Endpoints
 

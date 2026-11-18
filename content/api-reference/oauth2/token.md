@@ -13,7 +13,7 @@ Two grant types are supported: `authorization_code` for the initial token exchan
 POST /api/v1/oauth2/token
 ```
 
-This endpoint is rate-limited to **20 requests per minute** per client in production.
+This endpoint is rate-limited to **20 requests per minute** per client IP address in production.
 
 ---
 
@@ -36,7 +36,7 @@ Exchanges a single-use authorization code (obtained from the [Authorization endp
 | `redirect_uri` | string | Yes | Must exactly match the `redirect_uri` used in the authorization request |
 | `client_id` | string | Yes | The client's public identifier, prefixed with `storno_cid_` |
 | `client_secret` | string | Confidential only | The client secret for `confidential` clients. Omit for `public` clients |
-| `code_verifier` | string | Yes | The original PKCE code verifier. Storno will verify `SHA-256(code_verifier)` matches the `code_challenge` from the authorization request |
+| `code_verifier` | string | When a challenge was sent | The original PKCE code verifier. Required when the authorization request carried a `code_challenge`: Storno verifies that `SHA-256(code_verifier)` matches it |
 
 ### Response
 
@@ -150,20 +150,21 @@ curl -X POST 'https://api.storno.ro/api/v1/oauth2/token' \
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | invalid_request | Missing or malformed request parameters |
-| 400 | invalid_grant | The authorization code or refresh token is invalid, expired, already used, or does not belong to the provided `client_id` |
-| 400 | invalid_client | The `client_id` does not exist or the `client_secret` is incorrect |
+Errors return `{"error": "<code>", "error_description": "..."}`.
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 400 | invalid_request | Missing request parameters |
+| 400 | invalid_grant | The authorization code or refresh token is invalid, expired, already used, or does not belong to the provided `client_id`, or the `redirect_uri` or `code_verifier` does not match |
 | 400 | unsupported_grant_type | The `grant_type` is not `authorization_code` or `refresh_token` |
-| 400 | invalid_scope | Requested scopes are not a subset of the authorized scopes |
-| 429 | rate_limited | Too many requests — the client has exceeded 20 requests per minute |
+| 401 | invalid_client | The `client_id` does not exist, the client is inactive or revoked, or the `client_secret` is missing or incorrect |
+| 429 | | Too many requests. The limit is 20 per minute per IP address |
 
 ## Security Notes
 
 - **Refresh token rotation** — every successful refresh produces a new refresh token and immediately invalidates the old one. Do not attempt to use the same refresh token twice
 - **Token family revocation** — if a previously revoked refresh token is presented to this endpoint, Storno treats this as a replay attack and immediately revokes the **entire token family**, invalidating all active access and refresh tokens for that authorization. The associated client application should prompt the user to re-authorize
-- **PKCE verification** — for `authorization_code` grants, `code_verifier` is mandatory and verified using S256. Requests without a valid `code_verifier` are rejected even if the code itself is valid
+- **PKCE verification** — when the authorization request carried a `code_challenge`, the `code_verifier` is mandatory and verified using S256. Requests without a valid `code_verifier` are rejected even if the code itself is valid
 - Authorization codes are **single-use**. Presenting a code a second time returns `invalid_grant` and may trigger additional security measures
 
 ## Related Endpoints

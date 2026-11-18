@@ -7,14 +7,14 @@ endpoint: /api/v1/proforma-invoices/{uuid}
 
 # Get Proforma Invoice
 
-Retrieves complete details for a specific proforma invoice, including all line items, client information, and calculated totals.
+Retrieves complete details for a specific proforma invoice, including all line items, client information and totals.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not read by this endpoint. The proforma is found by its id and must belong to your organization |
 
 ## Path Parameters
 
@@ -38,189 +38,149 @@ const response = await fetch('https://api.storno.ro/api/v1/proforma-invoices/550
     'X-Company': 'company-uuid-here'
   }
 });
-
 const data = await response.json();
 ```
 
 ## Response
 
+The response is the proforma object itself. Decimal amounts are strings and dates are ISO 8601 date-times. `documentSeries` is `null` when the proforma has no series.
+
 ```json
 {
-  "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "number": "PRO-2026-001",
-  "seriesId": "650e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "650e8400-e29b-41d4-a716-446655440000",
-    "name": "PRO",
-    "nextNumber": 2,
-    "prefix": "PRO-",
-    "year": 2026
-  },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "number": "PRO0001",
   "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
+    "id": "750e8400-e29b-41d4-a716-446655440000",
+    "type": "company",
     "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "address": "Str. Exemplu 123, București, Sector 1",
+    "cui": "12345678",
+    "cnp": null,
     "city": "București",
-    "county": "București",
     "country": "RO",
-    "postalCode": "010101",
-    "email": "contact@client.ro",
-    "phone": "+40721234567",
-    "bankAccount": "RO49AAAA1B31007593840000",
-    "bankName": "Banca Comercială Română"
+    "email": "contact@client.ro"
+  },
+  "documentSeries": {
+    "id": "650e8400-e29b-41d4-a716-446655440000",
+    "prefix": "PRO",
+    "nextNumber": "PRO0002"
   },
   "status": "sent",
-  "issueDate": "2026-02-16",
-  "dueDate": "2026-03-16",
-  "validUntil": "2026-03-16",
   "currency": "RON",
-  "exchangeRate": 1.0,
-  "invoiceTypeCode": "380",
+  "issueDate": "2026-02-16T00:00:00+00:00",
+  "dueDate": "2026-03-16T00:00:00+00:00",
+  "validUntil": "2026-03-16T00:00:00+00:00",
+  "subtotal": "7000.00",
+  "vatTotal": "1330.00",
+  "total": "8330.00",
+  "discount": "200.00",
   "notes": "Payment terms: 30 days from invoice date",
   "paymentTerms": "Net 30",
-  "deliveryLocation": "Client warehouse - Str. Depozit 5, București",
+  "invoiceTypeCode": null,
+  "deliveryLocation": "Client warehouse",
   "projectReference": "PROJECT-2026-001",
   "orderNumber": "PO-2026-123",
   "contractNumber": "CONTRACT-2026-456",
   "issuerName": "John Doe",
-  "issuerId": "850e8400-e29b-41d4-a716-446655440000",
-  "mentions": "Special delivery instructions: Handle with care",
-  "internalNote": "Internal reference note - VIP client",
+  "issuerId": null,
+  "mentions": "Special delivery instructions",
+  "internalNote": "VIP client - priority handling",
   "salesAgent": "Jane Smith",
-  "lines": [
-    {
-      "uuid": "950e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 1,
-      "description": "Web Development Services - Phase 1",
-      "quantity": "40.00",
-      "unitPrice": "150.00",
-      "unitOfMeasure": "hour",
-      "productId": "450e8400-e29b-41d4-a716-446655440000",
-      "product": {
-        "uuid": "450e8400-e29b-41d4-a716-446655440000",
-        "name": "Web Development Services",
-        "code": "WEB-DEV-001",
-        "unitOfMeasure": "hour"
-      },
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "discount": "0.00",
-      "discountPercent": "0.00",
-      "vatIncluded": false,
-      "subtotal": "6000.00",
-      "vatAmount": "1140.00",
-      "total": "7140.00"
-    },
-    {
-      "uuid": "960e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 2,
-      "description": "Hosting Services - Annual",
-      "quantity": "1.00",
-      "unitPrice": "1200.00",
-      "unitOfMeasure": "service",
-      "productId": "460e8400-e29b-41d4-a716-446655440000",
-      "product": {
-        "uuid": "460e8400-e29b-41d4-a716-446655440000",
-        "name": "Hosting Services",
-        "code": "HOST-001",
-        "unitOfMeasure": "service"
-      },
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "discount": "200.00",
-      "discountPercent": "16.67",
-      "vatIncluded": false,
-      "subtotal": "1000.00",
-      "vatAmount": "190.00",
-      "total": "1190.00"
-    }
-  ],
-  "subtotal": "7000.00",
-  "totalDiscount": "200.00",
-  "vatAmount": "1330.00",
-  "total": "8330.00",
-  "sentAt": "2026-02-16T10:30:00Z",
+  "language": "ro",
+  "exchangeRate": null,
+  "sentAt": "2026-02-16T10:30:00+00:00",
   "acceptedAt": null,
   "rejectedAt": null,
   "cancelledAt": null,
-  "convertedAt": null,
-  "convertedInvoiceId": null,
-  "createdAt": "2026-02-16T09:00:00Z",
-  "updatedAt": "2026-02-16T10:30:00Z"
+  "expiredAt": null,
+  "lines": [
+    {
+      "id": "950e8400-e29b-41d4-a716-446655440000",
+      "position": 1,
+      "description": "Web Development Services - Phase 1",
+      "quantity": "40.0000",
+      "unitOfMeasure": "hour",
+      "unitPrice": "150.00",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
+      "vatAmount": "1140.00",
+      "lineTotal": "6000.00",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productId": "450e8400-e29b-41d4-a716-446655440000",
+      "productCode": null
+    },
+    {
+      "id": "960e8400-e29b-41d4-a716-446655440000",
+      "position": 2,
+      "description": "Hosting Services - Annual",
+      "quantity": "1.0000",
+      "unitOfMeasure": "service",
+      "unitPrice": "1200.00",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
+      "vatAmount": "190.00",
+      "lineTotal": "1000.00",
+      "discount": "200.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productId": "460e8400-e29b-41d4-a716-446655440000",
+      "productCode": null
+    }
+  ]
 }
 ```
 
-## Response Fields
+### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `number` | string | Proforma invoice number |
-| `status` | string | Current status (draft/sent/accepted/rejected/converted/cancelled) |
-| `series` | object | Series information with prefix and year |
-| `client` | object | Complete client details including banking information |
-| `lines` | array | Array of line items with products, pricing, and VAT calculations |
-| `subtotal` | string | Subtotal before VAT |
-| `totalDiscount` | string | Sum of all line item discounts |
-| `vatAmount` | string | Total VAT amount |
-| `total` | string | Grand total including VAT |
-| `issueDate` | string | Date of issue |
-| `dueDate` | string | Payment due date |
-| `validUntil` | string | Proforma validity date |
+| `id` | string | Proforma UUID |
+| `number` | string | Proforma number (series prefix plus a 4-digit counter, or a temporary `PRO-xxxxxxxx`) |
+| `status` | string | `draft`, `sent`, `accepted`, `rejected`, `converted`, `cancelled` or `expired` |
+| `client` | object \| null | `id`, `type`, `name`, `cui`, `cnp`, `city`, `country`, `email` |
+| `documentSeries` | object \| null | `id`, `prefix` and `nextNumber` (the number the series gives next, as text) |
 | `currency` | string | Currency code |
-| `exchangeRate` | number | Exchange rate to base currency |
-| `invoiceTypeCode` | string | Invoice type code (ANAF standard) |
-| `paymentTerms` | string | Payment terms description |
-| `deliveryLocation` | string | Delivery address or location |
-| `projectReference` | string | Related project reference |
-| `orderNumber` | string | Client purchase order number |
-| `contractNumber` | string | Related contract number |
-| `issuerName` | string | Name of person who issued the proforma |
-| `issuerId` | string | UUID of the issuer user |
-| `salesAgent` | string | Sales agent name |
-| `mentions` | string | Additional mentions or notes |
-| `internalNote` | string | Internal note (not shown to client) |
-| `sentAt` | string \| null | Timestamp when sent |
-| `acceptedAt` | string \| null | Timestamp when accepted |
-| `rejectedAt` | string \| null | Timestamp when rejected |
-| `cancelledAt` | string \| null | Timestamp when cancelled |
-| `convertedAt` | string \| null | Timestamp when converted to invoice |
-| `convertedInvoiceId` | string \| null | UUID of created invoice (if converted) |
+| `issueDate`, `dueDate`, `validUntil` | string \| null | ISO 8601 date-times |
+| `subtotal` | string | Sum of line totals, excluding VAT |
+| `vatTotal` | string | Total VAT amount |
+| `total` | string | `subtotal` plus `vatTotal` |
+| `discount` | string | Sum of the line discounts |
+| `notes`, `paymentTerms`, `deliveryLocation`, `projectReference`, `orderNumber`, `contractNumber`, `issuerName`, `issuerId`, `mentions`, `internalNote`, `salesAgent` | string \| null | Text fields as stored |
+| `invoiceTypeCode` | string \| null | Invoice type code as stored |
+| `language` | string | Document language (default `ro`) |
+| `exchangeRate` | string \| null | Exchange rate as stored |
+| `sentAt`, `acceptedAt`, `rejectedAt`, `cancelledAt`, `expiredAt` | string \| null | ISO 8601 timestamps of the status changes |
+| `lines` | array | Line items |
 
-### Line Item Object
+### Line item fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Line item unique identifier |
-| `lineNumber` | integer | Sequential line number |
+| `id` | string | Line UUID |
+| `position` | integer | Display order, starting at 1 |
 | `description` | string | Item description |
-| `quantity` | string | Quantity (decimal string) |
+| `quantity` | string | Quantity |
+| `unitOfMeasure` | string | Unit of measure |
 | `unitPrice` | string | Price per unit |
-| `unitOfMeasure` | string | Unit of measure (e.g., hour, piece, service) |
-| `product` | object \| null | Related product details |
-| `vatRate` | object | VAT rate details with percentage |
-| `discount` | string | Absolute discount amount |
-| `discountPercent` | string | Discount as percentage |
-| `vatIncluded` | boolean | Whether unit price includes VAT |
-| `subtotal` | string | Line subtotal (after discount, before VAT) |
-| `vatAmount` | string | Line VAT amount |
-| `total` | string | Line total (including VAT) |
+| `vatRate` | string | VAT percentage |
+| `vatCategoryCode` | string | UBL VAT category code |
+| `vatAmount` | string | VAT amount of the line |
+| `lineTotal` | string | Line total excluding VAT |
+| `discount` | string | Absolute discount |
+| `discountPercent` | string | Discount percentage as stored |
+| `vatIncluded` | boolean | Whether the unit price includes VAT |
+| `productId` | string \| null | Linked product UUID |
+| `productCode` | string \| null | Product code |
+
+The line also carries the optional fields `lineNote`, `buyerAccountingRef`, `buyerItemIdentification`, `standardItemIdentification`, `cpvCode` and `ublExtensions`.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Proforma invoice not found or doesn't belong to the specified company |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the invoice view permission |
+| 404 | Proforma not found, or it belongs to another organization |
+
+Errors return a JSON body with a single `error` message, for example `{"error": "Proforma not found."}`.

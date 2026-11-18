@@ -12,19 +12,21 @@ All list endpoints support pagination using `page` and `limit` query parameters.
 | Parameter | Type   | Default | Description |
 |-----------|--------|---------|-------------|
 | page      | number | 1       | Page number (1-indexed) |
-| limit     | number | 20      | Items per page (max varies by endpoint, typically 100) |
+| limit     | number | 10      | Items per page, maximum 20 |
+
+A `limit` above the maximum is clamped to 20, not rejected. A few endpoints use other defaults and maximums, which their pages state.
 
 ## Example Request
 
 ```bash
-curl "https://api.storno.ro/api/v1/invoices?page=2&limit=25" \
+curl "https://api.storno.ro/api/v1/invoices?page=2&limit=20" \
   -H "Authorization: Bearer {token}" \
   -H "X-Company: {company_uuid}"
 ```
 
 ## Response Format
 
-Paginated responses include metadata alongside the data:
+Paginated responses include metadata alongside the data. Some lists add more fields, for example invoice lists also return `currency` and `totals`.
 
 ```json
 {
@@ -34,8 +36,7 @@ Paginated responses include metadata alongside the data:
   ],
   "total": 150,
   "page": 2,
-  "limit": 25,
-  "pages": 6
+  "limit": 20
 }
 ```
 
@@ -44,8 +45,7 @@ Paginated responses include metadata alongside the data:
 | data  | array  | Array of resource objects |
 | total | number | Total number of matching resources |
 | page  | number | Current page number |
-| limit | number | Items per page |
-| pages | number | Total number of pages |
+| limit | number | Items per page, after clamping |
 
 ## Filtering and Sorting
 
@@ -84,7 +84,6 @@ These endpoints group results alphabetically by the first letter of the name.
 
 ## Best Practices
 
-- Use reasonable `limit` values (20–50) for UI pagination
-- Use larger limits (100) for bulk data exports
-- Always check `pages` to know when you've reached the end
+- Request `limit=20` for the fewest round trips
+- Compute the number of pages as `ceil(total / limit)` and stop when `page * limit >= total`
 - Cache `total` to avoid re-fetching it on every page change

@@ -26,7 +26,7 @@ GET /api/v1/admin/audit-logs
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | page | integer | No | Page number (default: 1) |
-| limit | integer | No | Items per page (default: 25, max: 100) |
+| limit | integer | No | Items per page (default: 10, max: 20, larger values are clamped) |
 | search | string | No | Partial match on entity type, entity id or user email |
 | action | string | No | `create`, `update`, `delete` or `impersonate` |
 | entityType | string | No | Entity short name, e.g. `Invoice`, `Client`, `Company`, `User` |
@@ -53,7 +53,7 @@ Entries are ordered newest first. Rows without a user are automated actions (que
   ],
   "total": 362587,
   "page": 1,
-  "limit": 25
+  "limit": 10
 }
 ```
 

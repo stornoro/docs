@@ -5,7 +5,7 @@ description: Update editable fields of a supplier record.
 
 # Update supplier
 
-Updates editable fields of a supplier record. Core supplier data (name, CUI) from ANAF cannot be modified, but contact information and notes can be updated.
+Updates a supplier. Only the fields you send are changed.
 
 ```http
 PATCH /api/v1/suppliers/{uuid}
@@ -24,41 +24,45 @@ PATCH /api/v1/suppliers/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ### Body Parameters
 
-All parameters are optional, but at least one must be provided.
-
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| `name` | string | Supplier name. Cannot be empty |
+| `cif` | string \| null | Tax identification number |
+| `vatCode` | string \| null | Full VAT code with country prefix |
+| `isVatPayer` | boolean | Whether the supplier is registered for VAT |
+| `registrationNumber` | string | Trade register number. Cannot be empty |
+| `address` | string | Street address. Cannot be empty |
+| `city` | string | City. Cannot be empty |
+| `county` | string | County. Cannot be empty |
+| `country` | string | Country code. Cannot be empty |
+| `postalCode` | string \| null | Postal code |
 | `email` | string \| null | Email address |
 | `phone` | string \| null | Phone number |
-| `address` | string \| null | Street address |
-| `city` | string \| null | City |
-| `county` | string \| null | County |
-| `country` | string | Country code (ISO 3166-1 alpha-2) |
-| `postalCode` | string \| null | Postal code |
 | `bankName` | string \| null | Bank name |
 | `bankAccount` | string \| null | Bank account (IBAN) |
 | `notes` | string \| null | Internal notes |
+| `affiliated` | boolean | Affiliated party flag |
 
 ## Response
 
-Returns the updated supplier object.
+Returns `{"supplier": {...}}` with the updated supplier, in the same shape as [Get supplier](/api-reference/suppliers/get).
 
 ## Example Request
 
 ```bash
-curl -X PATCH 'https://api.storno.ro/api/v1/suppliers/supplier-uuid-1' \
+curl -X PATCH 'https://api.storno.ro/api/v1/suppliers/c3d4e5f6-a7b8-9012-cdef-123456789012' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid' \
   -H 'Content-Type: application/json' \
   -d '{
-    "email": "relatii.clienti.bucuresti@enel.ro",
-    "phone": "+40214029701",
-    "notes": "Furnizor energie electrică - plată lunar prin debit direct. Contact preferential: email"
+    "email": "facturi@energie.example",
+    "phone": "+40210000001",
+    "notes": "Contact preferat: email"
   }'
 ```
 
@@ -66,70 +70,28 @@ curl -X PATCH 'https://api.storno.ro/api/v1/suppliers/supplier-uuid-1' \
 
 ```json
 {
-  "uuid": "supplier-uuid-1",
-  "name": "Enel Energie Muntenia SA",
-  "cui": "RO13267221",
-  "email": "relatii.clienti.bucuresti@enel.ro",
-  "phone": "+40214029701",
-  "address": "Bd. Unirii, Nr. 74",
-  "city": "București",
-  "county": "București",
-  "country": "RO",
-  "postalCode": "030823",
-  "bankName": "Banca Transilvania",
-  "bankAccount": "RO49BTRL01304402S0390901",
-  "notes": "Furnizor energie electrică - plată lunar prin debit direct. Contact preferential: email",
-  "invoiceCount": 12,
-  "totalExpenses": 4580.50,
-  "createdAt": "2025-06-01T08:00:00Z",
-  "updatedAt": "2026-02-16T14:20:00Z"
+  "supplier": {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "name": "Energie Exemplu SA",
+    "cif": "12345678",
+    "email": "facturi@energie.example",
+    "phone": "+40210000001",
+    "notes": "Contact preferat: email",
+    "...": "..."
+  }
 }
 ```
 
-## Field Restrictions
-
-### Non-Editable Fields
-
-The following fields come from ANAF and cannot be modified via API:
-
-- `name` - Supplier name
-- `cui` - Tax identification number
-
-These fields are automatically updated during ANAF synchronization.
-
-### Editable Fields
-
-The following fields can be updated:
-
-- Contact information: `email`, `phone`
-- Address details: `address`, `city`, `county`, `country`, `postalCode`
-- Banking details: `bankName`, `bankAccount`
-- Internal data: `notes`
-
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Supplier not found or doesn't belong to company |
-| 422 | validation_error | Invalid input data (see error details) |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Supplier not found |
+| 422 | A field that cannot be empty was sent empty |
 
-### Validation Errors
-
-Common validation errors include:
-
-- No fields provided for update
-- Invalid email format
-- Invalid country code
-- Invalid IBAN format
-
-## Important Notes
-
-- Supplier core data (name, CUI) is sync-only from ANAF
-- Use this endpoint to add or update internal contact information
-- Notes field is useful for tracking payment terms, contact preferences, and account details
-- Changes are immediately reflected in supplier details and reports
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

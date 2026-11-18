@@ -7,7 +7,7 @@ endpoint: /api/v1/declarations/{uuid}/xml
 
 # Download Declaration XML
 
-Downloads the generated XML file for a declaration. The XML is available once the declaration has been validated (status `validated`, `submitted`, `processing`, `accepted`, `rejected`, or `error`). The file is returned as `application/xml`.
+Downloads the XML file of a declaration as `application/xml`. When the XML was already stored (validation, submission or upload) the stored file is returned; otherwise it is generated from the current data of the declaration.
 
 ## Headers
 
@@ -56,41 +56,28 @@ a.click();
 | Header | Value |
 |--------|-------|
 | `Content-Type` | `application/xml` |
-| `Content-Disposition` | `attachment; filename="d394-2026-01.xml"` |
+| `Content-Disposition` | `attachment; filename="d394_2026_01.xml"` |
 
 The response body is the raw ANAF-formatted XML document.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<declaratie394 xmlns="mfp:anaf:dgti:d394:declaratie:v2" ...>
-  <antetDeclaratie>
-    <codDeclarant>RO12345678</codDeclarant>
-    <perioada>012026</perioada>
-    ...
-  </antetDeclaratie>
+<declaratie394 xmlns="mfp:anaf:dgti:d394:declaratie:v5" luna="1" an="2026" ...>
   ...
 </declaratie394>
 ```
 
 ## Availability
 
-The XML file is available when `xmlPath` is set on the declaration object. This is the case for declarations in the following statuses:
-
-| Status | XML Available |
-|--------|--------------|
-| `draft` | No |
-| `validated` | Yes |
-| `submitted` | Yes |
-| `processing` | Yes |
-| `accepted` | Yes |
-| `rejected` | Yes |
-| `error` | Yes (if XML was generated before the error) |
+Any declaration can be downloaded. A stored file is served as it is; for a declaration without one the XML is generated on the fly, and generation fails with 400 when the type has no XML generator.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Declaration not found, doesn't belong to the company, or XML has not been generated yet |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | The XML could not be generated for this declaration |
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.view` permission |
+| 404 | Declaration not found or it belongs to another company |

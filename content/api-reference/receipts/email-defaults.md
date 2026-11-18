@@ -14,7 +14,7 @@ Returns pre-filled email content for a receipt based on the company's configured
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -48,13 +48,14 @@ document.getElementById('email-body').value = defaults.body;
 
 ## Response
 
-Returns an object with pre-filled `to`, `subject`, and `body` fields:
+Returns an object with pre-filled `to`, `subject`, `body` and `templateId` fields:
 
 ```json
 {
-  "to": "office@acme.ro",
-  "subject": "Bon fiscal BON-2026-042 de la Your Company SRL",
-  "body": "Buna ziua,\n\nGasiti atasat bonul fiscal BON-2026-042 in valoare de 251.00 RON.\n\nMultumim pentru achizitie!\n\nYour Company SRL"
+  "to": "office@acme.example",
+  "subject": "Bon fiscal BON0042 de la Your Company SRL",
+  "body": "Buna ziua,\n\nGasiti atasat bonul fiscal BON0042 in valoare de 251.00 RON.\n\nMultumim pentru achizitie!\n\nYour Company SRL",
+  "templateId": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b"
 }
 ```
 
@@ -62,17 +63,20 @@ Returns an object with pre-filled `to`, `subject`, and `body` fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `to` | string | Customer email address (from linked client or `customerName` context) |
-| `subject` | string | Pre-filled subject with all template variables replaced |
-| `body` | string | Pre-filled body with all template variables replaced |
+| `to` | string \| null | Email address of the linked client. `null` when the receipt has no client or the client has no email |
+| `subject` | string | Pre-filled subject. From the company's default `receipt` email template when one exists, with variables replaced; otherwise `Bon fiscal {number} - {company name}` |
+| `body` | string | Pre-filled body, from the same template or a default text |
+| `templateId` | string \| null | UUID of the default template used, or `null` when no template exists |
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

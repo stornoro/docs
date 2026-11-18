@@ -7,7 +7,7 @@ endpoint: /api/v1/declarations/upload
 
 # Upload a declaration (XML or PDF)
 
-Creates a declaration from a document made elsewhere: the XML file, or the ANAF PDF produced by SAGA, DUKIntegrator or ANAF's own form filled in Acrobat (Storno reads the XML embedded in the PDF, as attachment or XFA data). The type, year and month come from the document. From then on the declaration behaves like any other: `validate` runs ANAF's validator on it, the [agent](/api-reference/declarations/agent) signs and files it, the recipisa lands in the dosar. **The uploaded document is what gets filed, never a regeneration** (`metadata.externalXml`); a PDF upload also keeps the original file (`metadata.uploadedPdfPath`). A PDF without a declaration inside answers `422 NO_DECLARATION_XML`.
+Creates a declaration from a document made elsewhere: the XML file, or the ANAF PDF produced by SAGA, DUKIntegrator or ANAF's own form filled in Acrobat (Storno reads the XML embedded in the PDF, as attachment or XFA data). The type comes from the root element of the XML (`declaratieNNN` such as `declaratie394`, `declaratieunica` for D112, or `c168`), the year from its `an` attribute and the month from its `luna` attribute (the current year and month 1 when they are missing). From then on the declaration behaves like any other: `validate` runs ANAF's validator on it, the [agent](/api-reference/declarations/agent) signs and files it, the recipisa lands in the dosar. **The uploaded document is what gets filed, never a regeneration** (`metadata.externalXml`); a PDF upload also keeps the original file (`metadata.uploadedPdfPath`). A PDF without a declaration inside answers `422 NO_DECLARATION_XML`.
 
 This is the way to use Storno's filing (agent, certificate, tracking, dosare) with an accounting program that produces the declarations.
 
@@ -25,7 +25,7 @@ Multipart form data.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `file` | file | Yes | The XML declaration file to upload. Must be a valid ANAF-formatted XML document |
+| `file` | file | Yes | The XML declaration file, or the ANAF PDF with the XML embedded |
 
 ## Request
 
@@ -54,35 +54,30 @@ const data = await response.json();
 
 ## Response
 
-Returns `201 Created` with the new declaration object. The declaration is created in `draft` status with `data` parsed from the uploaded XML.
+Returns `201 Created` with the new declaration object. The declaration is created in `draft` status with the attributes of the uploaded XML in `data.rows`.
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "type": "d394",
   "year": 2026,
   "month": 1,
   "periodType": "monthly",
   "status": "draft",
   "data": {
-    "totalSalesBase": "84033.61",
-    "totalSalesVat": "15966.39",
-    "totalPurchasesBase": "42016.81",
-    "totalPurchasesVat": "7983.19",
-    "invoiceCount": 47
+    "rows": { "an": "2026", "luna": "1" },
+    "uploadedXml": true
   },
   "metadata": {
-    "source": "upload",
-    "originalFilename": "D394_2026_01.xml",
-    "uploadedAt": "2026-02-10T08:00:00Z"
+    "source": "xml_upload",
+    "externalXml": true
   },
-  "errorMessage": null,
   "anafUploadId": null,
-  "xmlPath": "declarations/2026/01/d394-2026-01-uploaded.xml",
-  "recipisaPath": null,
-  "createdAt": "2026-02-10T08:00:00Z",
-  "updatedAt": "2026-02-10T08:00:00Z",
-  "createdBy": "user-uuid-here"
+  "errorMessage": null,
+  "submittedAt": null,
+  "acceptedAt": null,
+  "companyId": "company-uuid-here",
+  "dosarId": null
 }
 ```
 
@@ -90,33 +85,30 @@ Returns `201 Created` with the new declaration object. The declaration is create
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier of the created declaration |
-| `type` | string | Declaration type parsed from the XML |
-| `year` | integer | Fiscal year parsed from the XML |
-| `month` | integer | Fiscal month parsed from the XML |
-| `periodType` | string \| null | Period type parsed from the XML |
+| `id` | string | UUID of the created declaration |
+| `type` | string | Declaration type read from the document |
+| `year` | integer | Fiscal year read from the document |
+| `month` | integer | Fiscal month read from the document |
+| `periodType` | string | Standard period type of the declaration type |
 | `status` | string | Always `draft` after upload |
-| `data` | object | Fiscal data parsed from the uploaded XML |
-| `metadata` | object | Upload metadata including original filename and upload timestamp |
-| `xmlPath` | string | Internal storage path where the uploaded XML file is stored |
-| `recipisaPath` | string \| null | Always `null` after upload |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 last-updated timestamp |
-| `createdBy` | string | UUID of the authenticated user |
+| `data` | object | `rows` holds the attributes of the root element; `uploadedXml` is `true` |
+| `metadata` | object | `source` is `xml_upload` or `pdf_upload`; `externalXml` is `true`. A PDF upload also carries `uploadedPdfPath` and `uploadedFileName` |
+
+The other fields are the ones described in [get declaration](/api-reference/declarations/get).
 
 ## Validation Rules
 
-- The uploaded file must be a valid XML document
-- The XML must contain recognizable ANAF declaration structure with a parseable type and period
-- A declaration of the same type, year, and month must not already exist for the company
+- The uploaded file must be a valid XML document, or a PDF that carries a declaration XML
+- The root element of the XML must be one of the forms listed above, otherwise the upload is refused
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | No file provided or file is not valid XML |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 409 | `conflict` | A declaration for the parsed type and period already exists |
-| 422 | `validation_error` | XML does not contain a recognizable declaration type or period |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`, with an extra `code` on some of them.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | No file was sent, the file is not valid XML, or its root element is not a recognised declaration (`Cannot determine declaration type from root element`) |
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.submit` permission |
+| 404 | The company was not found |
+| 422 | A PDF without a declaration inside (`code: NO_DECLARATION_XML`) |

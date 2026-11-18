@@ -20,7 +20,7 @@ POST /api/v1/clients/from-registry
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ### Request body
@@ -55,15 +55,11 @@ Returns the created client with status `201 Created`, along with whether ANAF va
     "cui": "12345678",
     "vatCode": "RO12345678",
     "isVatPayer": true,
-    "registrationNumber": "J40/1234/2020",
     "address": "Str. Exemplu, Nr. 10",
     "city": "Bucuresti Sectorul 1",
-    "county": "Bucuresti",
     "country": "RO",
-    "postalCode": "010101",
-    "phone": "+40211234567",
-    "source": "manual",
-    "createdAt": "2026-03-02T12:00:00+02:00"
+    "viesValid": null,
+    "status": "active"
   },
   "anafValidated": true
 }

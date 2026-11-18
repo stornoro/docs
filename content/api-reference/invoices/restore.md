@@ -16,7 +16,7 @@ POST /api/v1/invoices/{uuid}/restore
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -25,7 +25,7 @@ POST /api/v1/invoices/{uuid}/restore
 | `uuid` | string | Yes | Invoice UUID |
 
 {% callout type="warning" %}
-Restoring an invoice should be done carefully. If the invoice was already sent to clients or submitted to ANAF, restoring may cause confusion. Consider creating a new invoice instead.
+Restoring an invoice should be done carefully. If the invoice was already sent to the client, restoring may cause confusion. Consider creating a new invoice instead.
 {% /callout %}
 
 ## Request
@@ -58,87 +58,54 @@ const invoice = await response.json();
 
 ## Response
 
-Returns the updated invoice object with status `draft`.
+Returns the invoice object (same shape as [Get invoice details](/api-reference/invoices/get)) with status `draft`.
 
 ```json
 {
   "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "number": "FAC-2024-001",
+  "number": "FAC0001",
   "status": "draft",
   "direction": "outgoing",
   "currency": "RON",
-  "issueDate": "2024-02-15",
-  "dueDate": "2024-03-15",
-  "subtotal": 1000.00,
-  "vatTotal": 190.00,
-  "total": 1190.00,
-  "amountPaid": 0.00,
-  "balance": 1190.00,
+  "issueDate": "2024-02-15T00:00:00+00:00",
+  "dueDate": "2024-03-15T00:00:00+00:00",
+  "subtotal": "1000.00",
+  "vatTotal": "210.00",
+  "total": "1210.00",
+  "amountPaid": "0.00",
+  "balance": "1210.00",
   "cancellationReason": null,
-  "cancelledAt": null,
-  "cancelledBy": null,
-  "restoredAt": "2024-02-16T15:00:00Z",
-  "restoredBy": {
-    "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-    "name": "John Doe",
-    "email": "john@yourcompany.ro"
-  },
-  "events": [
-    {
-      "id": "7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d",
-      "type": "status_change",
-      "status": "draft",
-      "timestamp": "2024-02-16T15:00:00Z",
-      "details": "Invoice restored from cancelled status"
-    }
-  ],
-  "updatedAt": "2024-02-16T15:00:00Z"
+  "cancelledAt": null
 }
 ```
 
 ## What happens when you restore an invoice
 
-1. **Status change** - Invoice status changes from `cancelled` to `draft`
-2. **Cancellation data cleared** - Cancellation reason, date, and user are cleared
-3. **Balance restored** - Invoice balance is recalculated based on payments
-4. **Editable again** - Invoice can now be edited and reissued
-5. **Event logged** - Restoration event recorded with timestamp and user
+1. The status changes from `cancelled` to `draft`.
+2. `cancelledAt` and `cancellationReason` are cleared.
+3. An event is recorded in the [invoice events](/api-reference/invoices/events).
 
-After restoration, you can:
-- Edit invoice details
-- Modify line items
-- Delete the invoice
-- Reissue the invoice
+The invoice keeps its number, payments and balance. After restoring you can edit it, delete it or issue it again.
 
-## When to use restore vs. create new
+## When to use restore
 
 | Scenario | Action |
 |----------|--------|
 | Accidental cancellation | Restore |
 | Invoice number must be preserved | Restore |
-| Invoice not yet sent | Restore (safe) |
-| Invoice sent to client | Create new invoice |
-| Invoice submitted to ANAF | Create new invoice |
-| Need different amounts | Create new invoice |
+| Invoice sent to client | Create a new invoice |
+| Need different amounts | Edit the restored draft, or create a new invoice |
 
 ## Error codes
+
+Error bodies have the form `{"error": "message"}`.
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company or insufficient permissions |
+| `403` | The invoice belongs to another organization, or the user cannot edit invoices |
 | `404` | Invoice not found |
-| `409` | Invoice is not cancelled or cannot be restored |
-| `422` | Business rule violation (e.g., invoice has payments or was submitted to ANAF) |
-
-## Restrictions
-
-An invoice **cannot** be restored if:
-- It was submitted to ANAF and validated
-- It has associated credit notes
-- It has recorded payments (payments must be removed first)
-- It was cancelled more than 30 days ago (configurable)
-- The invoice series has been deleted
+| `422` | The invoice is not cancelled |
 
 ## Related endpoints
 

@@ -44,7 +44,7 @@ Requires the `declaration.view` permission.
 | `unread` | boolean | No | Only documents without `readAt` |
 | `search` | string | No | Matches message type, details or ANAF id |
 | `from`, `to` | date | No | ANAF date range, `YYYY-MM-DD` |
-| `page`, `limit` | integer | No | Pagination (limit max 100) |
+| `page`, `limit` | integer | No | Pagination (default `limit` 10, max 20) |
 
 ## Response
 

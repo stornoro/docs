@@ -7,7 +7,7 @@ endpoint: /api/v1/declarations/{uuid}/submit
 
 # Submit Declaration
 
-Submits a `validated` declaration to the ANAF SPV (Spatiul Privat Virtual). The XML is uploaded to ANAF, the declaration transitions to `submitted` status, and asynchronous polling begins to track the processing result. When ANAF finishes processing, the status is updated to `accepted`, `rejected`, or `error`.
+Submits a `draft` or `validated` declaration to ANAF. The XML is uploaded during the request. When ANAF takes it, the declaration moves to `processing` and `anafUploadId` is set; when the upload fails, it moves to `error` and `errorMessage` says why. The request still answers 200 in both cases, so check `status`. A background check then follows the processing result and sets `accepted` or `rejected`.
 
 ## Headers
 
@@ -44,82 +44,66 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated declaration object in `submitted` status with the ANAF upload ID assigned.
+Returns the declaration object.
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "type": "d394",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "type": "d300",
   "year": 2026,
   "month": 1,
   "periodType": "monthly",
-  "status": "submitted",
+  "status": "processing",
   "data": {
-    "totalSalesBase": "84033.61",
-    "totalSalesVat": "15966.39",
-    "totalPurchasesBase": "42016.81",
-    "totalPurchasesVat": "7983.19",
-    "invoiceCount": 47
+    "layout": "v2026",
+    "rows": { "R9_1": 84034, "R9_2": 17647 },
+    "warnings": []
   },
   "metadata": {
-    "generatedAt": "2026-02-10T08:00:00Z",
-    "validatedAt": "2026-02-10T08:10:00Z",
-    "submittedAt": "2026-02-10T08:15:00Z"
+    "uploadResult": { "id_solicitare": "5000012345" }
   },
-  "errorMessage": null,
   "anafUploadId": "5000012345",
-  "xmlPath": "declarations/2026/01/d394-2026-01.xml",
-  "recipisaPath": null,
-  "createdAt": "2026-02-10T08:00:00Z",
-  "updatedAt": "2026-02-10T08:15:00Z",
-  "createdBy": "user-uuid-here"
+  "errorMessage": null,
+  "submittedAt": null,
+  "acceptedAt": null,
+  "companyId": "company-uuid-here",
+  "dosarId": null
 }
 ```
 
-## Response Fields
+## Response fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `type` | string | Declaration type |
-| `year` | integer | Fiscal year |
-| `month` | integer | Fiscal month |
-| `periodType` | string \| null | Period type |
-| `status` | string | `submitted` immediately after upload to ANAF |
-| `data` | object | The fiscal data included in the submission |
-| `metadata` | object | Updated metadata including `submittedAt` timestamp |
-| `errorMessage` | string \| null | `null` on successful upload; may be populated if ANAF communication fails |
-| `anafUploadId` | string | ANAF-assigned upload index number for tracking the submission |
-| `xmlPath` | string | Internal storage path of the submitted XML file |
-| `recipisaPath` | string \| null | `null` until ANAF accepts the declaration |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 timestamp of this submission |
+| `status` | string | `processing` after a successful upload, `error` when the upload failed |
+| `anafUploadId` | string \| null | ANAF upload index number used for tracking the submission |
+| `errorMessage` | string \| null | `null` on a successful upload; the failure reason when `status` is `error` |
+| `metadata` | object \| null | Includes `uploadResult`, the answer ANAF returned |
+
+The other fields are the ones described in [get declaration](/api-reference/declarations/get).
 
 ## Restrictions
 
-- The declaration must be in `validated` status
-- The company must have valid ANAF SPV credentials configured
-- ANAF processing is asynchronous — the final `accepted`/`rejected` status is determined by polling
+- The declaration must be in `draft` or `validated` status
+- Another declaration of the same type and period must not already be `submitted` or `processing`
+- The company must have a valid ANAF token
 
-## Status After Submission
+## Status after submission
 
-After calling this endpoint, the declaration progresses through these states automatically:
+1. `processing`: ANAF has the upload and `anafUploadId` is set
+2. `accepted`: ANAF accepted the filing; the recipisa is stored when it could be downloaded
+3. `rejected`: ANAF rejected the filing; `errorMessage` contains the reason
+4. `error`: the upload or the status tracking failed
 
-1. `submitted` — XML uploaded to ANAF SPV; `anafUploadId` assigned
-2. `processing` — ANAF has acknowledged receipt and is processing
-3. `accepted` — ANAF accepted the filing; recipisa downloaded and stored
-4. `rejected` — ANAF rejected the filing; `errorMessage` contains the reason
-5. `error` — A communication or system error interrupted status tracking
-
-Use [refresh-statuses](/api-reference/declarations/refresh-statuses) to force an immediate status check, or poll [GET /api/v1/declarations/{uuid}](/api-reference/declarations/get) periodically.
+Read [GET /api/v1/declarations/{uuid}](/api-reference/declarations/get) to follow the status.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Declaration not found or doesn't belong to the company |
-| 409 | `conflict` | Declaration is not in validated status |
-| 502 | `anaf_error` | ANAF SPV returned an error or was unreachable |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | The declaration is not in `draft` or `validated` status, or a declaration of the same type and period is already submitted |
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.submit` permission |
+| 404 | Declaration not found or it belongs to another company |

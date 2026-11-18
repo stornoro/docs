@@ -10,7 +10,7 @@ Storno.ro can be deployed on your own servers using Docker. Self-hosted instance
 ## Prerequisites
 
 - Docker and Docker Compose installed
-- A valid license key from [app.storno.ro/settings/billing](https://app.storno.ro/settings/billing)
+- Optional: a license key from [app.storno.ro/settings/billing](https://app.storno.ro/settings/billing). Without one the instance runs as the Community edition with the Starter plan limits
 - A domain name with SSL (recommended for production)
 
 ## Quick Start
@@ -131,7 +131,7 @@ Open `http://localhost:8901` in your browser (or your configured domain) and log
 
 ## License Key
 
-Your license key connects your self-hosted instance to your Storno.ro subscription. The key is validated periodically against the SaaS server.
+A license key connects your self-hosted instance to your Storno.ro subscription and unlocks the plan it was issued for. Without a key the instance runs as the Community edition with the Starter plan limits.
 
 ### Obtaining a License Key
 
@@ -142,10 +142,12 @@ Your license key connects your self-hosted instance to your Storno.ro subscripti
 
 ### How Validation Works
 
-- The license key is a signed JWT validated **entirely offline** — no network calls to the SaaS server
-- Plan, features, and expiration are embedded in the JWT and verified via RSA signature
-- When the key expires, the instance falls back to the Community (free) plan
-- **No user data or business information is ever transmitted**
+- A JWT license key is validated offline with an RSA signature check, with no network call to the SaaS server
+- Plan, features, and expiration are embedded in the JWT
+- A legacy non-JWT key is checked against the SaaS server every 6 hours. The request carries the key, the instance URL and four counters: organizations, active users, companies and invoices created this month
+- When the key expires or is invalid, the instance falls back to the Starter plan limits
+- The instance also asks the SaaS server for the latest version, cached for 6 hours
+- Invoices, clients and other business data are never transmitted
 
 ### License Sync Command
 

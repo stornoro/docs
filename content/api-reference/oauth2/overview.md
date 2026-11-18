@@ -5,7 +5,7 @@ description: Use Storno as an OAuth2 authorization server to build third-party i
 
 # OAuth2 Provider
 
-Storno implements the OAuth2 Authorization Code flow with mandatory PKCE (Proof Key for Code Exchange) support. Third-party applications can request delegated access to a user's Storno account with explicit user consent, without ever handling the user's password.
+Storno implements the OAuth2 Authorization Code flow with PKCE (Proof Key for Code Exchange). PKCE is required for `public` clients and recommended for `confidential` ones. Third-party applications can request delegated access to a user's Storno account with explicit user consent, without ever handling the user's password.
 
 ## When to use OAuth2 vs API tokens
 
@@ -41,7 +41,7 @@ code_challenge = BASE64URL(SHA-256(ASCII(code_verifier)))
 **2. Redirect the user to the consent screen**
 
 ```
-GET https://app.storno.ro/oauth2/authorize
+GET https://app.storno.ro/oauth/authorize
   ?response_type=code
   &client_id=storno_cid_a1b2c3d4e5f6...
   &redirect_uri=https://yourapp.com/oauth/callback
@@ -119,7 +119,7 @@ curl -X POST 'https://api.storno.ro/api/v1/oauth2/token' \
 
 ## Scopes
 
-OAuth2 scopes reuse the same `Permission` values used by API tokens. A user can only grant scopes that they themselves hold — the consent screen will only show scopes the authorizing user has. For the full scope list see [List available scopes](/api-reference/api-keys/scopes).
+OAuth2 scopes reuse the same `Permission` values used by API tokens. The scopes of a request must be registered for the client. A client can only be registered with scopes held by the user who creates it. For the full scope list see [List available scopes](/api-reference/api-keys/scopes).
 
 Common scopes:
 
@@ -141,11 +141,11 @@ Common scopes:
 
 ## Security model
 
-- **PKCE is mandatory** for all clients. `S256` is the only supported `code_challenge_method`
+- PKCE is required for `public` clients and optional for `confidential` clients. `S256` is the only supported `code_challenge_method`. When a challenge is sent, the token request must carry the matching `code_verifier`
 - Tokens are stored as SHA-256 hashes server-side — the raw value is only transmitted once
 - Refresh tokens are rotated on every use. If a revoked refresh token is replayed, the entire token family is immediately revoked
 - Authorization codes are single-use and expire after 10 minutes
-- The token exchange endpoint (`/api/v1/oauth2/token`) is rate-limited to 20 requests per minute per client
+- The token exchange endpoint (`/api/v1/oauth2/token`) is rate-limited to 20 requests per minute per IP address
 
 ## Related endpoints
 

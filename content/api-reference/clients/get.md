@@ -24,14 +24,14 @@ GET /api/v1/clients/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 
 ### Query Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `page` | integer | No | Page number for invoice history (default: 1) |
-| `limit` | integer | No | Items per page for invoice history (default: 50, max: 200) |
+| `limit` | integer | No | Items per page for invoice history (default: 10, max: 20) |
 
 ## Response
 
@@ -76,7 +76,7 @@ curl -X GET 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345
     "county": "Bucuresti",
     "country": "RO",
     "postalCode": "010101",
-    "email": "billing@acme.ro",
+    "email": "billing@acme.example",
     "phone": "+40 21 123 4567",
     "bankName": "Banca Transilvania",
     "bankAccount": "RO49AAAA1B31007593840000",
@@ -87,9 +87,7 @@ curl -X GET 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345
     "viesValid": null,
     "viesValidatedAt": null,
     "viesName": null,
-    "lastSyncedAt": null,
-    "createdAt": "2025-06-10T09:00:00+02:00",
-    "updatedAt": "2026-02-10T14:30:00+02:00"
+    "lastSyncedAt": null
   },
   "invoiceHistory": [
     {
@@ -118,6 +116,8 @@ curl -X GET 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345
 | 401 | Invalid or missing authentication token |
 | 403 | Permission denied |
 | 404 | Client not found |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

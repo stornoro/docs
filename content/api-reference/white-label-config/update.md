@@ -60,7 +60,15 @@ curl -X PUT https://api.storno.ro/api/v1/white-label-config \
     "appName": "Acme Invoicing",
     "logoUrl": "/v1/white-label/logo",
     "primaryColor": "#2563eb",
-    "removeBranding": true
+    "removeBranding": true,
+    "customDomain": "facturi.example.com",
+    "customDomainVerified": false,
+    "customDomainVerifiedAt": null,
+    "dnsRecord": {
+      "name": "_storno-verify.facturi.example.com",
+      "type": "TXT",
+      "value": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+    }
   }
 }
 ```
@@ -69,7 +77,7 @@ curl -X PUT https://api.storno.ro/api/v1/white-label-config \
 
 | Code | Description |
 |------|-------------|
-| `400` | Invalid color format (must be hex, e.g. `#2563eb`) |
+| `400` | Invalid color format (must be hex, e.g. `#2563eb`), or an invalid or disallowed `customDomain` |
 | `401` | Missing or invalid authentication token |
 | `403` | Missing `settings.manage` permission, or plan is not Business |
 | `404` | Organization not found |

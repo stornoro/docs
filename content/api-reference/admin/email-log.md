@@ -31,8 +31,8 @@ GET /api/v1/admin/email-log
 | recipientEmail | string | No | Partial match on recipient email |
 | userId | string | No | Filter by associated user UUID |
 | status | string | No | Filter by status: `sent`, `failed`, `delivered`, `bounced` |
-| dateFrom | string | No | ISO 8601 date lower bound, inclusive (e.g. `2026-05-01`) |
-| dateTo | string | No | ISO 8601 date upper bound, inclusive (e.g. `2026-05-31`) |
+| dateFrom | string | No | Lower bound on `sentAt`, inclusive (e.g. `2026-05-01`) |
+| dateTo | string | No | Upper bound on `sentAt`, inclusive. A date without a time means midnight, so `2026-05-31` excludes that day. Use `2026-05-31T23:59:59` to include it |
 
 ### Email Categories
 

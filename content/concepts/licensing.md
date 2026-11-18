@@ -19,12 +19,15 @@ When you use Storno.ro at `app.storno.ro`, billing and plan management happen di
 
 ### Self-Hosted Mode
 
-When you deploy Storno.ro on your own infrastructure via Docker, a **license key** connects your instance to your SaaS subscription. The license key is a signed JWT that is validated entirely offline — no phone-home to the SaaS server is required.
+When you deploy Storno.ro on your own infrastructure via Docker, the instance runs without a license key as the **Community edition**. Community has the Starter plan limits (3 companies, 3 users, 500 invoices per month) and no time limit. It supports a single organization.
 
-- Requires `LICENSE_KEY` environment variable
-- Validated offline via RSA signature verification (no network calls)
+A **license key** connects your instance to your SaaS subscription and unlocks the plan it was issued for. A key issued from the SaaS dashboard is a signed JWT that the instance validates offline.
+
+- Set the key in the `LICENSE_KEY` environment variable
+- A JWT key is validated with an RSA signature check and needs no network call
 - Plan, features, and expiration are embedded in the JWT
 - Billing (subscription changes, upgrades) redirects to the SaaS
+- Creating license keys requires a plan with the self-hosting license (Business)
 
 ## License Key Lifecycle
 
@@ -60,7 +63,7 @@ LICENSE_KEY=eyJhbGciOiJSUzI1NiI...your-jwt-key
 
 ### 3. Validate
 
-The instance validates the JWT signature locally using the embedded public key — no network request is made. Validation runs on startup and periodically via `app:license:sync`.
+The instance validates the JWT signature locally using the embedded public key. No network request is made for a JWT key. The `app:license:sync` command applies the result to the local organization and runs every 6 hours.
 
 ### 4. Sync
 
@@ -68,7 +71,7 @@ On successful validation, the local organization's plan is updated to match the 
 
 ### 5. Expire
 
-License keys have an expiration date embedded in the JWT. When a key expires, the instance falls back to the Community (free) plan. The owner can generate a new key from the SaaS dashboard.
+License keys have an expiration date embedded in the JWT. When a key expires or is invalid, the instance falls back to the Starter plan limits, the same as Community. The owner can generate a new key from the SaaS dashboard.
 
 ## Plans & Features
 
@@ -145,19 +148,25 @@ All plan limits are enforced at the API level. When a request requires a feature
 
 Limits apply equally to web, mobile, and API key authenticated requests.
 
-## Offline by Design
+## What a license key sends
 
-License keys are signed JWTs validated entirely on your server. **No network calls are made to the SaaS server for license validation.** Your self-hosted instance works fully offline, air-gapped, or behind a firewall.
+| Key type | Network use |
+|----------|-------------|
+| JWT license key | None for validation. The signature is checked locally. |
+| Legacy non-JWT key | `POST /api/v1/licensing/validate` on the SaaS server every 6 hours. The request carries the key, the instance URL and four counters: organizations, active users, companies and invoices created this month. |
+
+If the SaaS server cannot be reached, an instance with a legacy key keeps its last result for 7 days. After that its features are limited until it reconnects.
+
+Independently of the license, the instance asks the SaaS server for the latest version (`GET /api/v1/version`) and caches the answer for 6 hours.
 
 | Scenario | Behavior |
 |----------|----------|
 | Valid JWT license | Plan and features applied from JWT claims |
-| Expired JWT license | Falls back to Community (free) plan |
-| Invalid or tampered JWT | Falls back to Community (free) plan |
+| Expired JWT license | Starter plan limits |
+| Invalid or tampered JWT | Starter plan limits |
+| No license key | Community edition, Starter plan limits |
 
-## Data Privacy
-
-**No data is transmitted to the SaaS server for license validation.** The JWT is verified locally using cryptographic signature verification. Your data stays entirely on your self-hosted infrastructure.
+Invoices, clients and other business data are never sent to the SaaS server.
 
 ## API Reference
 

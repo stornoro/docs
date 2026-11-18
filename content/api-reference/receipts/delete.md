@@ -1,20 +1,20 @@
 ---
 title: Delete Receipt
-description: Permanently delete a receipt (draft status only)
+description: Delete a receipt (draft or cancelled status only)
 method: DELETE
 endpoint: /api/v1/receipts/{uuid}
 ---
 
 # Delete Receipt
 
-Permanently deletes a receipt and all its line items. Only receipts in `draft` status can be deleted. Once issued, invoiced, or cancelled, a receipt cannot be deleted.
+Deletes a receipt. The receipt is soft-deleted: it no longer appears in lists or can be fetched, but the record is kept. Only receipts in `draft` or `cancelled` status can be deleted. Issued and invoiced receipts cannot be deleted.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -49,19 +49,16 @@ if (response.status === 204) {
 
 **Success:** Returns `204 No Content` with an empty response body.
 
-The receipt and all associated line items are permanently deleted from the database.
-
 ## Restrictions
 
 ### Status Requirement
-Only receipts with `status = draft` can be deleted.
+Only receipts with `status` `draft` or `cancelled` can be deleted.
 
 Receipts in the following states **cannot** be deleted:
 - `issued` - Already printed and handed to customer
 - `invoiced` - Converted to a formal invoice
-- `cancelled` - Already cancelled
 
-For issued or invoiced receipts, use the [cancel endpoint](/api-reference/receipts/cancel) instead.
+For issued receipts, use the [cancel endpoint](/api-reference/receipts/cancel) first.
 
 ### Referential Integrity
 - Deleting a receipt does not roll back the series number counter
@@ -69,13 +66,14 @@ For issued or invoiced receipts, use the [cancel endpoint](/api-reference/receip
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
-| 409 | `conflict` | Receipt status prevents deletion (not in draft) |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+| 422 | Receipt status prevents deletion (`issued` or `invoiced`) |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Example Error Responses
 
@@ -83,15 +81,7 @@ For issued or invoiced receipts, use the [cancel endpoint](/api-reference/receip
 
 ```json
 {
-  "error": {
-    "code": "conflict",
-    "message": "Receipt cannot be deleted",
-    "details": {
-      "status": "issued",
-      "reason": "Only draft receipts can be deleted. Use cancel instead.",
-      "issuedAt": "2026-02-18T10:15:00Z"
-    }
-  }
+  "error": "Bonul fiscal nu poate fi sters."
 }
 ```
 
@@ -99,30 +89,23 @@ For issued or invoiced receipts, use the [cancel endpoint](/api-reference/receip
 
 ```json
 {
-  "error": {
-    "code": "not_found",
-    "message": "Receipt not found"
-  }
+  "error": "Receipt not found."
 }
 ```
 
 ## Delete vs Cancel
 
 ### Delete
-- **Use when:** Receipt was created by mistake and is still in draft
-- **Preserves:** Nothing — permanently removed
-- **Can be done:** Only in `draft` status
-- **Audit trail:** None
+- **Use when:** Receipt was created by mistake and is still a draft, or a cancelled receipt is no longer needed
+- **Can be done:** In `draft` or `cancelled` status
 
 ### Cancel
 - **Use when:** Receipt was issued but must be voided (requires a cancellation receipt on the fiscal device)
-- **Preserves:** Full audit trail and historical data
 - **Can be done:** At `draft` or `issued` status
-- **Audit trail:** Full
+- **Preserves:** The receipt with status `cancelled`
 
 ## Best Practices
 
-1. **Delete only drafts** - Never attempt to delete an issued receipt
+1. **Delete drafts and cancelled receipts only** - An issued receipt must be cancelled first
 2. **Verify before deleting** - Double-check you are deleting the correct document
-3. **Cancel issued receipts** - If a receipt was already printed, use cancel to maintain the audit trail
-4. **Fiscal compliance** - Deleting a draft that was never printed on the fiscal device has no fiscal impact; cancelling an issued receipt requires a corresponding cancellation receipt on the physical device
+3. **Fiscal compliance** - Deleting a draft that was never printed on the fiscal device has no fiscal impact; cancelling an issued receipt requires a corresponding cancellation receipt on the physical device

@@ -7,7 +7,7 @@ endpoint: /api/v1/licensing/keys
 
 # List License Keys
 
-Retrieve all license keys issued for the current organization. Keys are returned with masked values for security. Only the organization owner can list keys.
+Retrieve all license keys issued for the current organization. Keys are returned with masked values for security. Requires the `org.manage_billing` permission.
 
 ## Request
 
@@ -94,13 +94,15 @@ $keys = $data['keys'];
 | `lastValidatedAt` | string\|null | Last time this key was validated by a self-hosted instance |
 | `activatedAt` | string\|null | When the key was first used |
 | `createdAt` | string | ISO 8601 creation timestamp |
+| `instanceMetrics` | object\|null | Usage metrics last reported by the instance |
+| `lastViolations` | array\|null | Plan limit violations found in the last reported metrics |
 
 ## Error Codes
 
 | Code | Description |
 |------|-------------|
 | `401` | Unauthorized — Missing or invalid token |
-| `403` | Forbidden — User is not the organization owner |
+| `403` | Forbidden — the user lacks `org.manage_billing` |
 | `404` | Not Found — Organization not found |
 
 ## Usage Notes

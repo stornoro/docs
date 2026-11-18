@@ -5,7 +5,7 @@ description: Add a new bank account to the company.
 
 # Create bank account
 
-Creates a new bank account for the authenticated company. The IBAN must be unique within the company.
+Creates a new bank account for the authenticated company. The IBAN must be unique within the company. A company can have one cash account.
 
 ```http
 POST /api/v1/bank-accounts
@@ -21,17 +21,22 @@ POST /api/v1/bank-accounts
 | `X-Company` | string | Yes | UUID of the company context |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
+Requires the `settings.manage` permission.
+
 ### Body Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `type` | string | No | Account type: `bank` (default) or `cash`. A company can have at most one `cash` account; it represents the physical till that backs the POS / cash-register reports. |
-| `iban` | string | Conditional | International Bank Account Number. Required for `bank` accounts; ignored / nullable for `cash` accounts. |
-| `bankName` | string | No | Name of the bank (typically only set for `bank` accounts). |
+| `iban` | string | Conditional | International Bank Account Number. Required for `bank` accounts; ignored for `cash` accounts. |
+| `bankName` | string | No | Name of the bank |
 | `currency` | string | No | Currency code (ISO 4217, default: "RON") |
-| `isDefault` | boolean | No | Set as default account for this currency (default: false) |
-| `openingBalance` | number | No | Starting balance recorded for the account. Required to enable cash-register reporting on `cash` accounts; once set, locks and can only be modified via forward-going cash movements. Must be ≥ 0. |
-| `openingBalanceDate` | string | No | Date the opening balance was taken (YYYY-MM-DD). Required when `openingBalance` is provided. |
+| `isDefault` | boolean | No | Set as the default account (default: false). Always false for `cash` accounts. |
+| `showOnInvoice` | boolean | No | Print the account on invoices (default: false). Always false for `cash` accounts. |
+| `openingBalance` | string \| number | No | Starting balance of a `cash` account. Must be zero or positive. Send it together with `openingBalanceDate`. Cash-register reports need both. |
+| `openingBalanceDate` | string | No | Date the opening balance was taken (YYYY-MM-DD). Required when `openingBalance` is sent. |
+
+`openingBalance` and `openingBalanceDate` are only applied to `cash` accounts.
 
 ## Response
 
@@ -45,8 +50,8 @@ curl -X POST 'https://api.storno.ro/api/v1/bank-accounts' \
   -H 'X-Company: company-uuid' \
   -H 'Content-Type: application/json' \
   -d '{
-    "iban": "RO49INGB0000999900000017",
-    "bankName": "ING Bank",
+    "iban": "RO49AAAA1B31007593840000",
+    "bankName": "Example Bank",
     "currency": "RON",
     "isDefault": false
   }'
@@ -71,38 +76,35 @@ curl -X POST 'https://api.storno.ro/api/v1/bank-accounts' \
 
 ```json
 {
-  "uuid": "bank-account-uuid-3",
-  "iban": "RO49INGB0000999900000017",
-  "bankName": "ING Bank",
+  "id": "bank-account-uuid-3",
+  "type": "bank",
+  "iban": "RO49AAAA1B31007593840000",
+  "bankName": "Example Bank",
   "currency": "RON",
   "isDefault": false,
-  "createdAt": "2026-02-16T15:30:00Z",
-  "updatedAt": "2026-02-16T15:30:00Z"
+  "showOnInvoice": false,
+  "source": "manual",
+  "openingBalance": null,
+  "openingBalanceDate": null
 }
 ```
 
 ## Default Account Behavior
 
-- If `isDefault` is `true`, any existing default account for that currency will be set to non-default
-- Each currency can only have one default account
-- If this is the first account for a currency, it automatically becomes the default regardless of the `isDefault` value
+- If `isDefault` is `true`, the default flag is cleared on all of the company's other accounts
+- The first account is not made default automatically
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 422 | validation_error | Invalid input data (see error details) |
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Invalid `type`, missing `iban` on a `bank` account, a missing `openingBalance` or `openingBalanceDate` of the pair, a negative or non-numeric `openingBalance`, or an invalid date |
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found |
+| 409 | The IBAN already exists for this company, or a cash account already exists |
 
-### Validation Errors
-
-Common validation errors include:
-
-- Missing `iban` field
-- Invalid IBAN format
-- IBAN already exists for this company
-- Invalid currency code
+Error bodies have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

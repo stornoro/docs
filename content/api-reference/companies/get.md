@@ -7,7 +7,7 @@ endpoint: /api/v1/companies/{uuid}
 
 # Get Company
 
-Returns detailed information for a specific company, including all configuration settings and ANAF token status.
+Returns detailed information for a specific company, including all configuration settings. `hasValidToken` tells whether an ANAF token usable for the company exists.
 
 ## Headers
 
@@ -50,39 +50,52 @@ const company = await response.json();
 
 ```json
 {
-  "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "name": "SRL Example Company",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Example Company SRL",
   "cif": "12345678",
+  "type": "company",
+  "isIndividual": false,
   "registrationNumber": "J40/1234/2020",
   "vatPayer": true,
   "vatCode": "RO12345678",
   "address": "Strada Exemplu, Nr. 10",
   "city": "Bucuresti",
   "state": "Bucuresti",
-  "country": "Romania",
-  "sector": "Sector 1",
+  "country": "RO",
   "phone": "+40721234567",
   "email": "contact@example.ro",
+  "website": null,
+  "capitalSocial": null,
+  "vatOnCollection": false,
+  "oss": false,
+  "vatIn": null,
+  "eoriCode": null,
+  "representative": null,
+  "representativeRole": null,
+  "caenCode": null,
+  "vatPeriod": "monthly",
+  "incomeTaxPeriod": "quarterly",
+  "hasEmployees": false,
   "bankName": "Banca Transilvania",
   "bankAccount": "RO49AAAA1B31007593840000",
   "bankBic": "BTRLRO22",
   "defaultCurrency": "RON",
   "syncEnabled": true,
-  "lastSyncedAt": "2026-02-16T10:30:00Z",
-  "syncDaysBack": 30,
-  "efacturaDelayHours": 24,
+  "lastSyncedAt": "2026-02-16T10:30:00+00:00",
+  "syncDaysBack": 60,
   "archiveEnabled": true,
   "archiveRetentionYears": 10,
+  "efacturaDelayHours": 24,
+  "isReadOnly": false,
   "enabledModules": null,
-  "tokenStatus": {
-    "hasToken": true,
-    "isValid": true,
-    "expiresAt": "2026-03-16T10:30:00Z"
-  }
+  "deletedAt": null,
+  "hardDeleteAt": null,
+  "stripeConnect": null,
+  "hasValidToken": true
 }
 ```
 
-The `enabledModules` field controls sidebar/menu visibility for optional modules. When `null`, all modules are visible (default). When set to an array, only those module keys appear in the navigation. Valid keys: `delivery_notes`, `receipts`, `proforma_invoices`, `recurring_invoices`, `reports`, `efactura`, `spv_messages`.
+The `enabledModules` field controls sidebar/menu visibility for optional modules. When `null`, all modules are visible (default). When set to an array, only those module keys appear in the navigation. Valid keys: `delivery_notes`, `receipts`, `proforma_invoices`, `recurring_invoices`, `reports`, `cash_register`, `efactura`, `spv_messages`.
 
 ## Error Codes
 

@@ -21,6 +21,8 @@ POST /api/v1/vat-rates
 | `X-Company` | string | Yes | UUID of the company context |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
+Requires the `settings.manage` permission.
+
 ### Body Parameters
 
 | Parameter | Type | Required | Description |
@@ -29,7 +31,8 @@ POST /api/v1/vat-rates
 | `label` | string | Yes | Display label (e.g., "TVA 19%") |
 | `categoryCode` | string | No | e-Factura category code (default: "S") |
 | `isDefault` | boolean | No | Set as default rate (default: false) |
-| `position` | integer | No | Display order (auto-assigned if not provided) |
+| `isActive` | boolean | No | Whether the rate is active (default: true) |
+| `position` | integer | No | Display order (default: 0) |
 
 ## Response
 
@@ -55,60 +58,44 @@ curl -X POST 'https://api.storno.ro/api/v1/vat-rates' \
 
 ```json
 {
-  "uuid": "vat-uuid-1",
-  "rate": 19,
+  "id": "vat-uuid-1",
+  "rate": "19.00",
   "label": "TVA 19%",
   "categoryCode": "S",
   "isDefault": true,
-  "position": 1,
-  "createdAt": "2026-02-16T16:30:00Z",
-  "updatedAt": "2026-02-16T16:30:00Z"
+  "isActive": true,
+  "position": 1
 }
 ```
 
 ## Category Codes
 
-Common e-Factura category codes:
-
 | Code | Description | Typical Use |
 |------|-------------|-------------|
-| `S` | Standard rate | Default for most goods/services |
-| `AA` | Reduced rate | Lower VAT rates (9%, 5%) |
+| `S` | Standard rate | Standard and reduced VAT rates |
+| `Z` | Zero rated | 0% VAT |
 | `E` | Exempt | VAT-exempt transactions |
-| `O` | Outside scope | Not subject to VAT |
-| `Z` | Zero rated | 0% VAT but with input deduction |
 | `AE` | Reverse charge | VAT responsibility on buyer |
+| `K` | Exempt for export | Exports outside the EU |
+| `L` | Intra-community supply | Supplies to other EU member states |
+| `O` | Outside scope | Not subject to VAT |
+| `M` | Margin scheme | Margin scheme sales |
 
 ## Default Rate Behavior
 
-- If `isDefault` is `true`, any existing default rate will be set to non-default
-- Only one VAT rate can be marked as default
-- The default rate is automatically selected in new invoice lines
-- If this is the first VAT rate, it automatically becomes the default
-
-## Position Assignment
-
-- If `position` is not provided, the system assigns the next available position
-- Lower position numbers appear first in dropdowns
-- You can specify any integer to control ordering
+- If `isDefault` is `true`, the default flag is cleared on the company's other rates
+- The first rate is not made default automatically
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 422 | validation_error | Invalid input data (see error details) |
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `rate` or `label` is missing |
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found |
 
-### Validation Errors
-
-Common validation errors include:
-
-- Missing `rate` field
-- Missing `label` field
-- Negative rate value
-- Invalid category code
-- Duplicate rate and label combination
+Error bodies have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

@@ -26,9 +26,17 @@ DELETE /api/v1/bank-accounts/{uuid}
 | `Authorization` | string | Yes | Bearer token for authentication |
 | `X-Company` | string | Yes | UUID of the company context |
 
+Requires the `settings.manage` permission.
+
 ## Response
 
-Returns a `204 No Content` status on successful deletion with no response body.
+Returns `200 OK` with a confirmation message.
+
+```json
+{
+  "message": "Bank account deleted."
+}
+```
 
 ## Example Request
 
@@ -38,28 +46,19 @@ curl -X DELETE 'https://api.storno.ro/api/v1/bank-accounts/bank-account-uuid-3' 
   -H 'X-Company: company-uuid'
 ```
 
-## Example Response
-
-```http
-HTTP/1.1 204 No Content
-```
-
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Bank account not found or doesn't belong to company |
-| 409 | conflict | Cannot delete the last bank account or account with active invoices |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found, or bank account not found in this company |
+
+Error bodies have the form `{"error": "message"}`.
 
 ## Important Notes
 
-- This is a permanent delete operation - data cannot be recovered
-- You cannot delete the last bank account for a company
-- If the account is marked as default, another account must be set as default first
-- Existing invoices that reference this bank account will retain the IBAN in their stored data
-- Consider setting `isDefault: false` on another account before deleting a default account
+- This is a permanent delete operation. The data cannot be recovered
 
 ## Related Endpoints
 

@@ -16,7 +16,7 @@ Only receipts in `cancelled` status can be restored.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -46,23 +46,22 @@ const data = await response.json();
 
 ## Response
 
-Returns the restored receipt with `status = draft` and `cancelledAt` cleared:
+Returns the receipt in the same shape as [Get receipt](/api-reference/receipts/get), with `status = draft` and `cancelledAt` cleared (`lines` abbreviated here):
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "number": "BON-2026-042",
-  "seriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "BON",
-    "nextNumber": 43
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "number": "BON0042",
+  "documentSeries": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "prefix": "BON",
+    "nextNumber": "BON0043"
   },
   "status": "draft",
-  "issueDate": "2026-02-18",
   "currency": "RON",
+  "issueDate": "2026-02-18T00:00:00+02:00",
   "subtotal": "210.92",
-  "vatAmount": "40.08",
+  "vatTotal": "40.08",
   "total": "251.00",
   "paymentMethod": "mixed",
   "cashPayment": "100.00",
@@ -70,12 +69,9 @@ Returns the restored receipt with `status = draft` and `cancelledAt` cleared:
   "otherPayment": "0.00",
   "cashRegisterName": "Casa 1 - Front Desk",
   "fiscalNumber": "AAAA123456",
-  "cancellationReason": null,
-  "cancellationNotes": null,
-  "issuedAt": null,
-  "cancelledAt": null,
-  "createdAt": "2026-02-18T10:14:00Z",
-  "updatedAt": "2026-02-18T11:30:00Z"
+  "lines": [],
+  "issuedAt": "2026-02-18T10:15:00+00:00",
+  "cancelledAt": null
 }
 ```
 
@@ -83,9 +79,6 @@ Returns the restored receipt with `status = draft` and `cancelledAt` cleared:
 
 - **Status:** Changed from `cancelled` → `draft`
 - **cancelledAt:** Cleared (set to `null`)
-- **cancellationReason:** Cleared (set to `null`)
-- **cancellationNotes:** Cleared (set to `null`)
-- **updatedAt:** Updated to current UTC timestamp
 
 After restoring, the receipt can be edited, re-issued, or deleted.
 
@@ -96,13 +89,14 @@ After restoring, the receipt can be edited, re-issued, or deleted.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
-| 422 | `validation_error` | Receipt is not in cancelled status |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+| 422 | Receipt is not in cancelled status |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Example Error Response
 
@@ -110,14 +104,7 @@ After restoring, the receipt can be edited, re-issued, or deleted.
 
 ```json
 {
-  "error": {
-    "code": "validation_error",
-    "message": "Receipt cannot be restored",
-    "details": {
-      "status": "draft",
-      "reason": "Only cancelled receipts can be restored"
-    }
-  }
+  "error": "Doar bonurile anulate pot fi restaurate."
 }
 ```
 

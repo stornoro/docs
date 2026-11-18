@@ -5,7 +5,7 @@ description: Retrieve all email templates for the authenticated company.
 
 # List email templates
 
-Retrieves all email templates configured for the authenticated company. If no templates exist, a default template is automatically created.
+Retrieves the email templates of one category for the company. If the company has none in that category, a default template is created and returned.
 
 ```http
 GET /api/v1/email-templates
@@ -18,23 +18,30 @@ GET /api/v1/email-templates
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
+
+## Query parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `category` | string | No | `invoice`, `delivery_note` or `receipt`. Default `invoice`. Any other value is treated as `invoice` |
 
 ## Response
 
-Returns an array of email template objects.
+Returns `data`, an array of templates, and `availableVariables`, the placeholders valid for the requested category.
 
 ### Email Template Object
 
+Each template has these fields:
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
+| `id` | string | Template UUID |
 | `name` | string | Template name |
 | `subject` | string | Email subject line (supports variables) |
-| `body` | string | Email body content (supports variables) |
-| `isDefault` | boolean | Whether this is the default template |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
+| `body` | string | Email body (supports variables) |
+| `isDefault` | boolean | Whether this is the default template of its category |
+| `category` | string | `invoice`, `delivery_note` or `receipt` |
 
 ## Example Request
 
@@ -47,60 +54,73 @@ curl -X GET 'https://api.storno.ro/api/v1/email-templates' \
 ## Example Response
 
 ```json
-[
-  {
-    "uuid": "template-uuid-1",
-    "name": "Factura standard",
-    "subject": "Factura {{invoice_number}} de la {{company_name}}",
-    "body": "Bună ziua,\n\nVă transmitem factura {{invoice_number}} în valoare de {{total}} RON.\n\nData scadență: {{due_date}}\n\nVă mulțumim,\n{{company_name}}",
-    "isDefault": true,
-    "createdAt": "2025-06-01T10:00:00Z",
-    "updatedAt": "2025-06-01T10:00:00Z"
-  },
-  {
-    "uuid": "template-uuid-2",
-    "name": "Factura cu reminder",
-    "subject": "Reminder: Factura {{invoice_number}} scadentă",
-    "body": "Bună ziua {{client_name}},\n\nVă reamintim că factura {{invoice_number}} în valoare de {{total}} RON este scadentă pe {{due_date}}.\n\nVă rugăm să procesați plata cât mai curând posibil.\n\nMulțumim,\n{{company_name}}",
-    "isDefault": false,
-    "createdAt": "2025-07-15T14:30:00Z",
-    "updatedAt": "2025-12-10T09:20:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "name": "Factura standard",
+      "subject": "Factura [[invoice_number]] - [[company_name]]",
+      "body": "Stimate/Stimata **[[client_name]]**,\n\nVa transmitem alaturat factura **nr. [[invoice_number]]**, in valoare de **[[total]] [[currency]]**.\n\nData scadenta: [[due_date]]\n\nCu stima,\n**[[company_name]]**",
+      "isDefault": true,
+      "category": "invoice"
+    },
+    {
+      "id": "8d0f7780-8536-41ef-a55c-f18bd2c01bf8",
+      "name": "Factura cu reminder",
+      "subject": "Reminder: Factura [[invoice_number]] scadenta",
+      "body": "Buna ziua [[client_name]],\n\nVa reamintim ca factura [[invoice_number]] in valoare de [[total]] [[currency]] este scadenta pe [[due_date]].\n\nMultumim,\n[[company_name]]",
+      "isDefault": false,
+      "category": "invoice"
+    }
+  ],
+  "availableVariables": [
+    "[[client_name]]",
+    "[[invoice_number]]",
+    "[[total]]",
+    "[[due_date]]",
+    "[[issue_date]]",
+    "[[company_name]]",
+    "[[balance]]",
+    "[[client_outstanding]]",
+    "[[currency]]"
+  ]
+}
 ```
 
 ## Available Variables
 
-Email templates support the following dynamic variables:
+Templates support these placeholders in `subject` and `body`. The syntax is double square brackets:
 
-| Variable | Description | Example Output |
-|----------|-------------|----------------|
-| `{{invoice_number}}` | Full invoice number | FAC00245 |
-| `{{client_name}}` | Client name | Acme Corporation SRL |
-| `{{total}}` | Total amount | 2380.00 |
-| `{{currency}}` | Currency code | RON |
-| `{{due_date}}` | Due date | 2026-03-15 |
-| `{{issue_date}}` | Issue date | 2026-02-15 |
-| `{{company_name}}` | Your company name | My Company SRL |
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `[[client_name]]` | Client name | Acme Corporation SRL |
+| `[[invoice_number]]` | Invoice number | FAC00245 |
+| `[[total]]` | Total amount | 2380.00 |
+| `[[currency]]` | Currency code | RON |
+| `[[issue_date]]` | Issue date, `dd.mm.yyyy` | 15.02.2026 |
+| `[[due_date]]` | Due date, `dd.mm.yyyy` | 15.03.2026 |
+| `[[balance]]` | Amount still to pay | 2380.00 |
+| `[[client_outstanding]]` | Total outstanding for the client | 4760.00 |
+| `[[company_name]]` | Your company name | My Company SRL |
+
+Templates of category `delivery_note` use `[[client_name]]`, `[[delivery_note_number]]`, `[[total]]`, `[[issue_date]]`, `[[company_name]]` and `[[currency]]`. Templates of category `receipt` use `[[client_name]]`, `[[receipt_number]]`, `[[total]]`, `[[issue_date]]`, `[[company_name]]` and `[[currency]]`.
 
 ## Auto-Seeding
 
-If a company has no email templates, the system automatically creates a default template on first request with Romanian content suitable for standard invoice emails.
+If the company has no template in the requested category, a default template with Romanian content is created on the first request.
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Missing the `email_template.view` permission |
+| 404 | Company not found. The company could not be resolved from `X-Company` or `?company=` |
 
 ## Important Notes
 
-- Each company should have at least one email template
-- Only one template can be marked as default
-- The default template is used when sending invoices without specifying a template
-- Templates can include HTML formatting for richer email appearance
-- Variables are replaced at send time with actual invoice data
+- Only one template per category can be the default
+- Variables are replaced when the email is sent
 
 ## Related Endpoints
 

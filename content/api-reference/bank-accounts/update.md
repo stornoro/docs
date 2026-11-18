@@ -5,7 +5,7 @@ description: Update an existing bank account.
 
 # Update bank account
 
-Updates an existing bank account for the authenticated company.
+Updates an existing bank account for the authenticated company. Only the fields you send are changed.
 
 ```http
 PATCH /api/v1/bank-accounts/{uuid}
@@ -27,19 +27,21 @@ PATCH /api/v1/bank-accounts/{uuid}
 | `X-Company` | string | Yes | UUID of the company context |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
-### Body Parameters
+Requires the `settings.manage` permission.
 
-All parameters are optional, but at least one must be provided.
+### Body Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `type` | string | `bank` or `cash`. Switching type after creation is allowed but should be avoided once movements exist. |
-| `iban` | string \| null | International Bank Account Number. Nullable for `cash` accounts. |
-| `bankName` | string \| null | Name of the bank |
+| `bankName` | string | Name of the bank |
 | `currency` | string | Currency code (ISO 4217) |
-| `isDefault` | boolean | Set as default account for this currency |
-| `openingBalance` | number | Initial cash-on-hand. Once a value > 0 has been persisted it locks — further changes are rejected; correct via cash movements instead. |
-| `openingBalanceDate` | string | Date the opening balance was taken (YYYY-MM-DD). Required when `openingBalance` is being set for the first time. |
+| `isDefault` | boolean | Set as the default account |
+| `showOnInvoice` | boolean | Print the account on invoices. Always false for `cash` accounts |
+| `openingBalance` | string \| number | Opening balance of a `cash` account. Zero or positive. Send it together with `openingBalanceDate` |
+| `openingBalanceDate` | string | Date the opening balance was taken (YYYY-MM-DD) |
+| `confirmReset` | boolean | Required to change the opening balance once cash transactions exist |
+
+The account `type` and `iban` cannot be changed. `openingBalance` and `openingBalanceDate` only apply to `cash` accounts.
 
 ## Response
 
@@ -53,7 +55,7 @@ curl -X PATCH 'https://api.storno.ro/api/v1/bank-accounts/bank-account-uuid-1' \
   -H 'X-Company: company-uuid' \
   -H 'Content-Type: application/json' \
   -d '{
-    "bankName": "Banca Comercială Română",
+    "bankName": "Example Bank",
     "isDefault": true
   }'
 ```
@@ -62,40 +64,38 @@ curl -X PATCH 'https://api.storno.ro/api/v1/bank-accounts/bank-account-uuid-1' \
 
 ```json
 {
-  "uuid": "bank-account-uuid-1",
+  "id": "bank-account-uuid-1",
+  "type": "bank",
   "iban": "RO49AAAA1B31007593840000",
-  "bankName": "Banca Comercială Română",
+  "bankName": "Example Bank",
   "currency": "RON",
   "isDefault": true,
-  "createdAt": "2025-06-01T10:00:00Z",
-  "updatedAt": "2026-02-16T15:45:00Z"
+  "showOnInvoice": true,
+  "source": "manual",
+  "openingBalance": null,
+  "openingBalanceDate": null
 }
 ```
 
 ## Default Account Behavior
 
-- If `isDefault` is set to `true`, any existing default account for that currency will be set to non-default
-- Each currency can only have one default account
-- Setting `isDefault` to `false` on a default account requires another account to be set as default first
+- If `isDefault` is set to `true`, the default flag is cleared on all of the company's other accounts
+
+## Opening balance of a cash account
+
+The opening balance can be edited freely until cash receipts, cash payments or manual cash movements exist for the account's currency. After that, a change is rejected with `409` and the error `opening_balance_locked`, unless the request carries `confirmReset: true`. The current balance is then recomputed from the new opening point.
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Bank account not found or doesn't belong to company |
-| 422 | validation_error | Invalid input data (see error details) |
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Only one of `openingBalance` and `openingBalanceDate` sent, a negative or non-numeric balance, or an invalid date |
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found, or bank account not found in this company |
+| 409 | `opening_balance_locked`: cash transactions exist and `confirmReset` was not sent |
 
-### Validation Errors
-
-Common validation errors include:
-
-- No fields provided for update
-- Invalid IBAN format
-- IBAN already exists for another account in this company
-- Invalid currency code
-- Cannot unset default without setting another account as default
+Error bodies have the form `{"error": "message"}`. The locked-balance response is `{"error": "opening_balance_locked", "message": "..."}`.
 
 ## Related Endpoints
 

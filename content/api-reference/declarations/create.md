@@ -21,10 +21,10 @@ Creates a new tax declaration in `draft` status. The declaration's `data` field 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Declaration type: `d394`, `d300`, `d390`, `d301`, `d398`, `d100`, `d112`, `d212`, `c168` |
+| `type` | string | Yes | Declaration type: `d394`, `d300`, `d390`, `d392`, `d393`, `d406`, `d100`, `d101`, `d106`, `d112`, `d120`, `d130`, `d180`, `d205`, `d208`, `d212`, `d301`, `d311`, `d398`, `c168` |
 | `year` | integer | Yes | Fiscal year (e.g., 2026) |
 | `month` | integer | Yes | Fiscal month (1–12) |
-| `periodType` | string | No | Period type override (e.g., `monthly`, `quarterly`). Defaults to the standard period for the declaration type |
+| `periodType` | string | No | Period type override: `monthly`, `quarterly` or `annual`. Defaults to the standard period of the declaration type |
 
 ## Request
 
@@ -64,30 +64,23 @@ Returns `201 Created` with the new declaration object.
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "type": "d394",
   "year": 2026,
   "month": 1,
   "periodType": "monthly",
   "status": "draft",
   "data": {
-    "totalSalesBase": "84033.61",
-    "totalSalesVat": "15966.39",
-    "totalPurchasesBase": "42016.81",
-    "totalPurchasesVat": "7983.19",
-    "invoiceCount": 47
+    "header": { "an": 2026, "luna": 1, "tip_D394": "L" },
+    "warnings": []
   },
-  "metadata": {
-    "generatedAt": "2026-02-10T08:00:00Z",
-    "invoiceCountAtGeneration": 47
-  },
-  "errorMessage": null,
+  "metadata": null,
   "anafUploadId": null,
-  "xmlPath": null,
-  "recipisaPath": null,
-  "createdAt": "2026-02-10T08:00:00Z",
-  "updatedAt": "2026-02-10T08:00:00Z",
-  "createdBy": "user-uuid-here"
+  "errorMessage": null,
+  "submittedAt": null,
+  "acceptedAt": null,
+  "companyId": "company-uuid-here",
+  "dosarId": null
 }
 ```
 
@@ -95,21 +88,20 @@ Returns `201 Created` with the new declaration object.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier of the created declaration |
+| `id` | string | UUID of the created declaration |
 | `type` | string | Declaration type |
 | `year` | integer | Fiscal year |
 | `month` | integer | Fiscal month |
-| `periodType` | string \| null | Resolved period type |
+| `periodType` | string | Resolved period type |
 | `status` | string | Always `draft` on creation |
-| `data` | object | Auto-populated fiscal data aggregated from invoices for the period |
-| `metadata` | object | Generation metadata including timestamp and invoice count snapshot |
-| `errorMessage` | string \| null | Always `null` on creation |
+| `data` | object \| null | Fiscal data aggregated from the invoices of the period for the types Storno can populate; `null` for the others |
+| `metadata` | object \| null | System metadata |
 | `anafUploadId` | string \| null | Always `null` on creation |
-| `xmlPath` | string \| null | Always `null` on creation |
-| `recipisaPath` | string \| null | Always `null` on creation |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 last-updated timestamp |
-| `createdBy` | string | UUID of the authenticated user |
+| `errorMessage` | string \| null | Always `null` on creation |
+| `submittedAt` | string \| null | Always `null` on creation |
+| `acceptedAt` | string \| null | Always `null` on creation |
+| `companyId` | string | UUID of the company |
+| `dosarId` | string \| null | Always `null` on creation |
 
 ## D300 (decont de TVA)
 
@@ -231,21 +223,20 @@ The file passes ANAF's validator, but it is not a complete accounting export. `w
 
 ## Validation Rules
 
-- `type` must be one of: `d394`, `d300`, `d390`, `d301`, `d398`, `d406`, `d100`, `d112`, `d212`, `c168`
-- `year` must be a valid 4-digit year
-- `month` must be between 1 and 12
-- A declaration of the same `type`, `year`, and `month` must not already exist for the company
+- `type`, `year` and `month` are required
+- `type` must be one of: `d394`, `d300`, `d390`, `d392`, `d393`, `d406`, `d100`, `d101`, `d106`, `d112`, `d120`, `d130`, `d180`, `d205`, `d208`, `d212`, `d301`, `d311`, `d398`, `c168`
+- For a company that declares profit tax quarterly, a `d100` for a month that does not close a quarter (anything other than 03, 06, 09, 12) is refused unless the request sends `periodType: "monthly"`
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid request body structure |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 409 | `conflict` | A declaration for this type and period already exists |
-| 422 | `validation_error` | Validation failed (e.g., invalid type, invalid month) |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `type`, `year` or `month` is missing, or the D100 period rule above failed |
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.submit` permission |
+| 404 | The company was not found |
 
 ## Next Steps
 

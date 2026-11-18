@@ -12,14 +12,17 @@ Every import goes through the same four steps, whatever the source is: **upload*
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/import/sources` | sources, the import types each one supports and the file formats it accepts |
-| `POST` | `/api/v1/import/upload` | upload a file (`importType`, `source`, `file`); answers with the job in status `preview` |
+| `POST` | `/api/v1/import/upload` | upload a file (`importType`, `source`, `file`); answers `201` with `{job, targetFields}`, the job in status `preview` |
 | `GET` | `/api/v1/import/template?importType=&source=` | a CSV template; with `source` it uses that platform's own column layout |
 | `GET` | `/api/v1/import/{id}/preview` | detected columns, the first rows, `suggestedMapping`, `targetFields` |
 | `PATCH` | `/api/v1/import/{id}/mapping` | save `columnMapping` (source column → target field) |
 | `POST` | `/api/v1/import/{id}/execute` | run the import, with `importOptions` |
 | `POST` | `/api/v1/import/{id}/cancel` | stop a running import, keeping what it already created |
-| `POST` | `/api/v1/import/{id}/revert` | delete everything the job created and mark it `reverted` |
-| `GET` | `/api/v1/import/history` | past jobs with their counters |
+| `POST` | `/api/v1/import/{id}/revert` | delete everything the job created and mark it `reverted`; only for jobs in status `completed` or `cancelled` |
+| `GET` | `/api/v1/import/history` | past jobs with their counters, as `{data}`; `limit` defaults to 50, maximum 200 |
+| `GET` | `/api/v1/import/{id}` | the job with its status and counters, as `{job}` |
+
+**Access.** All import endpoints need the `import.manage` permission and the `X-Company` header. Upload, mapping, execute and revert answer `402` with code `PLAN_LIMIT` on the Freemium plan, because import and export need Starter or higher. A file with the wrong extension, a missing `file`, an unknown `importType` or an unknown `source` answers `422`. The accepted extensions are `csv`, `xlsx`, `xml` and `zip`, and `zip` is accepted only for `cash_register`. If the preview cannot read the file, the upload still answers `201` with the job in status `failed` and the reason in `job.errors`. `cancel` works only on a job in status `processing` and answers `422` otherwise. `execute` answers `409` for a job that is already processing or completed.
 
 **Idempotency.** Every document an import creates carries a key made of the source, the company and the row's external id (the trip / order id, the group of a statement, the fiscal id of a receipt). Re-uploading the same file creates nothing: the rows come back as *skipped*.
 
@@ -62,7 +65,7 @@ Options for `execute`:
 
 | Option | Values | Meaning |
 |---|---|---|
-| `groupBy` | `week` (default), `day`, `order` (`trip` is an alias) | how many documents the statement becomes |
+| `groupBy` | `week` (default), `day`, `month`, `order` (`trip` is an alias) | how many documents the statement becomes |
 | `platformName`, `platformCif`, `platformCountry` | free text | the platform entity on the documents, when the statement is issued by another one than the default |
 
 Target fields the mapping step works with: `externalId`, `date`, `description`, `counterparty`, `gross`, `tips`, `tolls`, `vat`, `commission`, `commissionVat`, `payout`, `currency`, `status`. Commissions exported as negative numbers (deductions from the payout) are read as positive amounts.

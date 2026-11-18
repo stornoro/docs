@@ -27,9 +27,9 @@ Convert an amount between two currencies using current BNR rates.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| amount | number | Yes | Amount to convert |
-| from | string | Yes | Source currency code (ISO 4217) |
-| to | string | Yes | Target currency code (ISO 4217) |
+| amount | number | Yes | Amount to convert. Must be greater than 0 |
+| from | string | No | Source currency code (ISO 4217). Default: `EUR` |
+| to | string | No | Target currency code (ISO 4217). Default: `RON` |
 
 ### Example Request
 
@@ -41,12 +41,10 @@ GET /api/v1/exchange-rates/convert?amount=100&from=EUR&to=RON
 
 ```json
 {
-  "amount": 100,
+  "amount": "497.50",
+  "rate": "4.9750",
   "from": "EUR",
-  "to": "RON",
-  "result": 497.50,
-  "rate": 4.9750,
-  "date": "2026-02-16"
+  "to": "RON"
 }
 ```
 
@@ -54,12 +52,10 @@ GET /api/v1/exchange-rates/convert?amount=100&from=EUR&to=RON
 
 | Field | Type | Description |
 |-------|------|-------------|
-| amount | number | Original amount |
+| amount | string | Converted amount, with 2 decimals |
+| rate | string | Exchange rate used from `from` to `to`, with 4 decimals |
 | from | string | Source currency code |
 | to | string | Target currency code |
-| result | number | Converted amount |
-| rate | number | Exchange rate used |
-| date | string | Date of rate (YYYY-MM-DD) |
 
 ### Conversion Examples
 
@@ -82,12 +78,12 @@ GET /api/v1/exchange-rates/convert?amount=100&from=USD&to=EUR
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
-| 422 | Validation error - missing parameters or unsupported currency |
+| 400 | `amount` is zero, negative or missing, or a currency is not supported. The body is `{"error": "message"}` |
 
 ### Notes
 
 - All conversions use BNR rates (updated daily)
 - For non-RON to non-RON conversions, cross-rates through RON are calculated
-- Result is rounded to 2 decimal places for standard currencies
+- The converted amount is rounded to 2 decimal places
 - RON is treated as base currency (rate = 1)
 - Rates are updated once daily from BNR

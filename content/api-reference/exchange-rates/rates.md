@@ -28,6 +28,7 @@ Get the latest exchange rates from BNR. Rates are updated daily (typically aroun
 ```json
 {
   "date": "2026-02-16",
+  "base": "RON",
   "rates": {
     "EUR": 4.9750,
     "USD": 4.5600,
@@ -51,6 +52,7 @@ Get the latest exchange rates from BNR. Rates are updated daily (typically aroun
 | Field | Type | Description |
 |-------|------|-------------|
 | date | string | Date of rates in YYYY-MM-DD format |
+| base | string | Always `RON` |
 | rates | object | Exchange rates to RON |
 
 ### Rate Object
@@ -83,6 +85,7 @@ Common currencies include:
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
+| 503 | The rates could not be loaded. The body is `{"error": "message"}` |
 
 ### Notes
 

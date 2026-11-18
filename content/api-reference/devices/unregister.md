@@ -28,7 +28,7 @@ Unregister a device token. The device will no longer receive push notifications.
 
 ```json
 {
-  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+  "token": "fcm-device-token-0123456789abcdef"
 }
 ```
 
@@ -38,19 +38,24 @@ Unregister a device token. The device will no longer receive push notifications.
 
 ### Response
 
-Returns `204 No Content` on successful unregistration.
+Returns `200 OK`:
+
+```json
+{
+  "status": "removed"
+}
+```
 
 ### Error Responses
 
 | Status | Description |
 |--------|-------------|
+| 400 | `token` is missing |
 | 401 | Unauthorized - invalid authentication |
-| 404 | Device token not found |
 
 ### Notes
 
-- Unregistering an already-unregistered token returns success
-- This operation is idempotent
-- Call this when user logs out or disables notifications
+- Only tokens registered by the authenticated user are removed
+- An unknown token is not an error: the call still returns `200 OK`
+- Call this when the user logs out or disables notifications
 - The same token can be registered again later
-- Inactive tokens are automatically cleaned up after 90 days

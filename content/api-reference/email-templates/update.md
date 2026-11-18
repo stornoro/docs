@@ -5,7 +5,7 @@ description: Update an existing email template.
 
 # Update email template
 
-Updates an existing email template for the authenticated company.
+Updates an existing email template of the company. Needs the Professional or Business plan, otherwise the call returns `402` with `code: "PLAN_LIMIT"`.
 
 ```http
 PATCH /api/v1/email-templates/{uuid}
@@ -24,23 +24,23 @@ PATCH /api/v1/email-templates/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ### Body Parameters
 
-All parameters are optional, but at least one must be provided.
+All parameters are optional. The category of a template cannot be changed.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `name` | string | Template name for internal reference |
 | `subject` | string | Email subject line (supports variables) |
 | `body` | string | Email body content (supports variables) |
-| `isDefault` | boolean | Set as default template |
+| `isDefault` | boolean | Set as the default template of its category |
 
 ## Response
 
-Returns the updated email template object.
+Returns the updated template object: `id`, `name`, `subject`, `body`, `isDefault` and `category`.
 
 ## Example Request
 
@@ -51,8 +51,8 @@ curl -X PATCH 'https://api.storno.ro/api/v1/email-templates/template-uuid-2' \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Factura cu reminder urgent",
-    "subject": "URGENT: Factura {{invoice_number}} restantă",
-    "body": "Bună ziua {{client_name}},\n\nFactura {{invoice_number}} în valoare de {{total}} {{currency}} a depășit termenul de plată ({{due_date}}).\n\nVă rugăm să efectuați plata de urgență pentru a evita suspendarea serviciilor și aplicarea penalităților.\n\nContact urgent: finance@company.ro\n\nMulțumim,\n{{company_name}}"
+    "subject": "URGENT: Factura [[invoice_number]] restantă",
+    "body": "Bună ziua [[client_name]],\n\nFactura [[invoice_number]] în valoare de [[total]] [[currency]] a depășit termenul de plată ([[due_date]]).\n\nVă rugăm să efectuați plata de urgență pentru a evita suspendarea serviciilor și aplicarea penalităților.\n\nContact urgent: finance@company.ro\n\nMulțumim,\n[[company_name]]"
   }'
 ```
 
@@ -60,48 +60,36 @@ curl -X PATCH 'https://api.storno.ro/api/v1/email-templates/template-uuid-2' \
 
 ```json
 {
-  "uuid": "template-uuid-2",
+  "id": "8d0f7780-8536-41ef-a55c-f18bd2c01bf8",
   "name": "Factura cu reminder urgent",
-  "subject": "URGENT: Factura {{invoice_number}} restantă",
-  "body": "Bună ziua {{client_name}},\n\nFactura {{invoice_number}} în valoare de {{total}} {{currency}} a depășit termenul de plată ({{due_date}}).\n\nVă rugăm să efectuați plata de urgență pentru a evita suspendarea serviciilor și aplicarea penalităților.\n\nContact urgent: finance@company.ro\n\nMulțumim,\n{{company_name}}",
+  "subject": "URGENT: Factura [[invoice_number]] restanta",
+  "body": "Buna ziua [[client_name]],\n\nFactura [[invoice_number]] in valoare de [[total]] [[currency]] a depasit termenul de plata ([[due_date]]).\n\nMultumim,\n[[company_name]]",
   "isDefault": false,
-  "createdAt": "2025-07-15T14:30:00Z",
-  "updatedAt": "2026-02-16T17:15:00Z"
+  "category": "invoice"
 }
 ```
 
 ## Available Variables
 
-See the [create endpoint](/api-reference/email-templates/create#available-variables) for a complete list of available template variables.
+See [List email templates](/api-reference/email-templates/list#available-variables) for the placeholders. They are written `[[name]]`.
 
 ## Default Template Behavior
 
-- If `isDefault` is set to `true`, any existing default template will be set to non-default
-- Only one template can be marked as default
-- Setting `isDefault` to `false` on the default template requires another template to be set as default first
+- If `isDefault` is set to `true`, the existing default template of the same category is set to non-default
 
 ## Important Notes
 
 - Changes to templates only affect future emails
 - Emails that have already been sent are not modified
-- Consider versioning template names if you make significant changes (e.g., "Factura standard v2")
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Email template not found or doesn't belong to company |
-| 422 | validation_error | Invalid input data (see error details) |
-
-### Validation Errors
-
-Common validation errors include:
-
-- No fields provided for update
-- Empty subject or body
-- Subject or body exceeds maximum length
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 402 | The plan does not include email templates. Body has `code: "PLAN_LIMIT"` |
+| 403 | Missing the `email_template.manage` permission |
+| 404 | Email template not found, or it belongs to another organization |
 
 ## Related Endpoints
 

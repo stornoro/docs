@@ -14,31 +14,34 @@ Retrieves a paginated list of fiscal receipts (bonuri fiscale) for the authentic
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | Yes | Company UUID to scope the request (optional when the organization has a single company; `?company=` is also accepted) |
 
 ## Query Parameters
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `page` | integer | No | Page number (default: 1) |
-| `limit` | integer | No | Items per page (default: 20, max: 100) |
-| `search` | string | No | Search term for receipt number, customer name, or fiscal number |
-| `status` | string | No | Filter by status: `draft`, `issued`, `invoiced`, `cancelled` |
-| `from` | string | No | Start date filter (ISO 8601 format: YYYY-MM-DD) |
-| `to` | string | No | End date filter (ISO 8601 format: YYYY-MM-DD) |
-| `paymentMethod` | string | No | Filter by payment method: `cash`, `card`, `mixed`, `other` |
-| `cashRegisterName` | string | No | Filter by cash register name |
+| `limit` | integer | No | Items per page (default: 10, maximum: 20; larger values are reduced to 20) |
+| `search` | string | No | Search term for receipt number, client name, customer name, or fiscal number |
+| `status` | string | No | Filter by status: `draft`, `issued`, `invoiced`, `cancelled`. Send only these values |
+| `dateFrom` | string | No | Issue date on or after this date (YYYY-MM-DD) |
+| `dateTo` | string | No | Issue date on or before this date (YYYY-MM-DD) |
+| `paymentMethod` | string | No | Filter by payment method: `cash`, `card`, `meal_ticket`, `mixed`, `other` |
+| `currency` | string | No | Filter by currency code |
+| `hasCustomer` | string | No | `yes` for receipts with a customer name, CIF or client, `no` for receipts without |
+| `sort` | string | No | One of `number`, `issueDate`, `total`, `status`, `createdAt` (default `createdAt`) |
+| `order` | string | No | `ASC` or `DESC` (default `DESC`) |
 
 ## Request
 
 ```bash {% title="cURL" %}
-curl -X GET "https://api.storno.ro/api/v1/receipts?page=1&limit=20&status=issued" \
+curl -X GET "https://api.storno.ro/api/v1/receipts?page=1&limit=10&status=issued" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "X-Company: company-uuid-here"
 ```
 
 ```javascript {% title="JavaScript" %}
-const response = await fetch('https://api.storno.ro/api/v1/receipts?page=1&limit=20&status=issued', {
+const response = await fetch('https://api.storno.ro/api/v1/receipts?page=1&limit=10&status=issued', {
   method: 'GET',
   headers: {
     'Authorization': 'Bearer YOUR_TOKEN',
@@ -55,40 +58,35 @@ const data = await response.json();
 {
   "data": [
     {
-      "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "number": "BON-2026-042",
-      "seriesId": "850e8400-e29b-41d4-a716-446655440000",
-      "series": {
-        "uuid": "850e8400-e29b-41d4-a716-446655440000",
-        "name": "BON",
-        "nextNumber": 43,
-        "prefix": "BON-",
-        "year": 2026
-      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "number": "BON0042",
       "status": "issued",
-      "issueDate": "2026-02-18",
       "currency": "RON",
+      "issueDate": "2026-02-18T00:00:00+02:00",
       "subtotal": "210.92",
-      "vatAmount": "40.08",
+      "vatTotal": "40.08",
       "total": "251.00",
       "paymentMethod": "mixed",
-      "cashPayment": "100.00",
-      "cardPayment": "151.00",
-      "otherPayment": "0.00",
-      "cashRegisterName": "Casa 1 - Front Desk",
       "fiscalNumber": "AAAA123456",
       "customerName": "Acme SRL",
-      "customerCif": "RO12345678",
-      "issuedAt": "2026-02-18T10:15:00Z",
-      "convertedInvoiceId": null,
-      "createdAt": "2026-02-18T10:14:00Z",
-      "updatedAt": "2026-02-18T10:15:00Z"
+      "client": {
+        "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "name": "Acme SRL",
+        "cui": "12345678"
+      },
+      "clientName": "Acme SRL"
     }
   ],
   "total": 42,
   "page": 1,
-  "limit": 20,
-  "pages": 3
+  "limit": 10,
+  "currency": "RON",
+  "distinctCurrencies": ["RON", "EUR"],
+  "totals": {
+    "subtotal": "8850.10",
+    "vatTotal": "1681.51",
+    "total": "10531.61"
+  }
 }
 ```
 
@@ -100,31 +98,29 @@ const data = await response.json();
 | `total` | integer | Total number of receipts matching the filters |
 | `page` | integer | Current page number |
 | `limit` | integer | Items per page |
-| `pages` | integer | Total number of pages |
+| `currency` | string | The `currency` filter, or the company default currency |
+| `distinctCurrencies` | string[] | Currencies used by the company's receipts |
+| `totals` | object | Sums of `subtotal`, `vatTotal` and `total` over all receipts matching the filters |
 
 ### Receipt Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `number` | string | Receipt number (e.g., BON-2026-042) |
+| `id` | string | Unique identifier (UUID) |
+| `number` | string | Receipt number (for example `BON0042`). A draft carries a temporary number until it is issued |
 | `status` | string | Status: `draft`, `issued`, `invoiced`, `cancelled` |
-| `issueDate` | string | Date of issue (YYYY-MM-DD) |
 | `currency` | string | Currency code |
+| `issueDate` | string | Issue date (ISO 8601) |
 | `subtotal` | string | Subtotal amount (excluding VAT) |
-| `vatAmount` | string | Total VAT amount |
+| `vatTotal` | string | Total VAT amount |
 | `total` | string | Total amount (including VAT) |
-| `paymentMethod` | string | Payment method: `cash`, `card`, `mixed`, `other` |
-| `cashPayment` | string | Amount paid in cash |
-| `cardPayment` | string | Amount paid by card |
-| `otherPayment` | string | Amount paid by other method |
-| `cashRegisterName` | string | Name or label of the cash register |
-| `fiscalNumber` | string | Fiscal serial number of the cash register |
-| `customerName` | string \| null | Customer name (for B2B receipts) |
-| `customerCif` | string \| null | Customer CIF/CUI (for B2B receipts) |
-| `series` | object | Series details |
-| `issuedAt` | string \| null | ISO 8601 timestamp when issued |
-| `convertedInvoiceId` | string \| null | UUID of the created invoice (if invoiced) |
+| `paymentMethod` | string \| null | Payment method |
+| `fiscalNumber` | string \| null | Fiscal serial number of the cash register |
+| `customerName` | string \| null | Customer name |
+| `client` | object \| null | Linked client (`id`, `name`, `cui`) |
+| `clientName` | string \| null | Name of the linked client |
+
+The list returns this summary only. Payment amounts, cash register name, series, customer CIF, lines and timestamps are returned by [Get receipt](/api-reference/receipts/get).
 
 ## Status Lifecycle
 
@@ -139,25 +135,26 @@ Once a receipt is `invoiced` or `cancelled`, it cannot be modified.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
+| Status Code | Code | Description |
 |-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 422 | `validation_error` | Invalid query parameters (e.g., invalid status value, invalid date format) |
-| 500 | `internal_error` | Server error occurred |
+| 401 | | Missing or invalid authentication token |
+| 403 | | Permission denied (`{"error": "Permission denied."}`) |
+| 404 | | Company not found (`{"error": "Company not found."}`) |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Use Cases
 
 ### Daily Sales Summary
 Retrieve all receipts issued on a specific day:
 ```
-GET /api/v1/receipts?from=2026-02-18&to=2026-02-18&status=issued
+GET /api/v1/receipts?dateFrom=2026-02-18&dateTo=2026-02-18&status=issued
 ```
 
-### Cash Register Audit
-List all receipts for a specific register:
+### Month Audit
+List all receipts of a month, paid by card:
 ```
-GET /api/v1/receipts?cashRegisterName=Casa%201&from=2026-02-01&to=2026-02-28
+GET /api/v1/receipts?dateFrom=2026-02-01&dateTo=2026-02-28&paymentMethod=card
 ```
 
 ### Pending Invoice Conversions
@@ -168,7 +165,6 @@ GET /api/v1/receipts?status=issued
 
 ## Best Practices
 
-1. **Filter by date range** - Always use `from`/`to` filters for daily reporting to keep response sizes manageable
+1. **Filter by date range** - Use `dateFrom` and `dateTo` for daily reporting to keep response sizes manageable
 2. **Monitor invoiced status** - Track which receipts have been converted to invoices for VAT reporting
-3. **Audit by register** - Use `cashRegisterName` filter for per-register reconciliation
-4. **Regular reconciliation** - Compare receipt totals against POS system daily totals
+3. **Regular reconciliation** - Compare receipt totals against POS system daily totals

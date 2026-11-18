@@ -94,10 +94,13 @@ curl -X GET 'https://api.storno.ro/api/v1/oauth2/clients' \
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | The authenticated user does not have the `oauth2_app.view` permission |
+Errors return `{"error": "..."}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | The authenticated user does not have the `oauth2_app.view` permission |
+| 404 | Organization not found |
 
 ## Important Notes
 

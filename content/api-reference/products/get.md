@@ -5,7 +5,7 @@ description: Retrieve detailed information about a specific product.
 
 # Get product
 
-Retrieves detailed information about a specific product, including usage statistics.
+Retrieves a product by UUID.
 
 ```http
 GET /api/v1/products/{uuid}
@@ -24,47 +24,39 @@ GET /api/v1/products/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 
 ## Response
 
-Returns a detailed product object.
+Returns the product object.
 
 ### Response Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
+| `id` | string | Unique identifier |
 | `name` | string | Product name |
 | `code` | string \| null | Product code/SKU |
 | `description` | string \| null | Product description |
-| `unitPrice` | number | Default unit price |
-| `currency` | string | Default currency (ISO 4217) |
-| `vatRateId` | string | Default VAT rate UUID |
-| `vatRate` | number | Default VAT percentage |
 | `unitOfMeasure` | string | Default unit of measure |
-| `color` | string \| null | Optional hex colour swatch (e.g. `"#1e40af"`) shown on the POS product grid. When null, mobile clients fall back to a deterministic palette derived from the product UUID. |
-| `category` | object \| null | Optional [product category](/api-reference/product-categories/list) — `{ id, name, color, sortOrder }`. Used as fallback swatch and grid grouping on the POS. |
-| `sgrAmount` | string \| null | Romanian SGR (Sistem Garantie-Returnare) deposit per unit, e.g. `"0.50"` for plastic beverage bottles. Null when the product is not SGR-eligible. The deposit is VAT-exempt and appears as a separate auto-managed line on POS receipts. |
-| `isActive` | boolean | Whether product is active |
-| `usageStats` | object | Product usage statistics |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
-
-### Usage Stats Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `totalUsage` | integer | Total times used in invoices |
-| `totalRevenue` | number | Total revenue generated |
-| `averageQuantity` | number | Average quantity per invoice |
-| `firstUsedDate` | string \| null | ISO 8601 date of first use |
-| `lastUsedDate` | string \| null | ISO 8601 date of last use |
+| `defaultPrice` | string | Default unit price, as a decimal string |
+| `currency` | string | Default currency (ISO 4217) |
+| `vatRate` | string | Default VAT percentage, as a decimal string such as `"21.00"` |
+| `vatCategoryCode` | string | VAT category code (default: `S`) |
+| `isService` | boolean | Whether the product is a service |
+| `usage` | string | `sales`, `purchases`, `both` or `internal` |
+| `ncCode` | string \| null | NC code |
+| `cpvCode` | string \| null | CPV code |
+| `color` | string \| null | Optional hex colour swatch (e.g. `"#1e40af"`) shown on the POS product grid. When null, mobile clients fall back to a deterministic palette derived from the product UUID |
+| `category` | object \| null | Optional [product category](/api-reference/product-categories/list), with `id`, `name` and `color`. Used as fallback swatch and grid grouping on the POS |
+| `sgrAmount` | string \| null | Romanian SGR (Sistem Garantie-Returnare) deposit per unit, e.g. `"0.50"` for plastic beverage bottles. Null when the product is not SGR-eligible. The deposit is VAT-exempt and appears as a separate auto-managed line on POS receipts |
+| `source` | string | `anaf_sync` or `manual` |
+| `lastSyncedAt` | string \| null | Timestamp of the last synchronization |
 
 ## Example Request
 
 ```bash
-curl -X GET 'https://api.storno.ro/api/v1/products/product-uuid-1' \
+curl -X GET 'https://api.storno.ro/api/v1/products/d4e5f6a7-b8c9-0123-defa-234567890123' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid'
 ```
@@ -73,45 +65,55 @@ curl -X GET 'https://api.storno.ro/api/v1/products/product-uuid-1' \
 
 ```json
 {
-  "uuid": "product-uuid-1",
+  "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
   "name": "Cloud Hosting - Business Plan",
   "code": "HOST-BIZ-001",
-  "description": "Business cloud hosting package with 100GB storage and unlimited bandwidth",
-  "unitPrice": 1499.00,
-  "currency": "RON",
-  "vatRateId": "vat-uuid-1",
-  "vatRate": 19,
+  "description": "Business cloud hosting package with 100GB storage",
   "unitOfMeasure": "buc",
-  "isActive": true,
-  "usageStats": {
-    "totalUsage": 48,
-    "totalRevenue": 71952.00,
-    "averageQuantity": 1.0,
-    "firstUsedDate": "2025-06-15",
-    "lastUsedDate": "2026-02-10"
-  },
-  "createdAt": "2025-05-10T10:00:00Z",
-  "updatedAt": "2026-01-15T14:30:00Z"
+  "defaultPrice": "1499.00",
+  "currency": "RON",
+  "vatRate": "21.00",
+  "vatCategoryCode": "S",
+  "isService": true,
+  "usage": "both",
+  "ncCode": null,
+  "cpvCode": null,
+  "color": null,
+  "category": null,
+  "sgrAmount": null,
+  "source": "manual",
+  "lastSyncedAt": null
+}
+```
+
+## Product usage
+
+```http
+GET /api/v1/products/{uuid}/usage
+```
+
+Returns the number of documents that contain the product on a line:
+
+```json
+{
+  "invoices": 48,
+  "proformaInvoices": 3,
+  "recurringInvoices": 1,
+  "total": 52
 }
 ```
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Product not found or doesn't belong to company |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Product not found |
 
-## Important Notes
-
-- Products in Storno.ro are sync-only and come from ANAF e-Factura system
-- Product data cannot be manually created or edited via API
-- Use the [ANAF sync endpoint](/api-reference/anaf/sync-invoices) to fetch latest product data
-- Products are automatically created from invoice line items during synchronization
-- Usage statistics are calculated in real-time based on invoice line items
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 
 - [List products](/api-reference/products/list)
-- [Sync from ANAF](/api-reference/anaf/sync-invoices)
+- [Create, update and delete a product](/api-reference/products/list#create-a-product)

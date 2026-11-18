@@ -63,7 +63,7 @@ GET /api/v1/cash-register/balance
 | Field | Description |
 |-------|-------------|
 | `cashReceipts` | Sum of cash payments on issued/non-cancelled receipts since `openingBalanceDate`. Uses the `cashPayment` column when set (split tendering); falls back to the receipt total when `paymentMethod = 'cash'` and `cashPayment` is null. |
-| `cashPayments` | Sum of cash-paid payments recorded against invoices since `openingBalanceDate`. |
+| `cashPayments` | Net cash that left the till through invoice payments since `openingBalanceDate`: cash paid on received invoices minus cash collected on issued invoices. It is negative when more cash was collected than paid out. |
 | `manualNet` | Net effect of manual cash movements in the same period (deposits/withdrawals/miscellaneous), positive = net cash into the till. |
 | `currentBalance` | `openingBalance + cashReceipts − cashPayments + manualNet`. |
 
@@ -76,5 +76,7 @@ Requires `report.view`.
 | Status | Description |
 |--------|-------------|
 | 401 | Missing or invalid bearer token |
-| 403 | Permission denied or missing `X-Company` |
+| 403 | Permission denied, or the cash register module is disabled for the company |
 | 404 | Company not found |
+
+Error bodies have the form `{"error": "message"}`.

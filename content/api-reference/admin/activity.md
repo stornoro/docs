@@ -26,7 +26,7 @@ GET /api/v1/admin/activity
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | days | integer | No | Window in days, counted from midnight (default: 30, max: 365) |
-| limit | integer | No | Max users returned (default: 25, max: 100) |
+| limit | integer | No | Max users returned (default and maximum: 20, larger values are clamped) |
 | exclude | string | No | Comma-separated user emails to leave out, e.g. your own admin account |
 
 Users are sorted by invoices issued, then invoices created, active days and total actions.

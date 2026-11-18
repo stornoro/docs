@@ -5,7 +5,7 @@ description: Soft-delete a VAT rate from the company configuration.
 
 # Delete VAT rate
 
-Soft-deletes a VAT rate from the authenticated company. The rate is marked as deleted but not permanently removed, preserving historical invoice data integrity.
+Soft-deletes a VAT rate from the authenticated company. The rate is marked as deleted but not removed from the database.
 
 ```http
 DELETE /api/v1/vat-rates/{uuid}
@@ -26,9 +26,17 @@ DELETE /api/v1/vat-rates/{uuid}
 | `Authorization` | string | Yes | Bearer token for authentication |
 | `X-Company` | string | Yes | UUID of the company context |
 
+Requires the `settings.manage` permission.
+
 ## Response
 
-Returns a `204 No Content` status on successful deletion with no response body.
+Returns `200 OK` with a confirmation message.
+
+```json
+{
+  "message": "VAT rate deleted."
+}
+```
 
 ## Example Request
 
@@ -38,46 +46,20 @@ curl -X DELETE 'https://api.storno.ro/api/v1/vat-rates/vat-uuid-4' \
   -H 'X-Company: company-uuid'
 ```
 
-## Example Response
-
-```http
-HTTP/1.1 204 No Content
-```
-
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | VAT rate not found or doesn't belong to company |
-| 409 | conflict | Cannot delete the default VAT rate or last remaining rate |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found, or VAT rate not found in this company |
+
+Error bodies have the form `{"error": "message"}`.
 
 ## Soft Delete Behavior
 
-This endpoint performs a soft delete:
-
 - The VAT rate is marked as deleted (`deletedAt` timestamp is set)
-- The rate no longer appears in list endpoints or dropdowns
-- Existing invoice lines that use this rate are not affected
-- Historical reports continue to display the rate correctly
-- The rate can be restored by support if needed
-
-## Important Notes
-
-- You cannot delete the default VAT rate; set another rate as default first
-- You cannot delete the last remaining VAT rate; create another rate first
-- Existing invoices preserve the VAT rate at the time of creation
-- Invoice line items retain the full VAT rate details (percentage, label, category)
-
-## Recommended Approach
-
-Before deleting a VAT rate:
-
-1. **Check usage** - Verify how many invoices use this rate
-2. **Set new default** - If deleting the default rate, set another as default
-3. **Create replacement** - Ensure an alternative rate exists for future invoices
-4. **Document reason** - Keep internal notes on why the rate was removed
+- The rate no longer appears in the list endpoint
 
 ## Related Endpoints
 

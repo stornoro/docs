@@ -7,7 +7,7 @@ endpoint: /api/auth/mfa/verify
 
 # Verify MFA Challenge
 
-Complete a pending MFA challenge by submitting a TOTP code from an authenticator app or a single-use backup code. Returns JWT tokens on success.
+Complete a pending MFA challenge by submitting a TOTP code from an authenticator app, a single-use backup code, an email code or a passkey assertion. Returns JWT tokens on success.
 
 ## Request
 
@@ -16,8 +16,9 @@ Complete a pending MFA challenge by submitting a TOTP code from an authenticator
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `mfaToken` | string | Yes | The 64-character challenge token received from the login response |
-| `code` | string | Yes | 6-digit TOTP code or 8-character backup code (format: `xxxx-xxxx`) |
-| `type` | string | No | `totp` (default) or `backup` |
+| `code` | string | Yes, except for `passkey` | 6-digit TOTP code, 8-character backup code (format: `xxxx-xxxx`) or the emailed code |
+| `type` | string | No | `totp` (default), `backup`, `email_otp` or `passkey` |
+| `credential` | object | For `passkey` | WebAuthn assertion response. Get the options from `POST /api/auth/mfa/passkey/options` with the `mfaToken` |
 
 ### Example Request
 
@@ -83,9 +84,9 @@ $data = json_decode($response->getBody(), true);
 
 | Code | Description |
 |------|-------------|
-| `400` | Missing `mfaToken` or `code` |
-| `401` | Invalid or expired challenge token, or invalid code |
-| `429` | Too many failed attempts (max 5 per challenge) |
+| `400` | Missing `mfaToken`, `code` or `credential` |
+| `401` | Invalid or expired challenge token, or invalid code. After 5 failed attempts the challenge is deleted and later calls return the expired challenge error |
+| `429` | Too many requests from this IP address (5 per minute) |
 
 ### Error Response Examples
 
@@ -109,14 +110,14 @@ $data = json_decode($response->getBody(), true);
 
 ```json
 {
-  "error": "Too many failed attempts. Please log in again."
+  "error": "Too many requests."
 }
 ```
 
 ## Usage Notes
 
 - Challenge tokens expire after **5 minutes**
-- Each challenge allows a maximum of **5 attempts** before being invalidated
+- Each challenge allows a maximum of **5 failed attempts** before being invalidated
 - Challenge tokens are single-use — they are deleted after successful verification
 - Backup codes are also single-use and cannot be reused
 - Backup codes accept input with or without dashes and are case-insensitive

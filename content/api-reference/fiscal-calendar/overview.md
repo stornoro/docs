@@ -16,7 +16,7 @@ A deadline that falls on a Saturday, a Sunday or a Romanian legal holiday moves 
 | `D300` | VAT payer | 25th of the month after the period (monthly or quarterly per `vatPeriod`) |
 | `D390` | VAT payer with intra-community operations in the month (an invoice with a client or supplier established in another EU state) | 25th of the next month |
 | `D394` | VAT payer | 30th of the month after the period |
-| `D301` | non-VAT payer with invoices from suppliers outside Romania in the month | 25th of the next month |
+| `D301` | company that is not a VAT payer, with invoices from suppliers outside Romania in the month | 25th of the next month |
 | `D100` | company, per `incomeTaxPeriod` (quarterly by default) | 25th of the month after the period |
 | `D112` | `hasEmployees` | 25th of the next month |
 | `D406` (SAF-T) | company; follows `vatPeriod`, quarterly without VAT registration | last day of the month after the period |
@@ -38,7 +38,7 @@ Deadlines already past are kept for 31 days so an unfiled one shows as overdue.
 
 ## Reminders
 
-The `fiscal.deadline` notification is one digest a day per user: it goes out on a day that is 7, 3 or 1 days before an unfiled deadline of one of the user's companies and lists every deadline still `due` in the next 7 days, grouped by company, in `data.companies[]` (`companyId`, `companyName`, `items[]` with `code`, `label`, `period`, `periodLabel`, `dueDate`, `dueDateLabel`, `daysLeft`, `declarationType`), with `data.count` and `data.companyCount`. A company without activity in the period of a deadline is left out: no invoice issued or received in that period means no reminder, even though the declaration (usually a nil one) is still owed. Deadlines owed for employees (D112) and the ones carried by a case file always count as activity. The notification is on by default for e-mail, in-app and push; see [Notification preferences](/api-reference/notification-preferences/overview).
+The `fiscal.deadline` notification is one digest a day per user: it goes out on a day that is 7, 3 or 1 days before an unfiled deadline of one of the user's companies and lists every deadline still `due` in the next 7 days, grouped by company, in `data.companies[]` (`companyId`, `companyName`, `items[]` with `code`, `label`, `period`, `periodLabel`, `dueDate`, `dueDateLabel`, `daysLeft`, `declarationType`), with `data.count` and `data.companyCount`. A company without activity in the period of a deadline is left out: no invoice issued or received in that period means no reminder, even though the declaration (usually a nil one) is still owed. Deadlines owed for employees (D112) and the ones carried by a case file always count as activity. The C168 deadlines of a case file are not part of this digest; the daily case-file reminder (30, 7 and 1 days before and on the day) covers them. The notification is on by default for e-mail, in-app and push; see [Notification preferences](/api-reference/notification-preferences/overview).
 
 ## Get the calendar of a company
 

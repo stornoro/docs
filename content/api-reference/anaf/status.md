@@ -15,7 +15,7 @@ Check the current status of ANAF integration for the authenticated user.
 GET /api/v1/anaf/status
 ```
 
-Retrieve ANAF connection status including token count and validity information.
+Retrieve ANAF connection status including token count and expiry information.
 
 ### Headers
 
@@ -27,33 +27,27 @@ Retrieve ANAF connection status including token count and validity information.
 
 ```json
 {
+  "connected": true,
+  "hasToken": true,
   "tokenCount": 2,
-  "hasValidToken": true,
-  "tokens": [
-    {
-      "cif": "12345678",
-      "expiresAt": "2026-03-16T10:30:00Z",
-      "isValid": true
-    },
-    {
-      "cif": "87654321",
-      "expiresAt": "2026-01-10T08:00:00Z",
-      "isValid": false
-    }
-  ]
+  "nearestExpiry": "2026-03-16T10:30:00+00:00",
+  "hasExpiredTokens": false
 }
 ```
+
+When the user has no token, the response holds only `connected` (`false`), `hasToken` (`false`) and `tokenCount` (`0`).
 
 ### Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
+| connected | boolean | Whether at least one token is not expired |
+| hasToken | boolean | Whether the user has any token |
 | tokenCount | integer | Total number of ANAF tokens saved |
-| hasValidToken | boolean | Whether user has at least one valid token |
-| tokens | array | Array of token status objects |
-| tokens[].cif | string | Company fiscal code |
-| tokens[].expiresAt | string | ISO 8601 expiry timestamp |
-| tokens[].isValid | boolean | Whether token is currently valid |
+| nearestExpiry | string\|null | Earliest token expiry, ISO 8601 |
+| hasExpiredTokens | boolean | Whether at least one token is expired |
+
+To list the tokens themselves, use [ANAF tokens](/api-reference/anaf/tokens).
 
 ### Error Responses
 

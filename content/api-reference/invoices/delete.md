@@ -1,11 +1,11 @@
 ---
 title: Delete invoice
-description: Delete a draft invoice
+description: Delete a draft or cancelled invoice
 ---
 
 # Delete invoice
 
-Permanently deletes a draft invoice. Only invoices with status `draft` can be deleted. Issued, submitted, or validated invoices cannot be deleted - they must be cancelled instead.
+Deletes a draft or cancelled invoice. Only invoices with status `draft` or `cancelled` can be deleted. Issued, submitted, or validated invoices cannot be deleted; cancel them first where cancelling is allowed.
 
 ```
 DELETE /api/v1/invoices/{uuid}
@@ -16,7 +16,7 @@ DELETE /api/v1/invoices/{uuid}
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -25,7 +25,7 @@ DELETE /api/v1/invoices/{uuid}
 | `uuid` | string | Yes | Invoice UUID |
 
 {% callout type="warning" %}
-This action is permanent and cannot be undone. To reverse an issued invoice, use the [cancel endpoint](/api-reference/invoices/cancel) instead.
+The invoice disappears from the API and cannot be restored through it. If the deleted invoice held the latest number of its series and was never sent to ANAF, the series counter goes back by one. To withdraw an issued invoice, use the [cancel endpoint](/api-reference/invoices/cancel) instead.
 {% /callout %}
 
 ## Request
@@ -68,11 +68,13 @@ Returns `204 No Content` on successful deletion with an empty response body.
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
+| `403` | The invoice belongs to another organization, or the user cannot delete invoices |
 | `404` | Invoice not found |
-| `409` | Cannot delete non-draft invoice. Use cancel endpoint for issued invoices. |
+| `422` | The invoice cannot be deleted because its status is not `draft` or `cancelled` |
+
+Error bodies have the form `{"error": "message"}`.
 
 ## Related endpoints
 
-- [Cancel invoice](/api-reference/invoices/cancel) - Cancel an issued invoice
+- [Cancel invoice](/api-reference/invoices/cancel) - Cancel an invoice
 - [Restore invoice](/api-reference/invoices/restore) - Restore a cancelled invoice

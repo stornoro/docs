@@ -12,7 +12,7 @@ These endpoints support the **local agent flow** for submitting declarations via
 ## Flow
 
 ```
-Frontend → GET /prepare → gets XML + ANAF token + URL
+Frontend → GET /prepare → gets the PDF to file + upload URL + ANAF token
 Frontend → POST https://agent.storno.ro:17394/proxy → local agent uses curl → ANAF SPV
 Frontend → POST /agent-result → backend processes ANAF response
 ```
@@ -58,7 +58,7 @@ Download the agent at [get.storno.ro/agent](https://get.storno.ro/agent).
 
 `GET /api/v1/declarations/{uuid}/prepare`
 
-Prepares a declaration for agent-based submission. Returns the XML content, ANAF URL, Bearer token, and CIF.
+Prepares a declaration for agent-based filing. For `operation=submit` it generates and stores the XML and the PDF and returns the PDF with the upload details; the other operations return the ANAF URL and token the agent must call. Requires the `declaration.submit` permission.
 
 ### Headers
 
@@ -77,7 +77,8 @@ Prepares a declaration for agent-based submission. Returns the XML content, ANAF
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `operation` | string | No | `submit` (default) or `listMessages` |
+| `operation` | string | No | `submit` (default), `listMessages` or `download` |
+| `downloadId` | string | For `download` | ANAF download id of the message to fetch |
 
 ### Request
 
@@ -91,13 +92,29 @@ curl https://api.storno.ro/api/v1/declarations/a1b2c3d4/prepare \
 
 ```json
 {
-  "xml": "<?xml version=\"1.0\"?>...",
-  "anafUrl": "https://webserviced.anaf.ro/SPVWS2/rest/cerere?tip=D394&cui=12345678",
+  "pdfBase64": "JVBERi0xLjQK...",
+  "anafUrl": "https://decl.anaf.mfinante.gov.ro/WAS6DUS/displayFile.do",
+  "uploadMode": "multipart",
+  "uploadField": "linkdoc",
+  "fileName": "D394_12345678_a1b2c3d4.pdf",
+  "sessionUrl": "https://decl.anaf.mfinante.gov.ro/WAS6DUS/",
   "anafToken": "eyJ...",
   "declarationType": "D394",
   "cif": "12345678"
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pdfBase64` | string | The PDF to upload, base64 encoded |
+| `anafUrl` | string | URL of the ANAF declarations portal upload form |
+| `uploadMode` | string | Always `multipart` |
+| `uploadField` | string | Name of the multipart field that carries the PDF (`linkdoc`) |
+| `fileName` | string | File name to send with the upload |
+| `sessionUrl` | string | Portal URL the agent opens first to get a session |
+| `anafToken` | string \| null | Bearer token of the company, or `null` when none is available (the upload itself uses the certificate) |
+| `declarationType` | string | Declaration type in upper case |
+| `cif` | string | Company CIF |
 
 ### Response (operation=listMessages)
 
@@ -110,13 +127,37 @@ curl https://api.storno.ro/api/v1/declarations/a1b2c3d4/prepare \
 }
 ```
 
+### Response (operation=download)
+
+```json
+{
+  "anafUrl": "https://webserviced.anaf.ro/SPVWS2/rest/descarcare?id=100000123",
+  "anafToken": "eyJ...",
+  "declarationType": "D394",
+  "cif": "12345678"
+}
+```
+
+`listMessages` and `download` need a valid ANAF token for the company.
+
+### Error codes
+
+Errors have the body `{"error": "message"}`, with an extra `code` on some of them.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | The declaration is `submitted`, `processing` or `accepted`; the operation is not one of the three; `downloadId` is missing; or no valid ANAF token exists for `listMessages` or `download` |
+| 403 | The caller lacks the `declaration.submit` permission |
+| 404 | Declaration not found |
+| 409 | Another C168 of the company is still being processed (`code: C168_IN_PROCESSING`, with `otherDeclarationId`) |
+
 ---
 
 ## Agent Result
 
 `POST /api/v1/declarations/{uuid}/agent-result`
 
-Receives the ANAF response from the local agent after the mTLS-proxied request completes. The server parses the response, extracts the upload ID, sets the declaration status to `processing`, and dispatches asynchronous status checking.
+Receives the ANAF response from the local agent after the mTLS-proxied request completes. The server reads the response, extracts the upload index, sets the declaration status to `processing` and starts the status check. A response that carries an error, a login page or an HTTP status of 400 or more sets the status to `error` with `errorMessage`.
 
 ### Headers
 
@@ -136,9 +177,9 @@ Receives the ANAF response from the local agent after the mTLS-proxied request c
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `statusCode` | integer | Yes | HTTP status code from ANAF response |
+| `statusCode` | integer | No | HTTP status code from ANAF response; a value of 400 or more marks the declaration as `error` |
 | `headers` | object | No | Response headers from ANAF |
-| `body` | string | Yes | Response body from ANAF (JSON or XML) |
+| `body` | string | No | Response body from ANAF (JSON, XML or the portal's HTML answer) |
 
 ### Request
 
@@ -152,14 +193,15 @@ curl -X POST https://api.storno.ro/api/v1/declarations/a1b2c3d4/agent-result \
 
 ### Response
 
-Returns the updated declaration object with status `processing`.
+Returns the declaration object with status `processing`, or with status `error` and `errorMessage` when ANAF refused the filing. Both answer 200.
 
 ```json
 {
-  "uuid": "a1b2c3d4",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "type": "d394",
   "status": "processing",
   "anafUploadId": "5000012345",
+  "errorMessage": null,
   "metadata": {
     "uploadResult": {"id_solicitare": "5000012345"},
     "submittedViaAgent": true
@@ -167,11 +209,15 @@ Returns the updated declaration object with status `processing`.
 }
 ```
 
+The other fields are the ones described in [get declaration](/api-reference/declarations/get).
+
 ## Error Codes
+
+Errors have the body `{"error": "message"}`.
 
 | Status Code | Description |
 |-------------|-------------|
-| 400 | Invalid JSON, missing fields, or ANAF returned an error |
+| 400 | The request body is not valid JSON |
 | 401 | Missing or invalid authentication token |
-| 403 | Permission denied |
+| 403 | The caller lacks the `declaration.submit` permission |
 | 404 | Declaration not found |

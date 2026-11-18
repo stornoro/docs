@@ -5,7 +5,7 @@ description: Retrieve complete details for a specific invoice
 
 # Get invoice details
 
-Retrieves the complete details for a specific invoice, including all line items, events, payments, and attachments.
+Retrieves the complete details for a specific invoice, including its lines, client, series and attachments. Payments are listed by [List payments](/api-reference/payments/list) and the timeline by [Invoice events](/api-reference/invoices/events).
 
 ```
 GET /api/v1/invoices/{uuid}
@@ -16,7 +16,7 @@ GET /api/v1/invoices/{uuid}
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -54,24 +54,29 @@ const invoice = await response.json();
 
 ## Response
 
-Returns the complete invoice object with all details.
+Returns the invoice object directly (no wrapper key). Decimal amounts are strings, dates are ISO 8601 date-times, and `createdAt` and `updatedAt` are not included.
 
 ```json
 {
   "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "number": "FAC-2024-001",
+  "number": "FAC0001",
+  "documentType": "invoice",
   "status": "issued",
   "direction": "outgoing",
   "currency": "RON",
-  "exchangeRate": 1.0,
-  "issueDate": "2024-02-15",
-  "dueDate": "2024-03-15",
-  "subtotal": 1000.00,
-  "vatTotal": 190.00,
-  "total": 1190.00,
-  "amountPaid": 500.00,
-  "balance": 690.00,
-  "invoiceTypeCode": "380",
+  "exchangeRate": null,
+  "language": "ro",
+  "issueDate": "2024-02-15T00:00:00+00:00",
+  "dueDate": "2024-03-15T00:00:00+00:00",
+  "subtotal": "1000.00",
+  "vatTotal": "210.00",
+  "discount": "0.00",
+  "total": "1210.00",
+  "amountPaid": "500.00",
+  "balance": "710.00",
+  "paidAt": null,
+  "paymentMethod": null,
+  "invoiceTypeCode": "standard",
   "notes": "Payment terms: 30 days net",
   "paymentTerms": "Net 30",
   "deliveryLocation": "Bucharest, Romania",
@@ -87,103 +92,85 @@ Returns the complete invoice object with all details.
   "deputyIdentityCard": "AB123456",
   "deputyAuto": "B-123-ABC",
   "penaltyEnabled": true,
-  "penaltyPercentPerDay": 0.05,
+  "penaltyPercentPerDay": "0.05",
   "penaltyGraceDays": 5,
+  "parentDocumentId": null,
+  "parentDocumentNumber": null,
+  "parentDocumentDate": null,
+  "senderName": "Your Company SRL",
+  "senderCif": "12345678",
+  "receiverName": "Acme Corporation SRL",
+  "receiverCif": "98765432",
   "client": {
     "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+    "type": "company",
     "name": "Acme Corporation SRL",
-    "cif": "RO98765432",
+    "cui": "98765432",
     "registrationNumber": "J40/1234/2020",
     "address": "Strada Exemplu 123",
     "city": "Bucharest",
     "country": "RO",
-    "email": "billing@acme.ro",
+    "email": "billing@acme.example",
     "phone": "+40123456789"
   },
-  "supplier": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "Your Company SRL",
-    "cif": "RO12345678",
-    "registrationNumber": "J40/5678/2019",
-    "address": "Bulevardul Principal 456",
-    "city": "Bucharest",
-    "country": "RO",
-    "email": "contact@yourcompany.ro",
-    "phone": "+40987654321"
-  },
-  "series": {
+  "supplier": null,
+  "documentSeries": {
     "id": "f8e7d6c5-b4a3-4c5d-9e8f-7a6b5c4d3e2f",
-    "name": "FAC",
-    "prefix": "FAC-2024-",
-    "nextNumber": 2
+    "prefix": "FAC",
+    "nextNumber": "FAC0002"
   },
   "lines": [
     {
       "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      "position": 1,
       "description": "Web Development Services",
-      "quantity": 10.0,
-      "unitPrice": 100.00,
+      "quantity": "10.0000",
+      "unitPrice": "100.00",
       "unitOfMeasure": "hours",
-      "vatRate": 19.0,
-      "vatAmount": 190.00,
-      "subtotal": 1000.00,
-      "total": 1190.00,
-      "discount": 0.00,
-      "discountPercent": 0.00,
+      "vatRate": "21.00",
+      "vatCategoryCode": "S",
+      "vatAmount": "210.00",
+      "lineTotal": "1000.00",
+      "discount": "0.00",
+      "discountPercent": "0.00",
       "vatIncluded": false,
       "productCode": "SRV-001",
-      "product": {
-        "id": "9f8e7d6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f",
-        "name": "Web Development",
-        "code": "SRV-001"
-      }
+      "productId": "9f8e7d6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f"
     }
   ],
-  "payments": [
-    {
-      "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
-      "amount": 500.00,
-      "paymentDate": "2024-02-20",
-      "paymentMethod": "bank_transfer",
-      "notes": "Partial payment received",
-      "createdAt": "2024-02-20T10:30:00Z"
-    }
-  ],
-  "events": [
-    {
-      "id": "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
-      "type": "status_change",
-      "status": "issued",
-      "timestamp": "2024-02-15T09:00:00Z",
-      "details": "Invoice issued successfully",
-      "user": "John Doe"
-    }
-  ],
-  "attachments": [
-    {
-      "id": "4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a",
-      "filename": "contract.pdf",
-      "mimeType": "application/pdf",
-      "size": 245678,
-      "uploadedAt": "2024-02-15T08:45:00Z"
-    }
-  ],
-  "xmlGenerated": true,
-  "xmlPath": "/storage/invoices/2024/02/7c9e6679-xml.xml",
-  "pdfGenerated": true,
-  "pdfPath": "/storage/invoices/2024/02/7c9e6679-pdf.pdf",
-  "anafSubmissionId": "ANAF-2024-123456",
-  "anafDownloadId": "DL-987654",
-  "anafValidationErrors": null,
-  "createdAt": "2024-02-15T08:30:00Z",
-  "updatedAt": "2024-02-20T10:30:00Z"
+  "attachments": [],
+  "anafUploadId": null,
+  "anafDownloadId": null,
+  "anafStatus": null,
+  "anafErrorMessage": null,
+  "scheduledSendAt": null,
+  "scheduledEmailAt": null,
+  "cancelledAt": null,
+  "cancellationReason": null
 }
 ```
 
+### Notes on the fields
+
+| Field | Description |
+|-------|-------------|
+| `invoiceTypeCode` | One of the values listed in [Create invoice](/api-reference/invoices/create), or null |
+| `supplier` | Set on received invoices; null on outgoing ones |
+| `documentSeries.nextNumber` | The next number the series would assign, formatted with the prefix |
+| `lines[].lineTotal` | Line amount before VAT |
+| `attachments` | Files attached to a received invoice: each has `id`, `filename`, `mimeType`, `description` and `size`. Download one with [Download attachment](/api-reference/invoices/attachments) |
+| `anafUploadId`, `anafDownloadId`, `anafStatus`, `anafErrorMessage` | e-Factura submission identifiers and the last error from ANAF |
+| `scheduledSendAt` | When the automatic e-Factura submission is due, if one is scheduled |
+| `refundInvoices` | Present when the invoice has credit notes or stornos: a list of `{id, number, issueDate, status}` for each of them |
+
+The XML and PDF files are not part of the object; use [Download XML](/api-reference/invoices/xml) and [Download PDF](/api-reference/invoices/pdf).
+
 ## Error codes
+
+Error bodies have the form `{"error": "message"}`.
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
+| `403` | The invoice belongs to another organization, or the user cannot view invoices |
 | `404` | Invoice not found |

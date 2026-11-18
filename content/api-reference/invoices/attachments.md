@@ -5,7 +5,7 @@ description: Download a file attached to an invoice
 
 # Download invoice attachment
 
-Downloads a file that was attached to an invoice. Attachments are binary files (PDFs, images, documents) that have been uploaded and associated with the invoice.
+Downloads a file attached to an invoice. Attachments are the additional files that came with a received e-Factura invoice synced from ANAF. The API has no endpoint to upload attachments.
 
 ```
 GET /api/v1/invoices/{uuid}/attachments/{attachmentId}
@@ -27,15 +27,16 @@ GET /api/v1/invoices/{uuid}/attachments/{attachmentId}
 
 ## Finding attachment IDs
 
-Get attachment IDs from the [invoice details](/api-reference/invoices/get) endpoint:
+Get attachment IDs from the `attachments` array of the [invoice details](/api-reference/invoices/get) response:
 
 ```javascript
 const invoice = await fetch('/api/v1/invoices/{uuid}').then(r => r.json());
-
 invoice.attachments.forEach(attachment => {
   console.log(`${attachment.filename} - ${attachment.id}`);
 });
 ```
+
+Each attachment object has `id`, `filename`, `mimeType`, `description` and `size` (bytes).
 
 ## Request
 
@@ -78,7 +79,7 @@ window.open(url, '_blank');
 
 ## Response
 
-Returns the file as binary data with appropriate content type.
+Returns the file as binary data with status `200`.
 
 ### Response headers
 
@@ -86,162 +87,18 @@ Returns the file as binary data with appropriate content type.
 |--------|-------|-------------|
 | `Content-Type` | {mimeType} | MIME type of the file |
 | `Content-Disposition` | attachment; filename="{filename}" | Original filename |
-| `Content-Length` | {size} | File size in bytes |
-| `X-Upload-Date` | 2024-02-15T08:45:00Z | When file was uploaded |
-
-### Common MIME types
-
-| File type | MIME type |
-|-----------|-----------|
-| PDF | application/pdf |
-| JPEG | image/jpeg |
-| PNG | image/png |
-| Word | application/vnd.openxmlformats-officedocument.wordprocessingml.document |
-| Excel | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet |
-| ZIP | application/zip |
-| Text | text/plain |
-
-## Attachment types
-
-Attachments can include:
-
-### Supporting documents
-- Purchase orders
-- Contracts
-- Delivery notes
-- Receipts
-- Correspondence
-
-### Visual documentation
-- Product photos
-- Delivery photos
-- Signed documents
-- Scanned invoices
-
-### Technical files
-- Specifications
-- Drawings
-- CAD files
-- Technical data sheets
-
-## Upload attachments
-
-While this endpoint only handles downloads, you can upload attachments via:
-
-```javascript
-// Upload attachment
-const formData = new FormData();
-formData.append('file', fileBlob, 'contract.pdf');
-formData.append('description', 'Service contract');
-
-await fetch('/api/v1/invoices/{uuid}/attachments', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer YOUR_TOKEN',
-    'X-Company': '550e8400-e29b-41d4-a716-446655440000'
-  },
-  body: formData
-});
-```
-
-## Viewing attachments in invoice details
-
-List all attachments for an invoice:
-
-```javascript
-const invoice = await fetch('/api/v1/invoices/{uuid}').then(r => r.json());
-
-invoice.attachments.forEach(attachment => {
-  console.log({
-    id: attachment.id,
-    filename: attachment.filename,
-    size: attachment.size,
-    mimeType: attachment.mimeType,
-    uploadedAt: attachment.uploadedAt
-  });
-});
-```
-
-Example response:
-
-```json
-{
-  "attachments": [
-    {
-      "id": "4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a",
-      "filename": "contract.pdf",
-      "mimeType": "application/pdf",
-      "size": 245678,
-      "uploadedAt": "2024-02-15T08:45:00Z",
-      "uploadedBy": {
-        "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-        "name": "John Doe"
-      },
-      "description": "Service contract"
-    },
-    {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "filename": "delivery-photo.jpg",
-      "mimeType": "image/jpeg",
-      "size": 128456,
-      "uploadedAt": "2024-02-15T14:20:00Z",
-      "uploadedBy": {
-        "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-        "name": "Jane Smith"
-      },
-      "description": "Proof of delivery"
-    }
-  ]
-}
-```
-
-## Security
-
-### Access control
-- Attachments are scoped to company
-- Requires valid authentication token
-- Only accessible to company members
-
-### File scanning
-- All uploads are scanned for malware
-- Suspicious files are quarantined
-- Safe files are stored encrypted
-
-### Storage
-- Files stored on secure cloud storage
-- Encrypted at rest and in transit
-- Automatic backups
-
-## File size limits
-
-| Plan | Max file size | Max attachments per invoice | Total storage |
-|------|--------------|----------------------------|---------------|
-| Freemium | 5 MB | 3 | 100 MB |
-| Starter | 10 MB | 5 | 500 MB |
-| Professional | 25 MB | 10 | 5 GB |
-| Business | 50 MB | 25 | 50 GB |
-
-## Performance
-
-Download speeds depend on file size and location:
-
-| File size | Typical download time |
-|-----------|---------------------|
-| < 1 MB | < 1 second |
-| 1-5 MB | 1-3 seconds |
-| 5-25 MB | 3-10 seconds |
-| 25-50 MB | 10-20 seconds |
-
-Files are served from a CDN for optimal performance.
+| `Content-Length` | {size} | File size in bytes, when known |
+| `Cache-Control` | private, max-age=3600 | The response can be cached by the client for one hour |
 
 ## Error codes
+
+Error bodies are `{"error": "message"}`.
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
-| `404` | Invoice or attachment not found |
-| `410` | Attachment was deleted |
+| `403` | No permission to view the invoice |
+| `404` | Invoice or attachment not found, or the attachment has no stored content |
 
 ## Use cases
 

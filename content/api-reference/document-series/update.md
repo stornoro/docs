@@ -5,7 +5,7 @@ description: Update an existing document series.
 
 # Update document series
 
-Updates an existing document series. Note that the prefix and type cannot be changed after creation.
+Updates an existing document series. The prefix cannot be changed after creation. Only the fields you send are changed.
 
 ```http
 PATCH /api/v1/document-series/{uuid}
@@ -27,14 +27,16 @@ PATCH /api/v1/document-series/{uuid}
 | `X-Company` | string | Yes | UUID of the company context |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
-### Body Parameters
+Requires the `series.manage` permission.
 
-All parameters are optional, but at least one must be provided.
+### Body Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `currentNumber` | integer | Update the last used number (use with caution) |
 | `active` | boolean | Set series as active or inactive |
+| `type` | string | Document type: `invoice`, `proforma`, `credit_note`, `delivery_note`, `receipt`, `voucher` |
+| `isDefault` | boolean | Make this the default series of its type. When set to `true`, the default flag is cleared on the other series of the same type |
 
 ## Response
 
@@ -56,32 +58,20 @@ curl -X PATCH 'https://api.storno.ro/api/v1/document-series/series-uuid-3' \
 
 ```json
 {
-  "uuid": "series-uuid-3",
+  "id": "series-uuid-3",
   "prefix": "FAC2025",
   "type": "invoice",
   "currentNumber": 1523,
-  "nextNumber": 1524,
+  "nextNumber": "FAC20251524",
   "active": false,
-  "createdAt": "2025-01-01T08:00:00Z",
-  "updatedAt": "2026-02-16T16:15:00Z"
+  "isDefault": false,
+  "source": "manual"
 }
 ```
 
 ## Field Restrictions
 
-### Non-Editable Fields
-
-The following fields cannot be changed after creation:
-
-- `prefix` - Series prefix
-- `type` - Document type
-
-These restrictions prevent breaking existing invoice number sequences and ensure data integrity.
-
-### Editable Fields
-
-- `currentNumber` - Can be updated, but use with extreme caution
-- `active` - Can be toggled to activate/deactivate series
+The `prefix` cannot be changed after creation. This protects existing document number sequences.
 
 ## Updating currentNumber
 
@@ -93,7 +83,7 @@ Modifying `currentNumber` should only be done in exceptional circumstances:
 
 ### Warning
 
-Setting `currentNumber` to a value lower than the highest existing invoice number in this series may cause duplicate numbers, which could violate fiscal regulations.
+Setting `currentNumber` to a value lower than the highest existing document number in this series may cause duplicate numbers, which could violate fiscal regulations.
 
 ### Best Practice
 
@@ -103,20 +93,14 @@ Instead of modifying `currentNumber`, consider:
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Document series not found or doesn't belong to company |
-| 422 | validation_error | Invalid input data (see error details) |
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `type` is not a valid type |
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found, or document series not found in this company |
 
-### Validation Errors
-
-Common validation errors include:
-
-- No fields provided for update
-- Negative `currentNumber`
-- Attempting to modify `prefix` or `type`
+Error bodies have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

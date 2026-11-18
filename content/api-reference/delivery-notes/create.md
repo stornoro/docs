@@ -14,23 +14,23 @@ Creates a new delivery note in draft status. Delivery notes document the physica
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID to scope the request. Can be omitted when the organization has exactly one company; the `company` query parameter is accepted too |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Request Body
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `clientId` | string | Yes | UUID of the client |
+| `clientId` | string | No | UUID of a client of the company |
 | `documentSeriesId` | string | No | UUID of the delivery note series. If not provided, the default `delivery_note` series for the company is auto-assigned |
-| `issueDate` | string | Yes | Date of issue (YYYY-MM-DD) |
-| `dueDate` | string | Yes | Due date for invoicing (YYYY-MM-DD) |
-| `currency` | string | Yes | Currency code (RON, EUR, USD, etc.) |
-| `exchangeRate` | number | No | Exchange rate (defaults to 1.0 for RON) |
+| `issueDate` | string | No | Date of issue (YYYY-MM-DD) |
+| `dueDate` | string | No | Due date for invoicing (YYYY-MM-DD) |
+| `currency` | string | No | Currency code (RON, EUR, USD, etc.). Defaults to the company currency |
+| `exchangeRate` | number | No | Exchange rate, stored as sent |
 | `deliveryLocation` | string | No | Full address where goods delivered |
 | `projectReference` | string | No | Related project or order reference |
 | `issuerName` | string | No | Name of person issuing the delivery note |
-| `issuerId` | string | No | UUID of the issuer user |
+| `issuerId` | string | No | Identifier of the issuer, stored as sent |
 | `salesAgent` | string | No | Sales agent name |
 | `deputyName` | string | No | Name of person receiving the delivery |
 | `deputyIdentityCard` | string | No | ID card number of deputy |
@@ -39,6 +39,7 @@ Creates a new delivery note in draft status. Delivery notes document the physica
 | `mentions` | string | No | Additional mentions or instructions |
 | `internalNote` | string | No | Internal note (not visible to client) |
 | `lines` | array | Yes | Array of line items (minimum 1 item) |
+| `skipEtransport` | boolean | No | Exclude the delivery note from e-Transport |
 
 ### e-Transport Fields
 
@@ -47,7 +48,7 @@ These fields are required for ANAF e-Transport submission. They can be set at cr
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `etransportOperationType` | number | No | Operation type: `10` (intra-EU acquisition), `12` (intra-EU delivery), `20` (domestic transaction), `30` (TTN — domestic transport document), `40` (import), `50` (export), `60` (goods not released for circulation) |
-| `etransportPostIncident` | boolean | No | Post-incident declaration (after the transport was completed) |
+| `etransportPostIncident` | string | No | Post-incident declaration, one character. `"D"` marks a declaration made after the transport; any other value is treated as not post-incident |
 | `etransportVehicleNumber` | string | No | Vehicle registration number (3-20 uppercase alphanumeric chars per BR-031, e.g., `"BC01ABC"`) |
 | `etransportTrailer1` | string | No | First trailer registration number |
 | `etransportTrailer2` | string | No | Second trailer registration number |
@@ -75,15 +76,19 @@ These fields are required for ANAF e-Transport submission. They can be set at cr
 | `description` | string | Yes | Item description |
 | `quantity` | number | Yes | Quantity delivered (must be > 0) |
 | `unitPrice` | number | Yes | Price per unit |
-| `vatRateId` | string | Yes | UUID of the VAT rate |
+| `vatRate` | number | No | VAT rate percentage. Default 21.00 when neither `vatRate` nor `vatRateId` is sent, whatever the VAT status of the company |
+| `vatCategoryCode` | string | No | UBL VAT category code (default `S`; a 0% rate becomes `Z` on its own) |
+| `vatRateId` | string | No | Id of one of the company's VAT rates (`GET /api/v1/vat-rates`). The line takes its percentage and category. Ignored when `vatRate` is sent; an error when it is not a rate of the company |
 | `unitOfMeasure` | string | No | Unit of measure (e.g., piece, kg, hour) |
-| `productId` | string | No | UUID of related product |
+| `productCode` | string | No | Product code printed on the line |
 | `tariffCode` | string | No | 8-digit HS/CN tariff code (e.g., `"84131100"`). Required for e-Transport per BR-206 |
 | `purposeCode` | number | No | Purpose code. For TTN (opType 30): `101` (commercial), `704`, `705`, `9901` (other) per BR-070 |
 | `unitOfMeasureCode` | string | No | UN/ECE Rec 20 unit code (e.g., `"H87"`=piece, `"KGM"`=kg, `"SET"`=set, `"MTR"`=meter) |
 | `netWeight` | string | No | Net weight in kg as decimal (e.g., `"120.00"`). Required for e-Transport per BR-207 |
 | `grossWeight` | string | No | Gross weight in kg as decimal (e.g., `"140.00"`) |
 | `valueWithoutVat` | string | No | Line value without VAT as decimal (e.g., `"15000.00"`). Required for e-Transport per BR-208 |
+
+> **VAT on a line.** Send `vatRate` (a percentage) or `vatRateId` (the id of one of the company's rates from `GET /api/v1/vat-rates`; the line takes that rate's percentage and category). When both are sent `vatRate` wins. When neither is sent the line gets **21%**, also when the issuing company is not a VAT payer. For a company that is not a VAT payer send `vatRate: "0.00"` on every line. A `vatRateId` that is not a rate of the company is refused with an error; it never falls back to 21%.
 
 ## Request
 
@@ -115,16 +120,14 @@ curl -X POST https://api.storno.ro/api/v1/delivery-notes \
         "quantity": 10,
         "unitPrice": 450,
         "unitOfMeasure": "piece",
-        "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-        "productId": "B50e8400-e29b-41d4-a716-446655440000"
+        "vatRateId": "350e8400-e29b-41d4-a716-446655440000"
       },
       {
         "description": "Wireless Mouse Logitech MX Master 3",
         "quantity": 10,
         "unitPrice": 50,
         "unitOfMeasure": "piece",
-        "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-        "productId": "B60e8400-e29b-41d4-a716-446655440000"
+        "vatRateId": "350e8400-e29b-41d4-a716-446655440000"
       }
     ]
   }'
@@ -161,16 +164,14 @@ const response = await fetch('https://api.storno.ro/api/v1/delivery-notes', {
         quantity: 10,
         unitPrice: 450,
         unitOfMeasure: 'piece',
-        vatRateId: '350e8400-e29b-41d4-a716-446655440000',
-        productId: 'B50e8400-e29b-41d4-a716-446655440000'
+        vatRateId: '350e8400-e29b-41d4-a716-446655440000'
       },
       {
         description: 'Wireless Mouse Logitech MX Master 3',
         quantity: 10,
         unitPrice: 50,
         unitOfMeasure: 'piece',
-        vatRateId: '350e8400-e29b-41d4-a716-446655440000',
-        productId: 'B60e8400-e29b-41d4-a716-446655440000'
+        vatRateId: '350e8400-e29b-41d4-a716-446655440000'
       }
     ]
   })
@@ -181,145 +182,119 @@ const data = await response.json();
 
 ## Response
 
+Returns `201 Created` with the delivery note and the e-Transport validation result:
+
 ```json
 {
-  "uuid": "950e8400-e29b-41d4-a716-446655440000",
-  "number": "DN-2026-012",
-  "documentSeriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "DN",
-    "nextNumber": 13,
-    "prefix": "DN-",
-    "year": 2026
-  },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
-  "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
-    "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "address": "Str. Exemplu 123, București",
-    "email": "contact@client.ro"
-  },
-  "status": "draft",
-  "issueDate": "2026-02-18",
-  "dueDate": "2026-03-18",
-  "currency": "RON",
-  "exchangeRate": 1.0,
-  "deliveryLocation": "Client warehouse - Str. Depozit 5, București, Sector 2",
-  "projectReference": "PROJECT-2026-002",
-  "issuerName": "John Doe",
-  "salesAgent": "Jane Smith",
-  "deputyName": "Maria Ionescu",
-  "deputyIdentityCard": "AB123456",
-  "deputyAuto": "B-123-ABC",
-  "notes": "Handle with care - fragile items",
-  "mentions": "Special delivery instructions: Use loading dock B",
-  "internalNote": "Priority client - ensure careful handling",
-  "lines": [
-    {
-      "uuid": "A10e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 1,
-      "description": "Laptop Dell Latitude 7420",
-      "quantity": "10.00",
-      "unitPrice": "450.00",
-      "unitOfMeasure": "piece",
-      "productId": "B50e8400-e29b-41d4-a716-446655440000",
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "subtotal": "4500.00",
-      "vatAmount": "855.00",
-      "total": "5355.00"
+  "deliveryNote": {
+    "id": "950e8400-e29b-41d4-a716-446655440000",
+    "number": "AVIZ-0194f3a2",
+    "documentSeries": {
+      "id": "850e8400-e29b-41d4-a716-446655440000",
+      "prefix": "DN",
+      "nextNumber": "DN0013"
     },
-    {
-      "uuid": "A20e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 2,
-      "description": "Wireless Mouse Logitech MX Master 3",
-      "quantity": "10.00",
-      "unitPrice": "50.00",
-      "unitOfMeasure": "piece",
-      "productId": "B60e8400-e29b-41d4-a716-446655440000",
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "subtotal": "500.00",
-      "vatAmount": "95.00",
-      "total": "595.00"
-    }
-  ],
-  "subtotal": "5000.00",
-  "vatAmount": "950.00",
-  "total": "5950.00",
-  "issuedAt": null,
-  "convertedAt": null,
-  "convertedInvoiceId": null,
-  "cancelledAt": null,
-  "createdAt": "2026-02-18T09:00:00Z",
-  "updatedAt": "2026-02-18T09:00:00Z"
+    "client": {
+      "id": "750e8400-e29b-41d4-a716-446655440000",
+      "type": "company",
+      "name": "Client SRL",
+      "cui": "12345678",
+      "cnp": null,
+      "registrationNumber": "J40/1234/2020",
+      "address": "Str. Exemplu 123",
+      "city": "București",
+      "county": "București",
+      "country": "RO",
+      "postalCode": "010101",
+      "email": "contact@client.ro",
+      "phone": "+40721234567"
+    },
+    "status": "draft",
+    "issueDate": "2026-02-18",
+    "dueDate": "2026-03-18",
+    "currency": "RON",
+    "subtotal": "5000.00",
+    "vatTotal": "1050.00",
+    "total": "6050.00",
+    "discount": "0.00",
+    "notes": "Handle with care - fragile items",
+    "mentions": "Special delivery instructions: Use loading dock B",
+    "internalNote": "Priority client - ensure careful handling",
+    "deliveryLocation": "Client warehouse - Str. Depozit 5, București, Sector 2",
+    "projectReference": "PROJECT-2026-002",
+    "issuerName": "John Doe",
+    "issuerId": null,
+    "salesAgent": "Jane Smith",
+    "deputyName": "Maria Ionescu",
+    "deputyIdentityCard": "AB123456",
+    "deputyAuto": "B-123-ABC",
+    "exchangeRate": "1.0",
+    "convertedInvoice": null,
+    "issuedAt": null,
+    "cancelledAt": null,
+    "skipEtransport": false,
+    "etransportOperationType": null,
+    "etransportStatus": null,
+    "etransportUit": null,
+    "lines": [
+      {
+        "id": "a10e8400-e29b-41d4-a716-446655440000",
+        "position": 1,
+        "description": "Laptop Dell Latitude 7420",
+        "quantity": "10",
+        "unitOfMeasure": "piece",
+        "unitPrice": "450",
+        "vatRate": "21.00",
+        "vatCategoryCode": "S",
+        "vatAmount": "945.00",
+        "lineTotal": "4500.00",
+        "discount": "0.00",
+        "discountPercent": "0.00",
+        "vatIncluded": false,
+        "productCode": null,
+        "tariffCode": null,
+        "purposeCode": null,
+        "unitOfMeasureCode": null,
+        "netWeight": null,
+        "grossWeight": null,
+        "valueWithoutVat": null
+      }
+    ]
+  },
+  "validation": null
 }
 ```
 
+The e-Transport fields (`etransport*`) are also part of the object, null until set. `convertedInvoice` is `null` until the delivery note is converted, then an object without fields; read the invoice id from the response of the convert call.
+
+`validation` is `null` when `skipEtransport` is true or `etransportOperationType` is not set. Otherwise it is `{ "valid": boolean, "errors": [...], "warnings": [...], "schematronAvailable": boolean }` (the e-Transport checks of the entity, the XML schema and the Schematron rules). The delivery note is created whatever the result.
+
+A draft carries a temporary number (`AVIZ-` followed by a random string). The final number, the series prefix followed by the counter padded to at least four digits, is assigned when the delivery note is [issued](/api-reference/delivery-notes/issue).
+
 ## Validation Rules
 
-### Dates
-- `issueDate` must be a valid date in YYYY-MM-DD format
-- `issueDate` should not be in the future
-- `dueDate` must be equal to or after `issueDate`
-
-### Currency
-- Must be a valid 3-letter currency code (ISO 4217)
-- `exchangeRate` must be greater than 0
-- For RON (base currency), `exchangeRate` defaults to 1.0
-
-### Line Items
-- Minimum 1 line item required
-- `quantity` must be greater than 0
-- `unitPrice` must be greater than or equal to 0
-- `vatRateId` must reference an existing VAT rate
-- If `productId` is provided, it must reference an existing product
-
-### References
-- `clientId` must reference an existing client
-- If `documentSeriesId` is provided, it must reference an existing series configured for `delivery_note` type; if omitted, the company's default `delivery_note` series is auto-assigned
-- If `issuerId` is provided, it must reference an existing user
-
-### Deputy Information
-- Optional but recommended for proof of delivery
-- `deputyIdentityCard` should be valid ID format
-- `deputyAuto` should be valid vehicle registration format
+- `lines` must be a non-empty array. Each line needs a non-empty `description`, a `quantity` greater than 0 and a `unitPrice` of 0 or more.
+- `clientId`, if sent, must be a client of the company.
+- `documentSeriesId`, if sent, must be a series of the company; otherwise the default `delivery_note` series is used. A series of another company is ignored.
+- `vatRateId`, if sent without `vatRate`, must be a VAT rate of the company.
+- Nothing else is validated at creation: dates, currency, exchange rate and the e-Transport fields are stored as sent. The e-Transport checks run in `validation`, and again on submit.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid request body structure |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Referenced entity not found (client, series, VAT rate, product, user) |
-| 422 | `validation_error` | Validation failed (see error details for specific field errors) |
-| 500 | `internal_error` | Server error occurred |
+Errors have the form `{"error": "message"}`. Failures while creating the document, including an unknown client or VAT rate, return 400.
 
-## Example Validation Error Response
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Missing or invalid lines, unknown client, unknown `vatRateId`, or any other failure while creating |
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Company not found or not accessible |
+
+### Example error response
 
 ```json
 {
-  "error": {
-    "code": "validation_error",
-    "message": "Validation failed",
-    "details": {
-      "clientId": ["Client not found"],
-      "lines.0.quantity": ["Quantity must be greater than 0"],
-      "lines.1.vatRateId": ["VAT rate not found"],
-      "dueDate": ["Due date must be after issue date"]
-    }
-  }
+  "error": "Line 0: quantity must be positive."
 }
 ```
 

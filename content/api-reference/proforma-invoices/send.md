@@ -1,28 +1,28 @@
 ---
 title: Send Proforma Invoice
-description: Mark a proforma invoice as sent to the client
+description: Mark a proforma invoice as sent
 method: POST
 endpoint: /api/v1/proforma-invoices/{uuid}/send
 ---
 
 # Send Proforma Invoice
 
-Marks a proforma invoice as sent to the client. This action transitions the proforma from `draft` status to `sent` status and records the timestamp when it was sent.
-
-Once sent, the proforma becomes read-only and can no longer be edited or deleted. It can only be accepted, rejected, cancelled, or converted to an invoice.
+Marks a proforma invoice as sent to the client. The proforma moves from `draft` to `sent`. This endpoint only changes the status; it does not send an email or any other message.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not read by this endpoint. The proforma is found by its id and must belong to your organization |
 
 ## Path Parameters
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `uuid` | string | Yes | The UUID of the proforma invoice to mark as sent |
+| `uuid` | string | Yes | The UUID of the proforma invoice |
+
+This endpoint takes no request body.
 
 ## Request
 
@@ -40,153 +40,121 @@ const response = await fetch('https://api.storno.ro/api/v1/proforma-invoices/550
     'X-Company': 'company-uuid-here'
   }
 });
-
 const data = await response.json();
 ```
 
 ## Response
 
-Returns the updated proforma invoice with `status = sent` and `sentAt` timestamp:
+Returns the updated proforma in the same shape as [Get proforma invoice](/api-reference/proforma-invoices/get), with `status` set to `sent` and `sentAt` filled. Decimal amounts are strings and dates are ISO 8601 date-times. `documentSeries` is `null` when the proforma has no series.
 
 ```json
 {
-  "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "number": "PRO-2026-001",
-  "seriesId": "650e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "650e8400-e29b-41d4-a716-446655440000",
-    "name": "PRO",
-    "nextNumber": 2
-  },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "number": "PRO0001",
   "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
+    "id": "750e8400-e29b-41d4-a716-446655440000",
+    "type": "company",
     "name": "Client SRL",
-    "registrationNumber": "RO12345678",
+    "cui": "12345678",
+    "cnp": null,
+    "city": "București",
+    "country": "RO",
     "email": "contact@client.ro"
   },
+  "documentSeries": {
+    "id": "650e8400-e29b-41d4-a716-446655440000",
+    "prefix": "PRO",
+    "nextNumber": "PRO0002"
+  },
   "status": "sent",
-  "issueDate": "2026-02-16",
-  "dueDate": "2026-03-16",
-  "validUntil": "2026-03-16",
   "currency": "RON",
-  "exchangeRate": 1.0,
+  "issueDate": "2026-02-16T00:00:00+00:00",
+  "dueDate": "2026-03-16T00:00:00+00:00",
+  "validUntil": "2026-03-16T00:00:00+00:00",
   "subtotal": "7000.00",
-  "vatAmount": "1330.00",
+  "vatTotal": "1330.00",
   "total": "8330.00",
-  "notes": "Payment terms: 30 days",
+  "discount": "200.00",
+  "notes": "Payment terms: 30 days from invoice date",
   "paymentTerms": "Net 30",
-  "sentAt": "2026-02-16T14:30:00Z",
+  "invoiceTypeCode": null,
+  "deliveryLocation": "Client warehouse",
+  "projectReference": "PROJECT-2026-001",
+  "orderNumber": "PO-2026-123",
+  "contractNumber": "CONTRACT-2026-456",
+  "issuerName": "John Doe",
+  "issuerId": null,
+  "mentions": "Special delivery instructions",
+  "internalNote": "VIP client - priority handling",
+  "salesAgent": "Jane Smith",
+  "language": "ro",
+  "exchangeRate": null,
+  "sentAt": "2026-02-17T09:15:00+00:00",
   "acceptedAt": null,
   "rejectedAt": null,
   "cancelledAt": null,
-  "convertedAt": null,
-  "convertedInvoiceId": null,
-  "createdAt": "2026-02-16T09:00:00Z",
-  "updatedAt": "2026-02-16T14:30:00Z"
+  "expiredAt": null,
+  "lines": [
+    {
+      "id": "950e8400-e29b-41d4-a716-446655440000",
+      "position": 1,
+      "description": "Web Development Services - Phase 1",
+      "quantity": "40.0000",
+      "unitOfMeasure": "hour",
+      "unitPrice": "150.00",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
+      "vatAmount": "1140.00",
+      "lineTotal": "6000.00",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productId": "450e8400-e29b-41d4-a716-446655440000",
+      "productCode": null
+    },
+    {
+      "id": "960e8400-e29b-41d4-a716-446655440000",
+      "position": 2,
+      "description": "Hosting Services - Annual",
+      "quantity": "1.0000",
+      "unitOfMeasure": "service",
+      "unitPrice": "1200.00",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
+      "vatAmount": "190.00",
+      "lineTotal": "1000.00",
+      "discount": "200.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productId": "460e8400-e29b-41d4-a716-446655440000",
+      "productCode": null
+    }
+  ]
 }
 ```
 
 ## State Changes
 
-### Status Transition
-- **Before:** `status = draft`
-- **After:** `status = sent`
+- Before: `draft`
+- After: `sent`
+- Sets `sentAt` to the current time.
 
-### Timestamp
-- Sets `sentAt` to current UTC timestamp (ISO 8601 format)
-- Updates `updatedAt` timestamp
+A `sent` proforma can no longer be updated. It can be accepted, rejected, cancelled or converted. A proforma cannot be un-sent.
 
-### Restrictions Applied
-Once marked as sent:
-- Cannot be updated (PUT requests will fail)
-- Cannot be deleted (DELETE requests will fail)
-- Can be accepted, rejected, cancelled, or converted
-
-## Validation Rules
-
-### Status Requirement
-- Proforma must have `status = draft`
-- Cannot send a proforma that is already sent, accepted, rejected, converted, or cancelled
-
-### Data Completeness
-Before sending, ensure the proforma has:
-- Valid client information
-- At least one line item
-- All required fields populated
-- Correct totals calculated
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Proforma invoice not found or doesn't belong to the company |
-| 409 | `conflict` | Proforma status prevents sending (not in draft status) |
-| 422 | `validation_error` | Proforma data is incomplete or invalid |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the invoice send permission |
+| 404 | Proforma not found, or it belongs to another organization |
+| 422 | The proforma is not in `draft` status |
 
-## Example Error Responses
-
-### Status Conflict
+Errors return a JSON body with a single `error` message, for example `{"error": "Proforma not found."}`.
 
 ```json
 {
-  "error": {
-    "code": "conflict",
-    "message": "Proforma invoice cannot be sent",
-    "details": {
-      "status": "sent",
-      "reason": "Proforma invoice is already marked as sent",
-      "sentAt": "2026-02-16T10:30:00Z"
-    }
-  }
+  "error": "Doar proformele ciorna pot fi trimise."
 }
 ```
-
-### Validation Error
-
-```json
-{
-  "error": {
-    "code": "validation_error",
-    "message": "Proforma invoice data is incomplete",
-    "details": {
-      "client.email": ["Client email is required before sending"],
-      "lines": ["At least one line item is required"]
-    }
-  }
-}
-```
-
-## Integration Notes
-
-### Email Integration
-This endpoint only changes the status in the database. To actually send the proforma via email, you should:
-
-1. Call this endpoint to mark as sent
-2. Use the [Email Sending API](/api-reference/emails/send) to deliver the PDF to the client
-3. The email API will automatically attach the generated PDF
-
-### Workflow Integration
-After marking as sent, you may want to:
-- Generate and download the PDF for your records
-- Send email notification to the client
-- Set up reminders for follow-up
-- Track when the client views/downloads the document
-
-### Reversibility
-There is no "unsend" action. Once sent, the proforma remains in sent status until:
-- Client accepts it (→ `accepted`)
-- Client rejects it (→ `rejected`)
-- You cancel it (→ `cancelled`)
-- You convert it to an invoice (→ `converted`)
-
-## Best Practices
-
-1. **Validate before sending** - Review all data before marking as sent
-2. **Email immediately** - Send the email right after this API call
-3. **Log the action** - Record who sent it and when in your application logs
-4. **Notify stakeholders** - Alert relevant team members that proforma was sent
-5. **Set follow-up reminders** - Based on `validUntil` date

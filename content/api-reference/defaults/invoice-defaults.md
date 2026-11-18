@@ -22,7 +22,7 @@ Get all default values and configuration options for invoice creation. This endp
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | Authorization | string | Yes | Bearer token for authentication |
-| X-Company | string | Yes | Company UUID |
+| X-Company | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 
 ### Query Parameters
 
@@ -102,7 +102,7 @@ Get all default values and configuration options for invoice creation. This endp
   "ossVatRates": [],
   "countries": [
     { "code": "RO", "label": "Romania" },
-    { "code": "DE", "label": "Germania" }
+    { "code": "DE", "label": "Germany" }
   ],
   "counties": [
     { "code": "B", "label": "Bucuresti" },
@@ -162,7 +162,7 @@ Array of ISO 4217 currency codes (e.g., `["RON", "EUR", "USD", ...]`).
 #### Countries & Counties
 | Field | Type | Description |
 |-------|------|-------------|
-| countries | array | ISO 3166-1 alpha-2 country codes with Romanian labels |
+| countries | array | ISO 3166-1 alpha-2 country codes with English labels |
 | counties | array | Romanian county codes with labels (for `countrySubentity` field) |
 
 ### Error Responses
@@ -170,11 +170,12 @@ Array of ISO 4217 currency codes (e.g., `["RON", "EUR", "USD", ...]`).
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
-| 403 | Forbidden - no access to company |
+
+When no company can be resolved, or the caller has no access to it, the endpoint still answers `200 OK` with fallback VAT rates (21, 9, 5 and 0 percent) and `isVatPayer` set to `true`.
 
 ### Notes
 
-- VAT rates are loaded from the company's configured rates (not hardcoded)
+- VAT rates are loaded from the company's configured rates
 - When the company is not a VAT payer, the 0% rate becomes default
 - Exchange rates reflect the latest BNR (Banca Națională a României) rates
 - Frontend and mobile apps MUST NOT hardcode these values

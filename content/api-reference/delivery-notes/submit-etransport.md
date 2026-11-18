@@ -9,14 +9,13 @@ endpoint: /api/v1/delivery-notes/{uuid}/submit-etransport
 
 Submits an issued delivery note to Romania's ANAF e-Transport system to generate a TTN (Tracked Transport Number) declaration for domestic transport.
 
-The submission is asynchronous. The API call immediately sets `etransportStatus` to `uploaded` and dispatches a background job that validates the delivery note, generates the required XML, uploads it to ANAF, and polls for a UIT (Unique Identification of Transport). The final status is updated once ANAF processes the declaration.
+The submission is asynchronous. The API call immediately sets `etransportStatus` to `pending` and dispatches a background job that validates the delivery note, generates the required XML, uploads it to ANAF, and polls for a UIT (Unique Identification of Transport). The status is updated as the job progresses.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 
 ## Path Parameters
 
@@ -48,67 +47,59 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated delivery note with `etransportStatus = uploaded` and `etransportSubmittedAt` set to the current timestamp:
+Returns the delivery note with `etransportStatus = pending` and `etransportSubmittedAt` set to the current time. The object has the fields described in [Get delivery note](/api-reference/delivery-notes/get#response); the example is abridged:
 
 ```json
 {
-  "uuid": "950e8400-e29b-41d4-a716-446655440000",
-  "number": "DN-2026-012",
-  "seriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "DN",
-    "nextNumber": 13
-  },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
+  "id": "950e8400-e29b-41d4-a716-446655440000",
+  "number": "DN0012",
   "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
+    "id": "750e8400-e29b-41d4-a716-446655440000",
     "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "email": "contact@client.ro"
+    "cui": "12345678"
   },
   "status": "issued",
   "issueDate": "2026-02-18",
   "currency": "RON",
-  "exchangeRate": 1.0,
   "subtotal": "5000.00",
-  "vatAmount": "950.00",
-  "total": "5950.00",
-  "etransportStatus": "uploaded",
-  "etransportSubmittedAt": "2026-02-18T14:35:00Z",
+  "vatTotal": "1050.00",
+  "total": "6050.00",
+  "etransportStatus": "pending",
+  "etransportSubmittedAt": "2026-02-18T14:35:00+00:00",
   "etransportUit": null,
-  "issuedAt": "2026-02-18T14:30:00Z",
-  "createdAt": "2026-02-18T09:00:00Z",
-  "updatedAt": "2026-02-18T14:35:00Z"
+  "etransportErrorMessage": null,
+  "issuedAt": "2026-02-18T14:30:00+00:00"
 }
 ```
 
 ## State Changes
 
-### etransportStatus Transitions
+### etransportStatus transitions
 
 | Transition | When |
 |------------|------|
-| `null` → `uploaded` | Immediately on successful API call |
-| `uploaded` → `ok` | ANAF accepted the declaration and returned a UIT |
-| `uploaded` → `nok` | ANAF rejected the declaration |
-| `null` → `validation_failed` | Entity validation failed before upload |
-| `null` → `upload_failed` | ANAF API error during upload |
+| `null` to `pending` | Immediately on successful API call |
+| `pending` to `uploaded` | The declaration was uploaded to ANAF |
+| `uploaded` to `ok` | ANAF accepted the declaration and returned a UIT |
+| `uploaded` to `nok` | ANAF rejected the declaration |
+| `pending` to `validation_failed` | Entity, XML schema or Schematron validation failed before upload |
+| `pending` to `upload_failed` | ANAF API error during upload |
+| `uploaded` to `pending_timeout` | ANAF did not answer within the polling window |
 
-### Fields Updated
-- `etransportStatus` — set to `uploaded` on the synchronous response
-- `etransportSubmittedAt` — set to current UTC timestamp (ISO 8601)
-- `etransportUit` — populated with the UIT string once ANAF returns `ok`
-- `updatedAt` — updated on every status change
+### Fields updated
+- `etransportStatus` - set to `pending` on the synchronous response
+- `etransportSubmittedAt` - set to the current time
+- `etransportErrorMessage` - cleared on submit, filled when a later step fails
+- `etransportUit` - populated with the UIT string once ANAF returns `ok`
 
 ## Validation Rules
 
-### Status Requirement
-- The delivery note must be in `issued` status.
-- Delivery notes in `draft`, `cancelled`, or `converted` status cannot be submitted.
+### Status requirement
+- The delivery note must be in `issued` status. Delivery notes in `draft`, `cancelled` or `converted` status are refused with 422.
+- The delivery note must not have `skipEtransport` set.
 
-### e-Transport Fields Required
-The delivery note must have all mandatory e-Transport fields populated before submission:
+### Required e-Transport fields
+The delivery note needs all mandatory e-Transport fields before submission:
 
 - Vehicle registration number
 - Transport route (loading and unloading addresses)
@@ -116,24 +107,26 @@ The delivery note must have all mandatory e-Transport fields populated before su
 - Tariff codes (NC codes) on all lines
 - Gross weight per line
 
-If any required field is missing, the background job sets `etransportStatus` to `validation_failed` without contacting ANAF.
+If a required field is missing, the background job sets `etransportStatus` to `validation_failed` and does not contact ANAF.
 
 ### Re-submission
-A delivery note with `etransportStatus` of `ok` (already has a valid UIT) cannot be resubmitted. Delivery notes with `nok`, `validation_failed`, or `upload_failed` status can be corrected and resubmitted.
+A delivery note can be submitted again only when `etransportStatus` is empty, `validation_failed`, `upload_failed`, `nok` or `pending_timeout`. Any other status (`pending`, `uploaded`, `ok`) is refused with 422.
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Delivery note not found or doesn't belong to the company |
-| 422 | `validation_error` | Delivery note is not in `issued` status, or already has a valid UIT |
+Errors have the form `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied (requires the e-Factura submit permission) |
+| 404 | Delivery note not found or not in the caller's organization |
+| 422 | The delivery note is not `issued`, is marked to skip e-Transport, or was already submitted |
 
 ## Best Practices
 
-1. **Check status before submitting** — Confirm `status = issued` and `etransportStatus` is not `ok` before calling this endpoint.
-2. **Poll for final status** — After receiving `uploaded`, poll the delivery note (or listen for a webhook) until `etransportStatus` transitions to `ok`, `nok`, `validation_failed`, or `upload_failed`.
+1. **Check status before submitting**: Confirm `status = issued` and `etransportStatus` is empty or one of the failed statuses before calling this endpoint.
+2. **Poll for final status**: After receiving `pending`, poll the delivery note until `etransportStatus` transitions to `ok`, `nok`, `validation_failed`, `upload_failed` or `pending_timeout`.
 3. **Fill all e-Transport fields first** — Ensure vehicle number, route, NC tariff codes, and weights are complete before submitting to avoid `validation_failed`.
 4. **Handle nok gracefully** — If ANAF returns `nok`, review the error details on the delivery note, correct the data, and resubmit.
 5. **Store the UIT** — Once `etransportStatus = ok`, persist the `etransportUit` value; it is required to accompany the physical transport.

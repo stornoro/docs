@@ -5,7 +5,7 @@ description: Download the UBL 2.1 XML representation of an invoice
 
 # Download invoice XML
 
-Downloads the UBL 2.1 XML file for an issued invoice. The XML is generated automatically when an invoice is issued and is the format required for e-invoice provider submission.
+Downloads the UBL 2.1 XML of an invoice. The stored file is returned when it exists (it is stored when the invoice is issued); otherwise the XML is generated from the invoice data on the fly, so it also works for drafts.
 
 ```
 GET /api/v1/invoices/{uuid}/xml
@@ -16,7 +16,7 @@ GET /api/v1/invoices/{uuid}/xml
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -164,11 +164,10 @@ Returns the XML file with `Content-Type: application/xml`.
 
 ### Response headers
 
-| Header | Value | Description |
-|--------|-------|-------------|
-| `Content-Type` | application/xml | XML content type |
-| `Content-Disposition` | attachment; filename="FAC-2024-001.xml" | Suggested filename |
-| `Content-Length` | {size} | File size in bytes |
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/xml` |
+| `Content-Disposition` | `attachment; filename="invoice-FAC0001.xml"` |
 
 ## UBL 2.1 compliance
 
@@ -178,11 +177,9 @@ The generated XML conforms to:
 - **CIUS-RO** - Romanian Core Invoice Usage Specification
 - **ANAF e-Factura** - Romanian tax authority requirements
 
-## When is XML generated
+## When is the XML stored
 
-The XML file is automatically generated when you:
-1. [Issue an invoice](/api-reference/invoices/issue)
-2. Manually trigger XML generation (via issue endpoint even if already issued)
+The XML is stored when the invoice is issued. Editing an invoice discards the stored XML, and the next download generates it again from the current data.
 
 ## Use cases
 
@@ -194,16 +191,18 @@ The XML file is automatically generated when you:
 
 ## Error codes
 
+Error bodies have the form `{"error": "message"}`.
+
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
-| `404` | Invoice not found or XML not generated yet |
-| `410` | XML file was deleted (regenerate by reissuing) |
+| `403` | The invoice belongs to another organization, or the user cannot view invoices |
+| `404` | Invoice not found |
+| `500` | The XML could not be generated (`Could not generate XML.`), for example because the invoice data is incomplete |
 
 ## Related endpoints
 
-- [Issue invoice](/api-reference/invoices/issue) - Generate XML file
+- [Issue invoice](/api-reference/invoices/issue) - Store the XML file
 - [Download PDF](/api-reference/invoices/pdf) - Download PDF version
-- [Submit to e-invoice provider](/api-reference/invoices/submit) - Submit the XML to e-invoice provider
+- [Submit to ANAF](/api-reference/invoices/submit) - Send the XML to ANAF
 - [Validate invoice](/api-reference/invoices/validate) - Validate XML compliance

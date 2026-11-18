@@ -7,7 +7,7 @@ endpoint: /api/v1/webhooks
 
 # List webhooks
 
-Returns an array of all webhook endpoints registered for the company identified by the `X-Company` header. Secrets are masked in this listing — retrieve a single webhook to see the masked secret or regenerate to obtain a new full secret.
+Returns an array of all webhook endpoints registered for the company identified by the `X-Company` header. Secrets are masked in this listing. Regenerate the secret to obtain a new full value.
 
 ```
 GET /api/v1/webhooks
@@ -18,7 +18,7 @@ GET /api/v1/webhooks
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 
 ## Request
 
@@ -42,7 +42,7 @@ const response = await fetch('https://api.storno.ro/api/v1/webhooks', {
   }
 });
 
-const webhooks = await response.json();
+const { data: webhooks } = await response.json();
 ```
 {% /code-snippet %}
 
@@ -50,52 +50,54 @@ const webhooks = await response.json();
 
 ## Response
 
-Returns an array of webhook endpoint objects.
+Returns `data`, an array of webhook endpoint objects.
 
 ```json
-[
-  {
-    "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "url": "https://your-app.example.com/webhooks/storno",
-    "description": "Production invoice notifications",
-    "events": [
-      "invoice.created",
-      "invoice.validated",
-      "invoice.rejected",
-      "invoice.paid"
-    ],
-    "isActive": true,
-    "secret": "whsec_••••••••••••••••••••••••",
-    "createdAt": "2026-02-10T09:00:00Z",
-    "updatedAt": "2026-02-15T14:30:00Z"
-  },
-  {
-    "uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-    "url": "https://your-app.example.com/webhooks/sync",
-    "description": "ANAF sync monitoring",
-    "events": [
-      "sync.completed",
-      "sync.failed"
-    ],
-    "isActive": false,
-    "secret": "whsec_••••••••••••••••••••••••",
-    "createdAt": "2026-01-20T11:15:00Z",
-    "updatedAt": "2026-01-20T11:15:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "url": "https://your-app.example.com/webhooks/storno",
+      "description": "Production invoice notifications",
+      "events": [
+        "invoice.created",
+        "invoice.validated",
+        "invoice.rejected",
+        "payment.received"
+      ],
+      "secret": "***15d6c15b",
+      "isActive": true,
+      "createdAt": "2026-02-10T09:00:00+00:00",
+      "updatedAt": "2026-02-15T14:30:00+00:00"
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "url": "https://your-app.example.com/webhooks/sync",
+      "description": "ANAF sync monitoring",
+      "events": [
+        "sync.completed",
+        "sync.error"
+      ],
+      "secret": "***0f00a008",
+      "isActive": false,
+      "createdAt": "2026-01-20T11:15:00+00:00",
+      "updatedAt": "2026-01-20T11:15:00+00:00"
+    }
+  ]
+}
 ```
 
 ### Response fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier for the webhook endpoint |
+| `id` | string | Webhook endpoint UUID |
 | `url` | string | The HTTPS URL that receives webhook POST requests |
-| `description` | string | Optional human-readable label for this webhook |
-| `events` | array | List of event type names this endpoint is subscribed to |
-| `isActive` | boolean | Whether the webhook will receive deliveries |
-| `secret` | string | Masked signing secret; shown in full only on creation or regeneration |
-| `createdAt` | string | ISO 8601 timestamp when the webhook was created |
+| `description` | string\|null | Optional label |
+| `events` | array | Event names this endpoint is subscribed to |
+| `secret` | string | Masked signing secret: `***` followed by its last 8 characters |
+| `isActive` | boolean | Whether the endpoint receives deliveries |
+| `createdAt` | string | ISO 8601 creation timestamp |
 | `updatedAt` | string | ISO 8601 timestamp of the last update |
 
 ## Error codes
@@ -103,4 +105,5 @@ Returns an array of webhook endpoint objects.
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | Insufficient permissions — requires `webhook.view` permission |
+| `400` | No company selected |
+| `403` | Insufficient permissions. Requires `webhook.view` |

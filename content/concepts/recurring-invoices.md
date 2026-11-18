@@ -10,28 +10,28 @@ Recurring invoices allow you to automatically generate invoices on a defined sch
 ## How It Works
 
 1. Create a recurring invoice template with client, lines, and schedule
-2. Storno.ro generates invoices automatically on the scheduled dates
-3. Optionally, invoices are emailed to the client automatically
+2. On each scheduled date Storno.ro creates the document from the template and issues it
+3. Optionally, the email of each invoice to the client is scheduled
 
 ## Frequencies
 
 | Frequency | Value | Description |
 |-----------|-------|-------------|
-| Weekly | `weekly` | Every week on a specific day |
-| Biweekly | `biweekly` | Every two weeks |
+| Once | `once` | One issuance, then the template is deactivated |
+| Weekly | `weekly` | Every week on a specific weekday |
 | Monthly | `monthly` | Every month on a specific day |
 | Bimonthly | `bimonthly` | Every two months |
 | Quarterly | `quarterly` | Every three months |
-| Semiannual | `semiannual` | Every six months |
-| Annual | `annual` | Once per year |
+| Semiannual | `semi_annually` | Every six months |
+| Annual | `yearly` | Once per year |
 
-### Frequency Day
+### Frequency day
 
-The `frequencyDay` parameter (1-31) specifies which day of the month (or week for weekly) the invoice should be generated. If the month has fewer days (e.g., February), the last day of the month is used.
+`frequencyDay` is required. For `weekly` it is the weekday, 1 to 7. For every other frequency it is the day of the month, 1 to 28. Create returns `400` for a larger value. Days 29 to 31 do not exist, so the month-based schedules never fall on them.
 
-### Frequency Month
+### Frequency month
 
-For `annual` frequency, `frequencyMonth` (1-12) specifies the month.
+For `yearly`, `frequencyMonth` (1-12) is required and sets the month.
 
 ## Creating a Recurring Invoice
 
@@ -42,12 +42,12 @@ curl -X POST https://api.storno.ro/api/v1/recurring-invoices \
   -H "Content-Type: application/json" \
   -d '{
     "clientId": "{client_uuid}",
-    "seriesId": "{series_uuid}",
+    "documentSeriesId": "{series_uuid}",
     "frequency": "monthly",
     "frequencyDay": 1,
     "nextIssuanceDate": "2026-03-01",
     "currency": "RON",
-    "dueDateType": "relative",
+    "dueDateType": "days",
     "dueDateDays": 30,
     "notes": "Servicii lunar de mentenanță IT",
     "lines": [
@@ -55,7 +55,7 @@ curl -X POST https://api.storno.ro/api/v1/recurring-invoices \
         "description": "Mentenanță IT - lunar",
         "quantity": 1,
         "unitPrice": 2000,
-        "vatRateId": "{vat_rate_uuid}",
+        "vatRate": 19,
         "unitOfMeasure": "buc"
       }
     ]
@@ -66,8 +66,10 @@ curl -X POST https://api.storno.ro/api/v1/recurring-invoices \
 
 | Type | Parameter | Description |
 |------|-----------|-------------|
-| `relative` | `dueDateDays` | Due date is N days after issue date |
-| `fixed` | `dueDateFixedDay` | Due date is always on a specific day of the month |
+| `days` | `dueDateDays` | Due date is N days after the issue date |
+| `fixed_day` | `dueDateFixedDay` | Due date is on that day of the month (1-28), moved to the next month when the day has already passed |
+
+Without `dueDateType` the generated document has no due date.
 
 ## Stop Date
 
@@ -79,11 +81,11 @@ Set a `stopDate` to automatically stop generating invoices after a certain date:
 }
 ```
 
-After the stop date, no more invoices will be generated, but the recurring invoice remains in the system.
+After the stop date nothing more is generated and the template is deactivated. It remains in the system until deleted.
 
 ## Auto-Email
 
-When enabled, generated invoices can be automatically emailed to the client:
+When enabled, each generated invoice gets a scheduled email time:
 
 ```json
 {
@@ -95,39 +97,48 @@ When enabled, generated invoices can be automatically emailed to the client:
 
 | Parameter | Description |
 |-----------|-------------|
-| `autoEmailEnabled` | Enable automatic emailing |
-| `autoEmailTime` | Time of day to send (HH:mm format) |
-| `autoEmailDayOffset` | Days after invoice generation to send (0 = same day) |
+| `autoEmailEnabled` | Schedule the email of generated invoices |
+| `autoEmailTime` | Time of day to send (HH:MM format, default 09:00) |
+| `autoEmailDayOffset` | Days after the issue date to send (0 = same day) |
 
-## Price Rules
+## VAT on a line
 
-Recurring invoice lines support dynamic pricing:
+Send `vatRate` (a percentage) or `vatRateId` (the id of one of the company's rates from `GET /api/v1/vat-rates`; the line takes that rate's percentage and category). When both are sent `vatRate` wins. When neither is sent the line gets **21%**, also when the issuing company is not a VAT payer. For a company that is not a VAT payer send `vatRate: "0.00"` on every line. A `vatRateId` that is not a rate of the company is refused with an error; it never falls back to 21%.
+
+## Price rules
+
+Recurring invoice lines support dynamic pricing through `priceRule`:
 
 | Rule | Description |
 |------|-------------|
-| `fixed` | Use the specified `unitPrice` as-is |
-| `exchange_rate` | Convert from `referenceCurrency` to invoice currency using BNR rate |
-| `markup` | Apply `markupPercent` on top of the exchange rate price |
+| `fixed` | Use `unitPrice` as is (default) |
+| `updated_product` | Use the current default price of the linked product |
+| `bnr_rate` | Convert from `referenceCurrency` at the BNR rate of the issue date |
+| `bnr_rate_markup` | Same, plus `markupPercent` |
+| `expression` | Compute the unit price from `priceExpression` |
 
-### Exchange Rate Example
+The BNR conversion applies when a line has `referenceCurrency` and the template currency is RON.
 
-Bill in RON but base price on EUR rate:
+### Exchange rate example
+
+Bill in RON but base the price on the EUR rate:
 
 ```json
 {
+  "currency": "RON",
   "lines": [
     {
       "description": "Hosting - monthly",
       "quantity": 1,
       "unitPrice": 100,
-      "priceRule": "exchange_rate",
+      "priceRule": "bnr_rate",
       "referenceCurrency": "EUR"
     }
   ]
 }
 ```
 
-The actual price will be calculated using the BNR exchange rate on the day of generation.
+The price is calculated with the BNR rate on the day of generation. Placeholders for `notes` and line descriptions are described on [Create recurring invoice](/api-reference/recurring-invoices/create#template-placeholders).
 
 ## Managing Recurring Invoices
 
@@ -141,7 +152,7 @@ curl -X POST https://api.storno.ro/api/v1/recurring-invoices/{uuid}/toggle \
 
 ### Manual Trigger
 
-Generate an invoice immediately without waiting for the schedule:
+Generate and issue a document immediately. The schedule moves on as after a scheduled run, so `nextIssuanceDate` advances by one period:
 
 ```bash
 curl -X POST https://api.storno.ro/api/v1/recurring-invoices/{uuid}/issue-now \
@@ -149,28 +160,28 @@ curl -X POST https://api.storno.ro/api/v1/recurring-invoices/{uuid}/issue-now \
   -H "X-Company: {company_uuid}"
 ```
 
+The call returns `{"invoiceId", "invoiceNumber", "documentType"}`.
+
 ## Tracking
 
 Each recurring invoice tracks:
 
 | Field | Description |
 |-------|-------------|
-| `nextIssuanceDate` | When the next invoice will be generated |
-| `lastIssuedAt` | When the last invoice was generated |
-| `lastInvoiceNumber` | Number of the most recently generated invoice |
+| `nextIssuanceDate` | When the next document will be generated |
+| `lastIssuedAt` | When the last document was generated |
+| `lastInvoiceNumber` | Number of the most recently generated document |
+| `lastInvoiceId` | Id of the most recently generated document |
 | `isActive` | Whether generation is enabled |
 
-## Document Type
+## Document type
 
-Recurring invoices can generate either regular invoices or credit notes:
-
-```json
-{
-  "documentType": "invoice"
-}
-```
+`documentType` selects what a run creates:
 
 | Value | Description |
 |-------|-------------|
-| `invoice` | Generate regular invoices (default) |
-| `credit_note` | Generate credit notes |
+| `invoice` | Creates a regular invoice and issues it (default) |
+| `credit_note` | Creates a credit note and issues it |
+| `proforma` | Creates a proforma, sends it and accepts it |
+
+An issued invoice takes its number from the series at once. When the company has `efacturaDelayHours` set (null, 2, 24, 48, 72 or 96) and the client is Romanian, the e-Factura submission is scheduled as for any issued invoice.

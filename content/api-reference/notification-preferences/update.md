@@ -15,7 +15,7 @@ Update notification preferences for the authenticated user.
 PUT /api/v1/notification-preferences
 ```
 
-Update the user's notification preferences. All notification types must be provided in the request.
+Update the user's notification preferences. Send only the event types you want to change.
 
 ### Headers
 
@@ -28,48 +28,19 @@ Update the user's notification preferences. All notification types must be provi
 
 ```json
 {
-  "preferences": {
-    "invoiceReceived": {
-      "email": true,
-      "inApp": true,
-      "push": false
+  "preferences": [
+    {
+      "eventType": "invoice.validated",
+      "emailEnabled": true,
+      "inAppEnabled": true,
+      "pushEnabled": false
     },
-    "invoicePaid": {
-      "email": false,
-      "inApp": true,
-      "push": false
-    },
-    "syncCompleted": {
-      "email": false,
-      "inApp": true,
-      "push": false
-    },
-    "syncFailed": {
-      "email": true,
-      "inApp": true,
-      "push": true
-    },
-    "tokenExpiring": {
-      "email": true,
-      "inApp": true,
-      "push": true
-    },
-    "tokenExpired": {
-      "email": true,
-      "inApp": true,
-      "push": true
-    },
-    "paymentOverdue": {
-      "email": true,
-      "inApp": true,
-      "push": true
-    },
-    "invitationReceived": {
-      "email": true,
-      "inApp": true,
-      "push": false
+    {
+      "eventType": "sync.error",
+      "emailEnabled": true,
+      "telegramEnabled": true
     }
-  }
+  ]
 }
 ```
 
@@ -77,42 +48,48 @@ Update the user's notification preferences. All notification types must be provi
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| preferences | object | Yes | Notification preferences object |
+| preferences | array | Yes | List of preference changes |
+| preferences[].eventType | string | Yes | One of the event types in [Get notification preferences](/api-reference/notification-preferences/get). Entries with an unknown event type are skipped |
+| preferences[].emailEnabled | boolean | No | Enable email notifications |
+| preferences[].inAppEnabled | boolean | No | Enable in-app notifications |
+| preferences[].pushEnabled | boolean | No | Enable push notifications |
+| preferences[].telegramEnabled | boolean | No | Enable Telegram notifications |
+| preferences[].whatsappEnabled | boolean | No | Enable WhatsApp notifications |
+| preferences[].smsEnabled | boolean | No | Enable SMS notifications |
 
-Each notification type must include:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| email | boolean | Yes | Enable email notifications |
-| inApp | boolean | Yes | Enable in-app notifications |
-| push | boolean | Yes | Enable push notifications |
+Channels you leave out keep their current value. Enabling `smsEnabled` or `whatsappEnabled` needs a phone number on the user profile and a paid plan.
 
 ### Response
 
-Returns the updated preferences (same format as GET endpoint):
+Returns `200 OK` with the full list, in the same format as [Get notification preferences](/api-reference/notification-preferences/get):
 
 ```json
 {
-  "preferences": {
-    "invoiceReceived": {
-      "email": true,
-      "inApp": true,
-      "push": false
+  "data": [
+    {
+      "eventType": "invoice.validated",
+      "emailEnabled": true,
+      "inAppEnabled": true,
+      "pushEnabled": false,
+      "telegramEnabled": false,
+      "whatsappEnabled": false,
+      "smsEnabled": false
     }
-    // ... other preferences
-  }
+  ]
 }
 ```
+
+The example is shortened. The response has an entry for every event type.
 
 ### Error Responses
 
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
-| 422 | Validation error - missing or invalid preferences |
+| 422 | `preferences` is not an array, or SMS or WhatsApp was enabled without a phone number or on a free plan. The second case has `code: "PHONE_CHANNEL_UNAVAILABLE"` |
 
 ### Notes
 
-- All notification types must be provided
-- Partial updates are not supported - use PUT with full object
+- Partial updates are supported
 - Changes take effect immediately
+- Preferences are stored per user

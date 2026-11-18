@@ -27,12 +27,12 @@ POST /api/v1/oauth2/revoke
 |-----------|------|----------|-------------|
 | `token` | string | Yes | The access token (`storno_oat_...`) or refresh token (`storno_ort_...`) to revoke |
 | `token_type_hint` | string | No | A hint about the token type to speed up lookup. Either `access_token` or `refresh_token`. If omitted, Storno will attempt to detect the type automatically |
-| `client_id` | string | Yes | The client's public identifier, prefixed with `storno_cid_` |
-| `client_secret` | string | Confidential only | The client secret for `confidential` clients. Omit for `public` clients |
+| `client_id` | string | No | The client's public identifier, prefixed with `storno_cid_`. Send it together with `client_secret` for confidential clients |
+| `client_secret` | string | Confidential only | The client secret for `confidential` clients. Omit for `public` clients. When the secret of a confidential client is missing or wrong, the response is still `200 OK` and the token stays active |
 
 ## Response
 
-Always returns `200 OK` with an empty body, per RFC 7009.
+Always returns `200 OK`, per RFC 7009. The body is `null`.
 
 ## Example Request — Revoking an access token
 
@@ -68,18 +68,14 @@ HTTP/1.1 200 OK
 
 ## Errors
 
-This endpoint returns `200 OK` even for unknown or already-revoked tokens, per RFC 7009. The only error condition that returns a non-200 response is invalid client authentication.
-
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | invalid_client | The `client_id` does not exist, or the `client_secret` is incorrect for a `confidential` client |
+This endpoint returns `200 OK` in every case, including unknown or already-revoked tokens, per RFC 7009.
 
 ## Important Notes
 
 - **RFC 7009 compliance** — a `200 OK` response does not confirm that the token was valid or found. It only confirms that the token will not be accepted for API calls going forward, regardless of its prior state
-- **Revoking a refresh token** cascades to the access token that was issued alongside it. The associated access token is also invalidated immediately. The reverse is not true — revoking an access token does not invalidate the corresponding refresh token
-- **Logout flows** — when implementing user logout in your application, revoke both the access token and the refresh token to ensure clean session termination. Present the `token_type_hint` for each call to speed up server-side lookup
-- The `token_type_hint` is advisory only — if the hint does not match the actual token type, Storno will still find and revoke the correct token by searching both token stores
+- Revoking an access token does not revoke its refresh token, and revoking a refresh token does not revoke its access token. Revoke both
+- **Logout flows** — when implementing user logout in your application, revoke both the access token and the refresh token
+- The `token_type_hint` is ignored. Storno looks the token up among access tokens first, then refresh tokens
 
 ## Related Endpoints
 

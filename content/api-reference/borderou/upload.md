@@ -21,7 +21,7 @@ Needs the `borderou.manage` permission and the `X-Company` header.
 | `provider` | string | Yes | Key from `GET /api/v1/borderou/providers` (`bt`, `bcr`, `ing`, `revolut`, `generic_bank`, `fan_courier`…) |
 | `currency` | string | No | Default `RON` |
 | `bordereauNumber` | string | No | Reference number kept on every transaction |
-| `bankAccountId` | string | No | Bank account UUID; when given, the IBAN found in the file must match it |
+| `bankAccountId` | string | No | Bank account UUID. For `bank_statement` uploads, when given, the IBAN found in the file must match it. Ignored for the other source types |
 
 ## PDF statements
 
@@ -76,7 +76,15 @@ Only incoming money (credits) becomes borderou transactions, because the purpose
 }
 ```
 
-Errors are returned as `422 { "error": "…" }`: unsupported extension, unrecognised PDF layout, password-protected PDF, IBAN or bank mismatch.
+The upload answers `201`. Errors are returned as `{ "error": "…" }`:
+
+| Status | Cause |
+|--------|-------|
+| 400 | invalid `sourceType`, or missing `provider` |
+| 402 | `sourceType` is `bank_statement` and the plan has no bank statements (`PLAN_LIMIT`, Professional or higher) |
+| 403 | the caller lacks `borderou.manage` |
+| 404 | company not found, or `bankAccountId` does not belong to the company |
+| 422 | no `file`, unsupported extension, unrecognised or password-protected PDF, bank mismatch, or IBAN mismatch |
 
 ## Providers
 

@@ -14,7 +14,7 @@ Retrieves complete details for a specific fiscal receipt, including all line ite
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -46,103 +46,95 @@ const data = await response.json();
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "number": "BON-2026-042",
-  "seriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "BON",
-    "nextNumber": 43,
-    "prefix": "BON-",
-    "year": 2026
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "number": "BON0042",
+  "documentSeries": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "prefix": "BON",
+    "nextNumber": "BON0043"
   },
   "status": "issued",
-  "issueDate": "2026-02-18",
   "currency": "RON",
+  "issueDate": "2026-02-18T00:00:00+02:00",
   "subtotal": "210.92",
-  "vatAmount": "40.08",
+  "vatTotal": "40.08",
   "total": "251.00",
+  "discount": "0.00",
   "paymentMethod": "mixed",
   "cashPayment": "100.00",
   "cardPayment": "151.00",
   "otherPayment": "0.00",
   "cashRegisterName": "Casa 1 - Front Desk",
   "fiscalNumber": "AAAA123456",
+  "deviceSerial": null,
   "customerName": "Acme SRL",
   "customerCif": "RO12345678",
-  "clientId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
   "client": {
-    "uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "company",
     "name": "Acme SRL",
-    "registrationNumber": "RO12345678",
+    "cui": "12345678",
+    "cnp": null,
+    "registrationNumber": "J12/345/2020",
     "address": "Strada Principala, nr. 10",
     "city": "Cluj-Napoca",
     "county": "Cluj",
     "country": "RO",
     "postalCode": "400000",
-    "email": "office@acme.ro",
+    "email": "office@acme.example",
     "phone": "+40721234567"
   },
   "notes": "Thank you for your purchase!",
+  "mentions": null,
   "internalNote": "Loyalty card customer",
+  "projectReference": null,
+  "issuerName": null,
+  "issuerId": null,
+  "salesAgent": null,
+  "exchangeRate": null,
   "lines": [
     {
-      "uuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-      "lineNumber": 1,
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "position": 1,
       "description": "Coffee - Espresso",
-      "quantity": "2.00",
+      "quantity": "2.0000",
+      "unitOfMeasure": "buc",
       "unitPrice": "12.61",
-      "unitOfMeasure": "pcs",
-      "productId": "d4e5f6a7-b8c9-0123-defa-234567890123",
-      "product": {
-        "uuid": "d4e5f6a7-b8c9-0123-defa-234567890123",
-        "name": "Coffee - Espresso",
-        "code": "COF-ESP",
-        "unitOfMeasure": "pcs"
-      },
-      "vatRateId": "350e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "350e8400-e29b-41d4-a716-446655440000",
-        "name": "VAT 9%",
-        "percentage": "9.00"
-      },
-      "subtotal": "25.22",
+      "vatRate": "9.00",
+      "vatCategoryCode": "S",
       "vatAmount": "2.27",
-      "total": "27.49"
+      "lineTotal": "25.22",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productCode": "COF-ESP"
     },
     {
-      "uuid": "e5f6a7b8-c9d0-1234-efab-345678901234",
-      "lineNumber": 2,
+      "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+      "position": 2,
       "description": "Notebook A5",
-      "quantity": "2.00",
+      "quantity": "2.0000",
+      "unitOfMeasure": "buc",
       "unitPrice": "41.18",
-      "unitOfMeasure": "pcs",
-      "productId": "f6a7b8c9-d0e1-2345-fabc-456789012345",
-      "product": {
-        "uuid": "f6a7b8c9-d0e1-2345-fabc-456789012345",
-        "name": "Notebook A5",
-        "code": "NOTE-A5",
-        "unitOfMeasure": "pcs"
-      },
-      "vatRateId": "360e8400-e29b-41d4-a716-446655440000",
-      "vatRate": {
-        "uuid": "360e8400-e29b-41d4-a716-446655440000",
-        "name": "Standard VAT",
-        "percentage": "19.00"
-      },
-      "subtotal": "82.36",
+      "vatRate": "19.00",
+      "vatCategoryCode": "S",
       "vatAmount": "15.65",
-      "total": "98.01"
+      "lineTotal": "82.36",
+      "discount": "0.00",
+      "discountPercent": "0.00",
+      "vatIncluded": false,
+      "productCode": "NOTE-A5"
     }
   ],
-  "convertedInvoiceId": null,
-  "convertedInvoiceNumber": null,
-  "issuedAt": "2026-02-18T10:15:00Z",
+  "convertedInvoice": null,
+  "issuedAt": "2026-02-18T10:15:00+00:00",
   "cancelledAt": null,
-  "createdAt": "2026-02-18T10:14:00Z",
-  "updatedAt": "2026-02-18T10:15:00Z"
+  "refundOf": null,
+  "refundedBy": []
 }
 ```
+
+Dates and timestamps are ISO 8601 strings. Amounts are decimal strings. The response has no `createdAt` or `updatedAt`.
 
 ## Response Fields
 
@@ -150,27 +142,30 @@ const data = await response.json();
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `number` | string | Receipt number |
+| `id` | string | Unique identifier (UUID) |
+| `number` | string | Receipt number. A draft carries a temporary number until it is issued |
 | `status` | string | Current status (draft/issued/invoiced/cancelled) |
-| `series` | object | Series information with prefix and year |
+| `documentSeries` | object \| null | Series with `id`, `prefix` and `nextNumber` (a formatted string, for example `BON0043`) |
 | `client` | object \| null | Linked client details (if associated) |
+| `refundOf` | object \| null | `{id, number}` of the receipt this one refunds, when this receipt is a refund |
+| `refundedBy` | array | `{id, number}` of the active (not cancelled) refunds of this receipt |
 
 ### Payment Information
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `paymentMethod` | string | Overall payment method: `cash`, `card`, `mixed`, `other` |
-| `cashPayment` | string | Amount paid in cash |
-| `cardPayment` | string | Amount paid by card |
-| `otherPayment` | string | Amount paid by other method (voucher, meal ticket, etc.) |
+| `paymentMethod` | string \| null | Payment method as stored (for example `cash`, `card`, `meal_ticket`, `mixed`, `other`) |
+| `cashPayment` | string \| null | Amount paid in cash |
+| `cardPayment` | string \| null | Amount paid by card |
+| `otherPayment` | string \| null | Amount paid by other method (voucher, meal ticket, etc.) |
 
 ### Cash Register Information
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `cashRegisterName` | string | User-defined label for the cash register |
-| `fiscalNumber` | string | Official fiscal serial number from ANAF registration |
+| `cashRegisterName` | string \| null | User-defined label for the cash register |
+| `fiscalNumber` | string \| null | Fiscal serial number of the cash register |
+| `deviceSerial` | string \| null | Serial number of the fiscal device |
 
 ### Customer Information
 
@@ -185,51 +180,61 @@ const data = await response.json();
 |-------|------|-------------|
 | `currency` | string | Currency code (e.g., RON, EUR) |
 | `subtotal` | string | Subtotal before VAT |
-| `vatAmount` | string | Total VAT amount |
+| `vatTotal` | string | Total VAT amount |
 | `total` | string | Grand total including VAT |
-| `lines` | array | Array of line items with products and pricing |
+| `discount` | string | Total of the line discounts |
+| `exchangeRate` | string \| null | Exchange rate |
+| `lines` | array | Array of line items |
 
 ### Dates and Status
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `issueDate` | string | Date when receipt was issued |
+| `issueDate` | string | Issue date |
 | `issuedAt` | string \| null | Timestamp when issued |
 | `cancelledAt` | string \| null | Timestamp when cancelled |
-| `convertedInvoiceId` | string \| null | UUID of created invoice (if invoiced) |
-| `convertedInvoiceNumber` | string \| null | Number of created invoice (if invoiced) |
+| `convertedInvoice` | object \| null | The invoice created from this receipt, when status is `invoiced`. The object carries no fields at the moment, so read the invoice id from the response of the convert call |
 
 ### Additional Information
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `notes` | string \| null | Public notes about the purchase |
+| `mentions` | string \| null | Additional mentions |
 | `internalNote` | string \| null | Internal note (not visible on printed receipt) |
+| `projectReference` | string \| null | Project reference |
+| `issuerName` | string \| null | Issuer name |
+| `issuerId` | string \| null | Issuer identifier |
+| `salesAgent` | string \| null | Sales agent |
 
 ### Line Item Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Line item unique identifier |
-| `lineNumber` | integer | Sequential line number |
+| `id` | string | Line item unique identifier |
+| `position` | integer | Sequential line number, starting at 1 |
 | `description` | string | Item description |
 | `quantity` | string | Quantity sold (decimal string) |
-| `unitPrice` | string | Price per unit (excluding VAT) |
-| `unitOfMeasure` | string | Unit of measure (e.g., pcs, kg, l) |
-| `product` | object \| null | Related product details |
-| `vatRate` | object | VAT rate details with percentage |
-| `subtotal` | string | Line subtotal (before VAT) |
+| `unitPrice` | string | Price per unit |
+| `unitOfMeasure` | string | Unit of measure (default `buc`) |
+| `vatRate` | string | VAT percentage, for example `"19.00"` |
+| `vatCategoryCode` | string | UBL VAT category code |
+| `vatIncluded` | boolean | Whether `unitPrice` includes VAT |
+| `discount` | string | Line discount amount |
+| `discountPercent` | string | Line discount percentage |
 | `vatAmount` | string | Line VAT amount |
-| `total` | string | Line total (including VAT) |
+| `lineTotal` | string | Line total before VAT |
+| `productCode` | string \| null | Product code |
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+
+Error responses have the form `{"error": "message"}`.
 
 ## B2B Receipts and Client Linking
 
@@ -244,7 +249,5 @@ Both approaches are valid. Linking to a Client object is recommended if the rece
 
 When the receipt is converted to an invoice:
 - `status` changes to `invoiced`
-- `convertedInvoiceId` is set to the new invoice UUID
-- `convertedInvoiceNumber` is set to the new invoice number
-- Receipt data is copied to the invoice
-- Receipt reference is added to the invoice notes
+- `convertedInvoice` is set
+- Receipt lines and notes are copied to the new draft invoice

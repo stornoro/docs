@@ -31,14 +31,13 @@ POST /api/v1/invoices/{uuid}/sync-client
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Example Request
 
 ```bash
 curl -X POST "https://api.storno.ro/api/v1/invoices/9f4a1c2e-.../sync-client" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "X-Company: $COMPANY_ID"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Response

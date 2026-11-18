@@ -1,11 +1,11 @@
 ---
 title: List clients
-description: Retrieve a paginated, alphabetically grouped list of clients.
+description: Retrieve a paginated list of clients with invoice statistics.
 ---
 
 # List clients
 
-Retrieves a paginated list of clients for the authenticated company, grouped alphabetically by the first letter of their name. Results can be filtered by type and searched by name or tax identification number.
+Retrieves a paginated list of clients for the authenticated company, with the number and total of outgoing invoices issued to each. Results can be searched, filtered and sorted.
 
 ```http
 GET /api/v1/clients
@@ -18,59 +18,68 @@ GET /api/v1/clients
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company |
 
 ### Query Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `page` | integer | No | Page number (default: 1) |
-| `limit` | integer | No | Items per page (default: 50, max: 200) |
-| `search` | string | No | Search term to filter by name, CUI/CNP, or email |
-| `type` | string | No | Filter by type: `company` or `individual` |
+| `limit` | integer | No | Items per page (default: 10, maximum: 20) |
+| `search` | string | No | Matches name, CUI, CNP, email, ID number or VAT code |
+| `country` | string | No | Filter by country code |
+| `sort` | string | No | `recent` (default), `mostInvoiced`, `mostInvoices`, `recentActivity` or `name` |
+| `vatPayer` | string | No | `yes` or `no` |
+| `hasInvoices` | string | No | `active` (at least one outgoing invoice) or `dormant` (none) |
+| `source` | string | No | `anaf_sync` or `manual` |
 
 ## Response
-
-Returns a paginated object with clients grouped alphabetically.
 
 ### Response Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `data` | object | Object with alphabetic keys (A-Z, #) containing arrays of clients |
-| `total` | integer | Total number of clients matching filters |
+| `data` | array | Array of client objects |
+| `total` | integer | Total number of clients matching the filters |
 | `page` | integer | Current page number |
 | `limit` | integer | Items per page |
-| `pages` | integer | Total number of pages |
+| `currency` | string | Default currency of the company, used for `invoiceTotal` |
+| `hasForeignCurrencies` | boolean | Whether the company has outgoing invoices in other currencies |
+| `distinctCountries` | string[] | Country codes present among the company's clients |
 
 ### Client Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `name` | string | Client name or full name |
+| `id` | string | Unique identifier |
 | `type` | string | `company` or `individual` |
-| `cui` | string \| null | Tax identification number (CUI for companies, CNP for individuals) |
-| `tradeRegister` | string \| null | Trade register number (J##/####/####) |
-| `email` | string \| null | Email address |
-| `phone` | string \| null | Phone number |
+| `name` | string | Client name or full name |
+| `cui` | string \| null | Tax identification number |
+| `cnp` | string \| null | Personal identification number |
+| `vatCode` | string \| null | Full VAT code with country prefix |
+| `isVatPayer` | boolean | Whether the client is registered for VAT |
 | `address` | string \| null | Street address |
 | `city` | string \| null | City |
-| `county` | string \| null | County |
-| `country` | string | Country code (default: "RO") |
-| `viesValid` | boolean \| null | VIES validation result for EU clients (`true` = valid, `false` = invalid, `null` = not validated) |
-| `postalCode` | string \| null | Postal code |
-| `bankName` | string \| null | Bank name |
-| `bankAccount` | string \| null | Bank account (IBAN) |
-| `invoiceCount` | integer | Number of invoices issued to this client |
-| `totalRevenue` | number | Total revenue from this client |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
+| `email` | string \| null | Email address |
+| `country` | string | Country code |
+| `viesValid` | boolean \| null | VIES validation result (`true` valid, `false` invalid, `null` not validated) |
+| `source` | string | `anaf_sync` or `manual` |
+| `status` | string | `active`, `warning` or `blocked` |
+| `creditLimit` | string \| null | Credit limit in the company currency |
+| `affiliated` | boolean | Affiliated party flag |
+| `inactive` | boolean \| null | Inactive taxpayer status from the last verification |
+| `vatRegistered` | boolean \| null | VAT registration from the last verification |
+| `vatOnCollection` | boolean \| null | VAT on collection from the last verification |
+| `efacturaRegistered` | boolean \| null | Presence in the e-Factura register |
+| `vatStatusCheckedAt` | string \| null | Timestamp of the last verification |
+| `invoiceCount` | integer | Number of outgoing invoices issued to this client |
+| `invoiceTotal` | number | Total of those invoices, converted to the company currency |
+| `lastInvoiceDate` | string \| null | Issue date of the most recent outgoing invoice |
 
 ## Example Request
 
 ```bash
-curl -X GET 'https://api.storno.ro/api/v1/clients?page=1&limit=50&type=company' \
+curl -X GET 'https://api.storno.ro/api/v1/clients?page=1&limit=10&sort=name' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid'
 ```
@@ -79,97 +88,54 @@ curl -X GET 'https://api.storno.ro/api/v1/clients?page=1&limit=50&type=company' 
 
 ```json
 {
-  "data": {
-    "A": [
-      {
-        "uuid": "client-uuid-1",
-        "name": "Acme Corporation SRL",
-        "type": "company",
-        "cui": "RO12345678",
-        "tradeRegister": "J40/1234/2020",
-        "email": "contact@acme.ro",
-        "phone": "+40723456789",
-        "address": "Str. Exemplu, Nr. 1",
-        "city": "București",
-        "county": "București",
-        "country": "RO",
-        "postalCode": "010101",
-        "bankName": "BCR",
-        "bankAccount": "RO49AAAA1B31007593840000",
-        "invoiceCount": 24,
-        "totalRevenue": 42780.00,
-        "createdAt": "2025-06-10T09:00:00Z",
-        "updatedAt": "2026-02-10T14:30:00Z"
-      },
-      {
-        "uuid": "client-uuid-2",
-        "name": "Alpha Tech SRL",
-        "type": "company",
-        "cui": "RO87654321",
-        "tradeRegister": "J12/5678/2019",
-        "email": "office@alphatech.ro",
-        "phone": "+40734567890",
-        "address": "Bd. Tehnologiei, Nr. 45",
-        "city": "Cluj-Napoca",
-        "county": "Cluj",
-        "country": "RO",
-        "postalCode": "400001",
-        "bankName": "BT",
-        "bankAccount": "RO49BTRL01101205N50289XX",
-        "invoiceCount": 12,
-        "totalRevenue": 18450.00,
-        "createdAt": "2025-08-15T11:20:00Z",
-        "updatedAt": "2026-01-25T16:45:00Z"
-      }
-    ],
-    "B": [
-      {
-        "uuid": "client-uuid-3",
-        "name": "Beta Solutions SRL",
-        "type": "company",
-        "cui": "RO11223344",
-        "tradeRegister": "J23/9012/2021",
-        "email": "contact@betasolutions.ro",
-        "phone": "+40745678901",
-        "address": "Str. Inovației, Nr. 78",
-        "city": "Ilfov",
-        "county": "Ilfov",
-        "country": "RO",
-        "postalCode": "077190",
-        "bankName": "ING",
-        "bankAccount": "RO49INGB0000999900000017",
-        "invoiceCount": 6,
-        "totalRevenue": 9200.00,
-        "createdAt": "2025-09-22T10:15:00Z",
-        "updatedAt": "2026-02-05T12:00:00Z"
-      }
-    ]
-  },
+  "data": [
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "type": "company",
+      "name": "Acme Corporation SRL",
+      "cui": "12345678",
+      "cnp": null,
+      "vatCode": "RO12345678",
+      "isVatPayer": true,
+      "address": "Str. Exemplu, Nr. 1",
+      "city": "Bucuresti Sectorul 1",
+      "email": "contact@acme.example",
+      "country": "RO",
+      "viesValid": null,
+      "source": "manual",
+      "status": "active",
+      "creditLimit": null,
+      "affiliated": false,
+      "inactive": false,
+      "vatRegistered": true,
+      "vatOnCollection": false,
+      "efacturaRegistered": true,
+      "vatStatusCheckedAt": "2026-02-10 06:40:12",
+      "invoiceCount": 24,
+      "invoiceTotal": 42780.0,
+      "lastInvoiceDate": "2026-02-10"
+    }
+  ],
   "total": 47,
   "page": 1,
-  "limit": 50,
-  "pages": 1
+  "limit": 10,
+  "currency": "RON",
+  "hasForeignCurrencies": false,
+  "distinctCountries": ["DE", "RO"]
 }
 ```
 
-## Alphabetical Grouping
-
-Clients are grouped by the first character of their name:
-
-- Letters A-Z: Standard alphabetic grouping
-- "#": Used for names starting with numbers or special characters
-
-If a letter has no clients, it will not appear in the response object.
-
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 422 | validation_error | Invalid query parameters |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Company not found |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 
 - [Get client](/api-reference/clients/get)
-- [Sync clients from ANAF](/api-reference/anaf/sync-invoices)
+- [Create client](/api-reference/clients/create)

@@ -37,7 +37,7 @@ All responses use JSON. Dates use ISO 8601 (`YYYY-MM-DD`), timestamps include ti
 
 ### What are the rate limits?
 
-Authenticated requests allow up to 50,000 requests with a refill rate of 500 per 2 minutes. Authentication endpoints have stricter limits (e.g., 5 login attempts per minute). See [Rate Limiting](/getting-started/rate-limiting).
+There is no general per-request limit today. Authentication endpoints, ANAF calls and a few other endpoints are limited (for example 5 login attempts per minute per IP address). Handle `429` responses and honor `Retry-After` when present. See [Rate Limiting](/getting-started/rate-limiting).
 
 ### Can I use API keys instead of JWT tokens?
 
@@ -45,7 +45,7 @@ Yes. Create scoped API keys via [API Keys](/api-reference/api-keys/create) for p
 
 ### How does pagination work?
 
-List endpoints accept `page` and `limit` query parameters. Responses include `total`, `page`, `limit`, and `pages` metadata. See [Pagination](/getting-started/pagination).
+List endpoints accept `page` and `limit` query parameters (default 10, maximum 20, larger values are clamped). Responses include `total`, `page`, and `limit`. See [Pagination](/getting-started/pagination).
 
 ---
 
@@ -53,15 +53,15 @@ List endpoints accept `page` and `limit` query parameters. Responses include `to
 
 ### Can I self-host Storno.ro?
 
-Yes. Self-hosting requires a license key. Deploy with Docker Compose in minutes. See [Self-Hosting](/getting-started/self-hosting).
+Yes. Without a license key the instance runs as the Community edition, with the Starter plan limits. A license key unlocks the plan it was issued for. Deploy with Docker Compose in minutes. See [Self-Hosting](/getting-started/self-hosting).
 
 ### What data is sent to Storno.ro from my self-hosted instance?
 
-Nothing. License keys are signed JWTs validated offline — no network calls are made. No user data, invoices, or business information ever leaves your server.
+It depends on the license key. A JWT license key is validated offline and sends nothing. A legacy non-JWT key is checked against the Storno.ro server every 6 hours. That request carries the key, the instance URL and four counters (organizations, active users, companies, invoices created this month). The instance also asks the Storno.ro server for the latest version, cached for 6 hours. Invoices, clients and other business data are never sent.
 
 ### Does the license require internet connectivity?
 
-No. License keys are signed JWTs validated entirely offline on your server. No network calls are made to the SaaS server. Your instance works fully offline, air-gapped, or behind a firewall.
+Not for a JWT license key, which is validated offline with a signature check. The instance then works air-gapped or behind a firewall, apart from the version check. A legacy non-JWT key needs to reach the Storno.ro server; the instance keeps working from its cached result for 7 days when it cannot.
 
 ### What are the minimum server requirements?
 
@@ -121,12 +121,12 @@ No. Passkeys inherently satisfy multi-factor authentication (device possession +
 
 ### What events can I subscribe to?
 
-Invoice lifecycle events (created, issued, submitted, validated, rejected, paid), payment events, client events, and more. See [List Webhook Event Types](/api-reference/webhooks/list-events) for the complete list.
+Invoice events (created, issued, sent to the provider, validated, rejected), company events, ANAF sync events, `payment.received` and `anaf.token_created`. Webhooks need the Professional or Business plan. See [List Webhook Event Types](/api-reference/webhooks/list-events) for the complete list and the payload of each event.
 
 ### How are webhooks secured?
 
-Each webhook endpoint has an HMAC-SHA256 signing secret. Verify the `X-Webhook-Signature` header on incoming requests to confirm authenticity. See [Webhooks & Events](/concepts/webhooks-events).
+Each webhook endpoint has its own signing secret. The `X-Webhook-Signature` header holds the hexadecimal HMAC-SHA256 of the raw request body. Verify it on incoming requests to confirm authenticity. See [Webhooks & Events](/concepts/webhooks-events).
 
 ### What happens if my webhook endpoint is down?
 
-Storno.ro retries failed deliveries up to 3 times with exponential backoff. You can inspect delivery history and payloads via [List Webhook Deliveries](/api-reference/webhooks/list-deliveries).
+Storno.ro makes up to 3 attempts per delivery: the first one immediately, the second after 1 minute and the third 5 minutes later. Each attempt times out after 10 seconds. You can inspect delivery history and payloads via [List Webhook Deliveries](/api-reference/webhooks/list-deliveries).

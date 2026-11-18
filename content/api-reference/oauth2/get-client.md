@@ -32,7 +32,7 @@ GET /api/v1/oauth2/clients/{uuid}
 
 ## Response
 
-Returns the OAuth2Client object with a `200 OK` status.
+Returns the OAuth2Client object under `data` with a `200 OK` status.
 
 ### Response Fields
 
@@ -63,29 +63,38 @@ curl -X GET 'https://api.storno.ro/api/v1/oauth2/clients/a1b2c3d4-e5f6-7890-abcd
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "name": "Acme Accounting Integration",
-  "description": "Syncs invoices from Storno to Acme Accounting in real time.",
-  "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "clientSecretPrefix": "storno_cs_a1b2",
-  "clientType": "confidential",
-  "redirectUris": ["https://acme-accounting.com/oauth/callback"],
-  "scopes": ["invoice.view", "client.view"],
-  "websiteUrl": "https://acme-accounting.com",
-  "logoUrl": "https://acme-accounting.com/logo.png",
-  "isActive": true,
-  "revokedAt": null,
-  "createdAt": "2026-01-15T09:00:00Z"
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Acme Accounting Integration",
+    "description": "Syncs invoices from Storno to Acme Accounting in real time.",
+    "clientId": "storno_cid_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "clientSecretPrefix": "storno_cs_a1b2",
+    "clientType": "confidential",
+    "redirectUris": [
+      "https://acme-accounting.com/oauth/callback"
+    ],
+    "scopes": [
+      "invoice.view",
+      "client.view"
+    ],
+    "websiteUrl": "https://acme-accounting.com",
+    "logoUrl": "https://acme-accounting.com/logo.png",
+    "isActive": true,
+    "revokedAt": null,
+    "createdAt": "2026-01-15T09:00:00Z"
+  }
 }
 ```
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | The authenticated user does not have the `oauth2_app.view` permission |
-| 404 | not_found | OAuth2 application not found, or belongs to a different organization |
+Errors return `{"error": "..."}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | The authenticated user does not have the `oauth2_app.view` permission |
+| 404 | OAuth2 application not found, or belongs to a different organization |
 
 ## Important Notes
 

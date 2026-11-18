@@ -5,7 +5,7 @@ description: Soft-delete a supplier record.
 
 # Delete supplier
 
-Soft-deletes a supplier record. The supplier is marked as deleted but not permanently removed from the database. Incoming invoices associated with this supplier remain unchanged.
+Soft-deletes a supplier. The supplier no longer appears in lists. Incoming invoices from this supplier are not changed.
 
 ```http
 DELETE /api/v1/suppliers/{uuid}
@@ -24,51 +24,33 @@ DELETE /api/v1/suppliers/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 
 ## Response
 
-Returns a `204 No Content` status on successful deletion with no response body.
+Returns `200 OK`:
+
+```json
+{ "message": "Supplier deleted." }
+```
 
 ## Example Request
 
 ```bash
-curl -X DELETE 'https://api.storno.ro/api/v1/suppliers/supplier-uuid-1' \
+curl -X DELETE 'https://api.storno.ro/api/v1/suppliers/c3d4e5f6-a7b8-9012-cdef-123456789012' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid'
 ```
 
-## Example Response
-
-```http
-HTTP/1.1 204 No Content
-```
-
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Supplier not found or doesn't belong to company |
-| 409 | conflict | Cannot delete supplier with active references |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Supplier not found |
 
-## Soft Delete Behavior
-
-This endpoint performs a soft delete:
-
-- The supplier record is marked as deleted (`deletedAt` timestamp is set)
-- The supplier no longer appears in list endpoints
-- Incoming invoices associated with this supplier are not affected
-- The supplier can potentially be restored by support if needed
-- If the supplier sends new invoices via ANAF, they will be recreated
-
-## Important Notes
-
-- This is a soft delete operation - data is not permanently removed
-- Existing incoming invoices from this supplier remain intact
-- Invoice history and statistics are preserved
-- If new invoices arrive from this supplier via ANAF sync, the supplier record will be restored automatically
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

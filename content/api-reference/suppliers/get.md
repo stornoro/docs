@@ -1,11 +1,11 @@
 ---
 title: Get supplier
-description: Retrieve detailed information about a specific supplier including invoice history.
+description: Retrieve detailed information about a specific supplier including incoming invoice history.
 ---
 
 # Get supplier
 
-Retrieves detailed information about a specific supplier, including summary statistics of incoming invoices.
+Retrieves a supplier with a paginated list of the incoming invoices received from its CIF.
 
 ```http
 GET /api/v1/suppliers/{uuid}
@@ -24,59 +24,56 @@ GET /api/v1/suppliers/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | integer | No | Page number for invoice history (default: 1) |
+| `limit` | integer | No | Items per page for invoice history (default: 10, maximum: 20) |
 
 ## Response
-
-Returns a detailed supplier object with incoming invoice summary statistics.
 
 ### Response Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
+| `supplier` | object | The supplier |
+| `invoiceHistory` | array | Incoming invoices from this supplier, for the requested page. Empty when the supplier has no CIF |
+| `invoiceCount` | integer | Total number of incoming invoices from this supplier |
+| `invoiceTotal` | integer | Same value as `invoiceCount` |
+
+### Supplier Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier |
 | `name` | string | Supplier name |
-| `cui` | string \| null | Tax identification number (CUI) |
-| `email` | string \| null | Email address |
-| `phone` | string \| null | Phone number |
+| `cif` | string \| null | Tax identification number |
+| `vatCode` | string \| null | Full VAT code with country prefix |
+| `isVatPayer` | boolean | Whether the supplier is registered for VAT |
+| `registrationNumber` | string \| null | Trade register number |
 | `address` | string \| null | Street address |
 | `city` | string \| null | City |
 | `county` | string \| null | County |
-| `country` | string | Country code |
+| `country` | string | Country code (default: "RO") |
 | `postalCode` | string \| null | Postal code |
+| `email` | string \| null | Email address |
+| `phone` | string \| null | Phone number |
 | `bankName` | string \| null | Bank name |
 | `bankAccount` | string \| null | Bank account (IBAN) |
 | `notes` | string \| null | Internal notes |
-| `invoiceSummary` | object | Summary of incoming invoice statistics |
-| `recentInvoices` | array | Array of recent incoming invoice objects (last 10) |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
-
-### Invoice Summary Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `totalCount` | integer | Total number of incoming invoices |
-| `totalExpenses` | number | Total expenses from all invoices |
-| `averageInvoiceAmount` | number | Average invoice amount |
-| `lastInvoiceDate` | string \| null | ISO 8601 date of most recent invoice |
-
-### Recent Invoice Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `uuid` | string | Invoice UUID |
-| `number` | string | Invoice number |
-| `issueDate` | string | ISO 8601 issue date |
-| `dueDate` | string \| null | ISO 8601 due date |
-| `totalAmount` | number | Total amount |
-| `currency` | string | Currency code |
-| `status` | string | Invoice status |
+| `source` | string | `anaf_sync` or `manual` |
+| `lastSyncedAt` | string \| null | Timestamp of the last synchronization |
+| `viesValid` | boolean \| null | VIES validation result |
+| `affiliated` | boolean | Affiliated party flag |
+| `vatStatusCheckedAt`, `vatRegistered`, `vatOnCollection`, `vatOnCollectionFrom`, `vatOnCollectionTo`, `inactive`, `efacturaRegistered`, `verificationNotes` | | Snapshot stored by [partner verification](/api-reference/clients/verify) |
 
 ## Example Request
 
 ```bash
-curl -X GET 'https://api.storno.ro/api/v1/suppliers/supplier-uuid-1' \
+curl -X GET 'https://api.storno.ro/api/v1/suppliers/c3d4e5f6-a7b8-9012-cdef-123456789012' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company: company-uuid'
 ```
@@ -85,76 +82,58 @@ curl -X GET 'https://api.storno.ro/api/v1/suppliers/supplier-uuid-1' \
 
 ```json
 {
-  "uuid": "supplier-uuid-1",
-  "name": "Enel Energie Muntenia SA",
-  "cui": "RO13267221",
-  "email": "relatii.clienti@enel.ro",
-  "phone": "+40214029700",
-  "address": "Bd. Unirii, Nr. 74",
-  "city": "București",
-  "county": "București",
-  "country": "RO",
-  "postalCode": "030823",
-  "bankName": "Banca Transilvania",
-  "bankAccount": "RO49BTRL01304402S0390901",
-  "notes": "Furnizor energie electrică - plată lunar prin debit direct",
-  "invoiceSummary": {
-    "totalCount": 12,
-    "totalExpenses": 4580.50,
-    "averageInvoiceAmount": 381.71,
-    "lastInvoiceDate": "2026-02-10"
+  "supplier": {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "name": "Energie Exemplu SA",
+    "cif": "12345678",
+    "vatCode": "RO12345678",
+    "isVatPayer": true,
+    "registrationNumber": "J40/1234/2020",
+    "address": "Bd. Exemplu, Nr. 74",
+    "city": "Bucuresti Sectorul 3",
+    "county": "Bucuresti",
+    "country": "RO",
+    "postalCode": "030823",
+    "email": "relatii@energie.example",
+    "phone": "+40210000000",
+    "bankName": "Banca Exemplu",
+    "bankAccount": "RO00EXAM0000000000000000",
+    "notes": "Plata lunara prin debit direct",
+    "source": "anaf_sync",
+    "lastSyncedAt": "2026-02-10T10:15:00+02:00",
+    "viesValid": null,
+    "affiliated": false
   },
-  "recentInvoices": [
+  "invoiceHistory": [
     {
-      "uuid": "incoming-inv-uuid-1",
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
       "number": "2026/FAC00458",
       "issueDate": "2026-02-10",
-      "dueDate": "2026-02-25",
-      "totalAmount": 392.40,
+      "total": "392.40",
       "currency": "RON",
-      "status": "received"
-    },
-    {
-      "uuid": "incoming-inv-uuid-2",
-      "number": "2026/FAC00234",
-      "issueDate": "2026-01-10",
-      "dueDate": "2026-01-25",
-      "totalAmount": 385.20,
-      "currency": "RON",
-      "status": "received"
-    },
-    {
-      "uuid": "incoming-inv-uuid-3",
-      "number": "2025/FAC04521",
-      "issueDate": "2025-12-10",
-      "dueDate": "2025-12-25",
-      "totalAmount": 378.90,
-      "currency": "RON",
-      "status": "received"
+      "status": "issued",
+      "direction": "incoming"
     }
   ],
-  "createdAt": "2025-06-01T08:00:00Z",
-  "updatedAt": "2026-02-10T10:15:00Z"
+  "invoiceCount": 12,
+  "invoiceTotal": 12
 }
 ```
 
+`invoiceHistory` items are invoice list objects, shown here with a subset of their fields.
+
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Supplier not found or doesn't belong to company |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | Permission denied |
+| 404 | Supplier not found |
 
-## Important Notes
-
-- Suppliers in Storno.ro are automatically created from incoming invoices via ANAF e-Factura
-- Supplier core data (name, CUI, address) comes from ANAF and cannot be manually edited
-- Only contact information and notes can be updated via the [update endpoint](/api-reference/suppliers/update)
-- Invoice summary statistics are calculated in real-time
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 
 - [List suppliers](/api-reference/suppliers/list)
 - [Update supplier](/api-reference/suppliers/update)
-- [Sync from ANAF](/api-reference/anaf/sync-invoices)
+- [Delete supplier](/api-reference/suppliers/delete)

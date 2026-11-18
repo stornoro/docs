@@ -18,16 +18,23 @@ POST /api/v1/pdf-template-config/preview
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token or API key for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Request Body
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `templateSlug` | string | No | Template to preview (default: `classic`) |
-| `primaryColor` | string | No | Primary color to preview in hex format |
-| `fontFamily` | string | No | Font family to preview |
+| `templateSlug` | string | No | Template to preview. Default: the company's saved template. An unknown slug is ignored |
+| `primaryColor` | string | No | Primary color in hex format (`#RRGGBB`). Invalid values are ignored |
+| `fontFamily` | string | No | Font family to preview. Invalid values are ignored |
+| `showLogo` | boolean | No | Show the company logo |
+| `showBankInfo` | boolean | No | Show bank account info |
+| `showVatInRon` | boolean | No | Show the VAT amount in RON |
+| `bankDisplaySection` | string | No | `supplier`, `payment` or `both` |
+| `bankDisplayMode` | string | No | `stacked` or `inline` |
+
+Fields you leave out use the saved configuration. Nothing is saved.
 
 ## Request
 

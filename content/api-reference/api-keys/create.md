@@ -5,9 +5,9 @@ description: Create a new API token for programmatic access to the API.
 
 # Create API token
 
-Creates a new API token for the authenticated user. The raw token value is returned **only once** in the creation response and cannot be retrieved again. Store it securely immediately after creation.
+Creates a new API token for the authenticated user. Requires the `api_key.manage` permission and a browser session JWT: requests authenticated with an API token or an OAuth2 token return 403. The raw token value is returned **only once** in the creation response and cannot be retrieved again. Store it securely immediately after creation.
 
-Requested scopes must be a subset of the permissions the authenticated user already holds. Attempting to grant scopes the user does not have will result in a validation error.
+Requested scopes must be a subset of the permissions the authenticated user already holds. Granting a scope the user does not hold returns 403.
 
 ```http
 POST /api/v1/api-tokens
@@ -28,7 +28,8 @@ POST /api/v1/api-tokens
 |-----------|------|----------|-------------|
 | `name` | string | Yes | A human-readable label for the token (e.g. "CI/CD Pipeline") |
 | `scopes` | string[] | Yes | One or more permission scope values. Must be valid `Permission` values and a subset of the user's own permissions. See [List available scopes](/api-reference/api-keys/scopes) |
-| `expiresAt` | string | No | ISO 8601 datetime at which the token expires. Omit for a non-expiring token |
+| `expiresAt` | string | No | Datetime at which the token expires. Omit for a non-expiring token |
+| `verification_token` | string | When the account has MFA | Step-up MFA verification token. Without it the request returns 403 `mfa_required` |
 
 ## Response
 
@@ -79,20 +80,14 @@ curl -X POST 'https://api.storno.ro/api/v1/api-tokens' \
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 422 | validation_error | Invalid input data (see error details) |
+Errors return `{"error": "..."}`.
 
-### Validation Errors
-
-Common validation errors include:
-
-- Missing `name` field
-- Missing or empty `scopes` array
-- One or more scope values are not valid `Permission` values
-- One or more scopes exceed the authenticated user's own permissions
-- `expiresAt` is in the past or has an invalid date format
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `name` is missing, `scopes` is missing or empty, a scope value is not valid, or `expiresAt` is not a valid date |
+| 401 | Invalid or missing authentication token |
+| 403 | The user lacks `api_key.manage`, the request used an API token or OAuth2 token, a requested scope exceeds the user's own permissions, or MFA verification is required (`mfa_required`) |
+| 404 | No organization found |
 
 ## Important Notes
 

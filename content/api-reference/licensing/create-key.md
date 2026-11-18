@@ -7,7 +7,7 @@ endpoint: /api/v1/licensing/keys
 
 # Create License Key
 
-Generate a new license key for the current organization. The key can be used to configure a self-hosted Docker instance. Only the organization owner can create license keys.
+Generate a new license key for the current organization. The key can be used to configure a self-hosted Docker instance. Requires the `org.manage_billing` permission and a plan that includes self-hosting (Business).
 
 ## Request
 
@@ -99,12 +99,12 @@ $data = json_decode($response->getBody(), true);
 | Code | Description |
 |------|-------------|
 | `401` | Unauthorized — Missing or invalid token |
-| `403` | Forbidden — User is not the organization owner |
+| `403` | Forbidden — the user lacks `org.manage_billing`, or the plan does not include self-hosting |
 | `404` | Not Found — Organization not found |
 
 ## Usage Notes
 
-- **Only the organization owner** can create license keys
+- Creating a key requires the `org.manage_billing` permission and a plan that includes self-hosting
 - The full license key is returned **only at creation time**. Copy it immediately.
 - There is no limit on the number of keys per organization, but each self-hosted instance should use its own key
-- The key inherits the organization's current subscription plan
+- The key follows the organization's current subscription plan

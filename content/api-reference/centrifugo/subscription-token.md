@@ -15,7 +15,7 @@ Generate a JWT token for subscribing to specific Centrifugo channels.
 POST /api/v1/centrifugo/subscription-token
 ```
 
-Generate a JWT token for subscribing to a specific Centrifugo channel.
+Generate a JWT token for subscribing to one Centrifugo channel, or to several channels in one request.
 
 ### Headers
 
@@ -26,17 +26,33 @@ Generate a JWT token for subscribing to a specific Centrifugo channel.
 
 ### Request Body
 
+Single channel:
+
 ```json
 {
-  "channel": "user:123e4567-e89b-12d3-a456-426614174000"
+  "channel": "notifications:user_123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+Several channels (batch mode):
+
+```json
+{
+  "channels": [
+    "notifications:user_123e4567-e89b-12d3-a456-426614174000",
+    "invoices:company_550e8400-e29b-41d4-a716-446655440000"
+  ]
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| channel | string | Yes | Channel name to subscribe to |
+| channel | string | Yes, unless `channels` is sent | Channel name, at most 128 characters |
+| channels | array | Yes, unless `channel` is sent | Up to 50 channel names. When present and not empty, it is used instead of `channel` |
 
 ### Response
+
+Single channel:
 
 ```json
 {
@@ -44,27 +60,43 @@ Generate a JWT token for subscribing to a specific Centrifugo channel.
 }
 ```
 
+Batch mode returns one token per channel, keyed by channel name:
+
+```json
+{
+  "tokens": {
+    "notifications:user_123e4567-e89b-12d3-a456-426614174000": "eyJhbGciOiJIUzI1NiIs...",
+    "invoices:company_550e8400-e29b-41d4-a716-446655440000": "eyJhbGciOiJIUzI1NiIs..."
+  }
+}
+```
+
+If any channel in a batch is refused, the whole request fails with `403`.
+
 ### Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| token | string | JWT token for channel subscription |
+| token | string | JWT token for the channel (single mode) |
+| tokens | object | Channel name to JWT token (batch mode) |
 
 ### Channel Types
 
 | Channel Pattern | Description | Access |
 |----------------|-------------|--------|
-| `user:{uuid}` | User personal channel | Own user only |
-| `company:{uuid}` | Company channel | Members with company access |
-| `organization:{uuid}` | Organization channel | Organization members |
+| `notifications:user_{userId}` | Personal notifications and company changes | Own user id only |
+| `{namespace}:company_{companyUuid}` | Company channel | Members with access to the company |
+
+`{namespace}` is one of `invoices`, `notifications`, `dashboard`, `user`, `import` or `backup`. The company UUID must be a company of the caller's organization that the caller can access. Any other channel name is refused with `403`.
 
 ### Error Responses
 
 | Status | Description |
 |--------|-------------|
+| 400 | `channel` is missing, or a batch has more than 50 channels |
 | 401 | Unauthorized - invalid authentication |
-| 403 | Forbidden - no access to requested channel |
-| 422 | Validation error - invalid channel name |
+| 402 | The organization's plan does not include realtime notifications. Body has `code: "PLAN_LIMIT"` |
+| 403 | No access to a requested channel |
 
 ### Usage
 
@@ -75,10 +107,10 @@ Use this token to subscribe to channels:
 const { token } = await $fetch('/api/v1/centrifugo/subscription-token', {
   method: 'POST',
   headers: { Authorization: `Bearer ${authToken}` },
-  body: { channel: 'user:123e4567-e89b-12d3-a456-426614174000' }
+  body: { channel: 'notifications:user_123e4567-e89b-12d3-a456-426614174000' }
 });
 
-const subscription = centrifuge.newSubscription('user:123e4567-e89b-12d3-a456-426614174000', {
+const subscription = centrifuge.newSubscription('notifications:user_123e4567-e89b-12d3-a456-426614174000', {
   token: token
 });
 
@@ -91,22 +123,21 @@ subscription.subscribe();
 
 ### Real-time Events
 
-Events published to channels:
+Each message is a JSON object with a `type`.
 
-#### User Channel Events
-- `notification.created` - New notification
-- `sync.completed` - Sync finished
-- `invoice.updated` - Invoice status changed
+#### Channel `invoices:company_{uuid}`
 
-#### Company Channel Events
-- `invoice.created` - New invoice
-- `invoice.updated` - Invoice updated
-- `member.joined` - New member added
+- `invoice.created`, `invoice.updated`, `invoice.issued`, `invoice.submitted`, `invoice.cancelled`, `invoice.restored`: the message carries `invoice` with `id`, `number`, `status`, `direction`, `total` and `currency`
+- `sync.started`, `sync.progress`, `sync.completed`, `sync.skipped`, `sync.error`: ANAF sync progress
 
-#### Organization Channel Events
-- `member.invited` - New invitation sent
-- `company.added` - New company added
-- `settings.changed` - Settings updated
+#### Channel `notifications:user_{userId}`
+
+- New in-app notifications: `id`, `type`, `channel`, `title`, `message`, `data`, `isRead`, `sentAt`
+- `company.created`, `company.updated`, `company.removed`, `company.restored`, `company.reset`: the message carries `companyId` and `companyName`
+
+#### Channels `import:company_{uuid}` and `backup:company_{uuid}`
+
+Progress messages of imports and of backup and restore jobs.
 
 ### Notes
 
@@ -114,4 +145,4 @@ Events published to channels:
 - Request new tokens before expiration
 - Users can only subscribe to channels they have access to
 - Access control is enforced by the backend
-- Each channel requires a separate subscription token
+- Each channel needs its own token. Batch mode returns them in one call

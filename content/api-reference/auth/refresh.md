@@ -2,7 +2,7 @@
 title: Refresh Token
 description: Refresh an expired JWT access token
 method: POST
-endpoint: /api/auth/token/refresh
+endpoint: /api/auth/refresh
 ---
 
 # Refresh Token
@@ -22,7 +22,7 @@ Exchange a refresh token for a new JWT access token and refresh token pair. Both
 {% tabs %}
 {% tab label="cURL" %}
 ```bash
-curl -X POST https://api.storno.ro/api/auth/token/refresh \
+curl -X POST https://api.storno.ro/api/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{
     "refresh_token": "def50200a1b2c3d4e5f6..."
@@ -31,7 +31,7 @@ curl -X POST https://api.storno.ro/api/auth/token/refresh \
 {% /tab %}
 {% tab label="JavaScript" %}
 ```js
-const response = await fetch('https://api.storno.ro/api/auth/token/refresh', {
+const response = await fetch('https://api.storno.ro/api/auth/refresh', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -48,7 +48,7 @@ const { token, refresh_token } = await response.json();
 ```php
 $client = new \GuzzleHttp\Client();
 
-$response = $client->post('https://api.storno.ro/api/auth/token/refresh', [
+$response = $client->post('https://api.storno.ro/api/auth/refresh', [
     'json' => [
         'refresh_token' => 'def50200a1b2c3d4e5f6...',
     ],
@@ -132,7 +132,7 @@ async function fetchWithAuth(url, options = {}) {
 
   // If token expired, refresh and retry
   if (response.status === 401) {
-    const refreshResponse = await fetch('/api/auth/token/refresh', {
+    const refreshResponse = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),

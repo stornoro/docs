@@ -16,9 +16,12 @@ Create a new user account with email and password. A default organization is aut
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `email` | string | Yes | User's email address (must be unique and valid) |
-| `password` | string | Yes | Password (minimum 8 characters) |
+| `password` | string | Yes | Password |
 | `firstName` | string | No | User's first name |
 | `lastName` | string | No | User's last name |
+| `organizationName` | string | No | Name of the default organization. Defaults to the user's full name followed by `'s Organization` |
+| `locale` | string | No | `ro` or `en`. Defaults from the `Accept-Language` header |
+| `turnstileToken` | string | Yes | Cloudflare Turnstile token. Without a valid token the response is 403 |
 
 ### Example Request
 
@@ -50,7 +53,7 @@ const response = await fetch('https://api.storno.ro/api/auth/register', {
   }),
 });
 
-const { token, refresh_token } = await response.json();
+const { message, email } = await response.json();
 ```
 {% /tab %}
 {% tab label="PHP" %}
@@ -67,8 +70,8 @@ $response = $client->post('https://api.storno.ro/api/auth/register', [
 ]);
 
 $data = json_decode($response->getBody(), true);
-$token = $data['token'];
-$refreshToken = $data['refresh_token'];
+$message = $data['message'];
+$email = $data['email'];
 ```
 {% /tab %}
 {% /tabs %}
@@ -79,45 +82,34 @@ $refreshToken = $data['refresh_token'];
 
 ```json
 {
-  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "def50200a1b2c3d4e5f6..."
+  "message": "Registration successful. Please check your email to confirm your account.",
+  "email": "user@example.com"
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `token` | string | JWT access token, valid for 1 hour |
-| `refresh_token` | string | Refresh token used to obtain new access tokens |
+| `message` | string | Confirmation text |
+| `email` | string | The registered email address, lowercased |
+
+The response carries no tokens. The user must confirm the email address, then [log in](/api-reference/auth/login).
 
 ## Error Codes
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Validation errors (invalid email, weak password, etc.) |
+| `400` | Bad Request - email or password missing, invalid email address, or a name that is too long, contains a link or contains line breaks |
+| `403` | Forbidden - captcha verification failed, registration is disabled, or the instance supports a single organization only |
 | `409` | Conflict - Email address already registered |
 | `429` | Too Many Requests - Rate limit exceeded |
 
-### Error Response Examples
-
-**Validation Error (400)**
-
-```json
-{
-  "code": 400,
-  "message": "Validation failed",
-  "errors": {
-    "email": ["This value is not a valid email address."],
-    "password": ["Password must be at least 8 characters long."]
-  }
-}
-```
+Error bodies use the form `{"error": "..."}`.
 
 **Email Already Exists (409)**
 
 ```json
 {
-  "code": 409,
-  "message": "An account with this email address already exists."
+  "error": "An account with this email already exists."
 }
 ```
 
@@ -126,33 +118,23 @@ $refreshToken = $data['refresh_token'];
 When you register a new account, the system automatically:
 
 1. **Creates a User** with the provided email and hashed password
-2. **Creates a Default Organization** named after the user's email
+2. **Creates a Default Organization** named after the user, or with `organizationName` when sent
 3. **Assigns Owner Role** via an organization membership
-4. **Issues JWT Tokens** for immediate authenticated access
-
-## Password Requirements
-
-Passwords must meet the following criteria:
-
-- Minimum 8 characters
-- At least one uppercase letter (recommended)
-- At least one lowercase letter (recommended)
-- At least one number (recommended)
-- Special characters are allowed and encouraged
+4. **Starts a 14-day trial** on the new organization
+5. **Sends a confirmation email**
 
 ## Email Confirmation
 
-Depending on configuration, the account may require email confirmation before full access is granted:
+The account must be confirmed before the first login:
 
 - A confirmation email is sent to the provided address
-- The user may need to click the confirmation link before logging in
+- The user must click the confirmation link before logging in
 - Check the [Confirm Email](/api-reference/auth/confirm-email) documentation for details
 
 ## Usage Notes
 
 - Email addresses are case-insensitive and stored in lowercase
-- The user is immediately authenticated after successful registration
-- Rate limiting applies: maximum 3 registration attempts per hour per IP address
+- Rate limiting applies: maximum 10 registration attempts per hour per IP address
 - The default organization can be renamed later via the organization settings
 - Users can create or join additional organizations after registration
 
@@ -160,7 +142,7 @@ Depending on configuration, the account may require email confirmation before fu
 
 After successful registration:
 
-1. Store the tokens securely
-2. Fetch user profile via [GET /api/v1/me](/api-reference/auth/me)
+1. Confirm the email address with [Confirm Email](/api-reference/auth/confirm-email)
+2. Log in with [Login](/api-reference/auth/login), then fetch the profile via [GET /api/v1/me](/api-reference/auth/me)
 3. Set up company information for invoicing
 4. Configure ANAF e-Factura integration

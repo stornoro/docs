@@ -78,7 +78,7 @@ if ($response->getStatusCode() === 200) {
 
 ```json
 {
-  "message": "Password has been reset successfully. You can now log in with your new password."
+  "message": "Password has been reset successfully."
 }
 ```
 
@@ -86,65 +86,37 @@ if ($response->getStatusCode() === 200) {
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Invalid token format or password validation failed |
-| `401` | Unauthorized - Token is invalid, expired, or already used |
-| `422` | Unprocessable Entity - Password doesn't meet security requirements |
+| `400` | Bad Request - `token` or `password` missing, password shorter than 8 characters, or the token is invalid, already used or expired |
+| `429` | Too Many Requests - rate limit exceeded |
 
-### Error Response Examples
+Error bodies use the form `{"error": "..."}`.
 
-**Invalid or Expired Token (401)**
+**Invalid or expired token (400)**
 
 ```json
 {
-  "code": 401,
-  "message": "Password reset token is invalid or has expired."
+  "error": "Invalid or expired reset token."
 }
 ```
 
-**Token Already Used (401)**
+**Short password (400)**
 
 ```json
 {
-  "code": 401,
-  "message": "This password reset token has already been used."
-}
-```
-
-**Weak Password (422)**
-
-```json
-{
-  "code": 422,
-  "message": "Validation failed",
-  "errors": {
-    "password": [
-      "Password must be at least 8 characters long.",
-      "Password must contain at least one uppercase letter.",
-      "Password must contain at least one number."
-    ]
-  }
+  "error": "Password must be at least 8 characters."
 }
 ```
 
 ## Password Requirements
 
-New passwords must meet the following criteria:
-
-- **Minimum length**: 8 characters
-- **Recommended**: Include uppercase letters, lowercase letters, numbers, and special characters
-- **Prohibited**: Cannot be a commonly used password (e.g., "password123", "12345678")
-- **Security**: Should not contain personal information (name, email, etc.)
+The only rule enforced is a minimum length of 8 characters.
 
 ## Security Behavior
 
 When a password is successfully reset:
 
-1. **Password Updated** - New password hash is stored
-2. **Token Invalidated** - Reset token is marked as used
-3. **Previous Tokens Cleared** - All other reset tokens for this user are invalidated
-4. **Sessions Revoked** - All existing user sessions are terminated
-5. **Security Event Logged** - Password change is recorded for audit purposes
-6. **Notification Sent** - User receives confirmation email (if email notifications are enabled)
+1. **Password updated** - The new password hash is stored
+2. **Token deleted** - The reset token cannot be used again
 
 ## Complete User Flow
 
@@ -293,9 +265,8 @@ function checkPasswordStrength(password) {
 
 Reset tokens have a limited lifetime:
 
-- **Validity**: 1 hour from issuance
+- **Validity**: 2 hours from issuance
 - **Single-use**: Token is invalidated after successful use
-- **Automatic cleanup**: Expired tokens are periodically removed from database
 
 If a token expires:
 1. User must request a new password reset
@@ -307,15 +278,14 @@ If a token expires:
 ### Common Issues
 
 **"Token is invalid or has expired"**
-- Token has expired (older than 1 hour)
+- Token has expired (older than 2 hours)
 - Token has already been used
 - Token was copied incorrectly from email
 - **Solution**: Request a new password reset
 
 **"Password doesn't meet requirements"**
-- Password is too short
-- Password lacks complexity
-- **Solution**: Use a stronger password with mixed characters
+- Password is shorter than 8 characters
+- **Solution**: Use a password of at least 8 characters
 
 **"Unable to reset password"**
 - Network connectivity issue
@@ -352,9 +322,5 @@ If a token expires:
 
 ## Security Notes
 
-- Tokens are cryptographically secure random strings (minimum 32 bytes)
-- Tokens are hashed before storage in database
-- Rate limiting prevents brute-force token guessing
-- All password reset attempts are logged with IP address and timestamp
-- Successful password reset triggers email notification to user
-- Old sessions are invalidated to force re-authentication
+- Tokens are random strings of 32 bytes, valid for 2 hours
+- Rate limiting allows 3 reset attempts per 15 minutes per IP address

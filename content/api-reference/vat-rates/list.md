@@ -5,7 +5,7 @@ description: Retrieve all VAT rates configured for the authenticated company.
 
 # List VAT rates
 
-Retrieves all VAT rates configured for the authenticated company, sorted by position.
+Retrieves all VAT rates configured for the authenticated company, sorted by position and then by rate, highest first.
 
 ```http
 GET /api/v1/vat-rates
@@ -22,20 +22,19 @@ GET /api/v1/vat-rates
 
 ## Response
 
-Returns an array of VAT rate objects sorted by position.
+Returns an object with a `data` array of VAT rate objects.
 
 ### VAT Rate Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `rate` | number | VAT percentage (e.g., 19 for 19%) |
+| `id` | string | Unique identifier (UUID) |
+| `rate` | string | VAT percentage as a decimal string (e.g., `"19.00"`) |
 | `label` | string | Display label (e.g., "TVA 19%", "Scutit") |
 | `categoryCode` | string | e-Factura category code (default: "S") |
 | `isDefault` | boolean | Whether this is the default rate |
+| `isActive` | boolean | Whether the rate is active |
 | `position` | integer | Display order (lower numbers appear first) |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
 
 ## Example Request
 
@@ -48,83 +47,66 @@ curl -X GET 'https://api.storno.ro/api/v1/vat-rates' \
 ## Example Response
 
 ```json
-[
-  {
-    "uuid": "vat-uuid-1",
-    "rate": 19,
-    "label": "TVA 19%",
-    "categoryCode": "S",
-    "isDefault": true,
-    "position": 1,
-    "createdAt": "2025-06-01T10:00:00Z",
-    "updatedAt": "2025-06-01T10:00:00Z"
-  },
-  {
-    "uuid": "vat-uuid-2",
-    "rate": 9,
-    "label": "TVA 9%",
-    "categoryCode": "AA",
-    "isDefault": false,
-    "position": 2,
-    "createdAt": "2025-06-01T10:05:00Z",
-    "updatedAt": "2025-06-01T10:05:00Z"
-  },
-  {
-    "uuid": "vat-uuid-3",
-    "rate": 5,
-    "label": "TVA 5%",
-    "categoryCode": "AA",
-    "isDefault": false,
-    "position": 3,
-    "createdAt": "2025-06-01T10:10:00Z",
-    "updatedAt": "2025-06-01T10:10:00Z"
-  },
-  {
-    "uuid": "vat-uuid-4",
-    "rate": 0,
-    "label": "Scutit",
-    "categoryCode": "E",
-    "isDefault": false,
-    "position": 4,
-    "createdAt": "2025-06-01T10:15:00Z",
-    "updatedAt": "2025-06-01T10:15:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "vat-uuid-1",
+      "rate": "19.00",
+      "label": "TVA 19%",
+      "categoryCode": "S",
+      "isDefault": true,
+      "isActive": true,
+      "position": 1
+    },
+    {
+      "id": "vat-uuid-2",
+      "rate": "9.00",
+      "label": "TVA 9%",
+      "categoryCode": "S",
+      "isDefault": false,
+      "isActive": true,
+      "position": 2
+    },
+    {
+      "id": "vat-uuid-4",
+      "rate": "0.00",
+      "label": "Scutit",
+      "categoryCode": "E",
+      "isDefault": false,
+      "isActive": true,
+      "position": 4
+    }
+  ]
+}
 ```
-
-## Common VAT Rates in Romania
-
-| Rate | Label | Category Code | Use Case |
-|------|-------|---------------|----------|
-| 19% | TVA 19% | S | Standard rate (most goods and services) |
-| 9% | TVA 9% | AA | Reduced rate (food, medicines, hotels, restaurants) |
-| 5% | TVA 5% | AA | Super-reduced rate (books, newspapers) |
-| 0% | Scutit | E | Exempt (education, healthcare, financial services) |
-| 0% | Neimpozabil | O | Outside scope (intra-community, exports) |
 
 ## e-Factura Category Codes
 
+The supported category codes are:
+
 - `S` - Standard rate
-- `AA` - Reduced rate
-- `E` - Exempt
-- `O` - Outside scope (not subject to VAT)
 - `Z` - Zero rated
+- `E` - Exempt
 - `AE` - Reverse charge
+- `K` - Exempt for export
+- `L` - Intra-community supply
+- `O` - Outside scope (not subject to VAT)
+- `M` - Margin scheme
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 404 | Company not found |
+
+Error bodies have the form `{"error": "message"}`.
 
 ## Important Notes
 
-- Each company should configure the VAT rates they use
-- Only one rate can be marked as default
-- The default rate is automatically selected when creating new invoice lines
+- Only one rate is kept as the default: setting a rate as default clears the flag on the others
 - Position determines the order in dropdowns and forms
-- Deleting a VAT rate is a soft delete - rates used in invoices are preserved
+- Deleting a VAT rate is a soft delete
 
 ## Related Endpoints
 

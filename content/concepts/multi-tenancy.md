@@ -11,7 +11,7 @@ Storno.ro uses a hierarchical multi-tenant architecture: **User → Organization
 
 ```
 User
-└── Organization (1 per user, created on registration)
+└── Organization (one is created on registration)
     ├── Membership (role-based access)
     │   ├── Owner
     │   ├── Admin
@@ -33,7 +33,9 @@ User
 
 ## Organizations
 
-Every user belongs to exactly one organization. When a user registers, a default organization is created automatically. Organizations are the top-level tenant boundary.
+When a user registers, a default organization is created automatically. A user can be a member of more than one organization, for example after accepting an invitation. Organizations are the top-level tenant boundary.
+
+When a user belongs to several organizations, send the `X-Organization` header with the organization UUID to pick one. Without it, the API uses the first organization that has companies, or else an organization the user owns.
 
 ## Companies
 
@@ -54,7 +56,7 @@ curl -X POST https://api.storno.ro/api/v1/companies \
 
 ## The X-Company Header
 
-Most API endpoints operate within a company context. You must include the `X-Company` header with a valid company UUID:
+Most API endpoints operate within a company context. Send the `X-Company` header with a valid company UUID. An organization with a single company can omit it:
 
 ```bash
 curl https://api.storno.ro/api/v1/invoices \
@@ -122,5 +124,5 @@ The invited user receives an email with a link to accept the invitation. If they
 
 - Resources (invoices, clients, products, etc.) are scoped to a single company
 - Users can only access companies within their organization
-- API requests with an invalid or unauthorized `X-Company` header return `403 Forbidden`
+- API requests with an invalid or unauthorized `X-Company` header return `404` with `Company not found.`
 - Deleting a company cascades to all its resources (async operation)

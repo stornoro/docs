@@ -50,11 +50,13 @@ HTTP/1.1 204 No Content
 
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token, or token is not a browser session JWT |
-| 403 | forbidden | The authenticated user does not have the `oauth2_app.manage` permission |
-| 404 | not_found | OAuth2 application not found, or belongs to a different organization |
+Errors return `{"error": "..."}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | The user lacks `oauth2_app.manage`, or the request used an API token or OAuth2 token |
+| 404 | OAuth2 application not found, or belongs to a different organization |
 
 ## Important Notes
 

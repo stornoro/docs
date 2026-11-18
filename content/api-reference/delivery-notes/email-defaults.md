@@ -14,7 +14,6 @@ Returns pre-filled email content for a delivery note based on the company's conf
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 
 ## Path Parameters
 
@@ -48,13 +47,14 @@ document.getElementById('email-body').value = defaults.body;
 
 ## Response
 
-Returns an object with pre-filled `to`, `subject`, and `body` fields:
+Returns an object with pre-filled `to`, `subject`, `body` and `templateId` fields:
 
 ```json
 {
   "to": "contact@client.ro",
-  "subject": "Aviz de livrare DN-2026-012 de la Your Company SRL",
-  "body": "Buna ziua,\n\nGasiti atasat avizul de livrare DN-2026-012 in valoare de 5,950.00 RON.\n\nMultumim!\n\nYour Company SRL"
+  "subject": "Aviz de livrare DN0012 de la Your Company SRL",
+  "body": "Buna ziua,\n\nGasiti atasat avizul de livrare DN0012 in valoare de 6050.00 RON.\n\nMultumim!\n\nYour Company SRL",
+  "templateId": null
 }
 ```
 
@@ -62,17 +62,20 @@ Returns an object with pre-filled `to`, `subject`, and `body` fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `to` | string | Client email address (from client record) |
+| `to` | string \| null | Client email address (from the client record), null when the delivery note has no client or the client has no email |
 | `subject` | string | Pre-filled subject with all template variables replaced |
 | `body` | string | Pre-filled body with all template variables replaced |
+| `templateId` | string \| null | Id of the default `delivery_note` email template that was used, null when the built-in text is used |
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Delivery note not found or doesn't belong to the company |
+Errors have the form `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Delivery note not found or not in the caller's organization |
 
 ## Related Endpoints
 

@@ -78,8 +78,10 @@ The maximum span between `from` and `to` is 366 days; larger ranges return `400 
 | `description` | Customer name (receipt), counterparty (payment), or description (movement) |
 | `in` / `out` | Amount in/out of the till for this entry (mutually exclusive — the other is `"0.00"`) |
 | `balanceAfter` | Running till balance after this entry |
-| `sourceId` | UUID of the underlying receipt / payment / movement |
-| `movementId` | (movements only) Same as `sourceId`, kept for backwards-compat |
+| `sourceId` | Identifier of the underlying receipt, payment or movement. For movements it is the movement UUID |
+| `movementId` | (movements only) UUID of the movement, same as `sourceId` |
+| `paymentId` | (payments only) UUID of the payment |
+| `invoiceId` | (payments only) UUID of the invoice the payment belongs to |
 
 ## Permissions
 
@@ -91,5 +93,7 @@ Requires `report.view`.
 |--------|-------------|
 | 400 | Invalid date format, `to` before `from`, or range > 366 days |
 | 401 | Missing or invalid bearer token |
-| 403 | Permission denied or missing `X-Company` |
+| 403 | Permission denied, or the cash register module is disabled for the company |
 | 404 | Company not found |
+
+Error bodies have the form `{"error": "message"}`.

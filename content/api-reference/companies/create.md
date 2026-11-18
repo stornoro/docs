@@ -71,34 +71,48 @@ const company = await response.json();
 
 ```json
 {
-  "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "name": "SRL Example Company",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Example Company SRL",
   "cif": "12345678",
+  "type": "company",
+  "isIndividual": false,
   "registrationNumber": "J40/1234/2020",
   "vatPayer": true,
   "vatCode": "RO12345678",
   "address": "Strada Exemplu, Nr. 10",
   "city": "Bucuresti",
   "state": "Bucuresti",
-  "country": "Romania",
-  "sector": "Sector 1",
+  "country": "RO",
   "phone": null,
   "email": null,
+  "website": null,
+  "capitalSocial": null,
+  "vatOnCollection": false,
+  "oss": false,
+  "vatIn": null,
+  "eoriCode": null,
+  "representative": null,
+  "representativeRole": null,
+  "caenCode": null,
+  "vatPeriod": "monthly",
+  "incomeTaxPeriod": "quarterly",
+  "hasEmployees": false,
   "bankName": null,
   "bankAccount": null,
   "bankBic": null,
   "defaultCurrency": "RON",
   "syncEnabled": false,
   "lastSyncedAt": null,
-  "syncDaysBack": 30,
-  "efacturaDelayHours": 24,
+  "syncDaysBack": 60,
   "archiveEnabled": false,
   "archiveRetentionYears": 10,
-  "tokenStatus": {
-    "hasToken": false,
-    "isValid": false,
-    "expiresAt": null
-  }
+  "efacturaDelayHours": 24,
+  "isReadOnly": false,
+  "enabledModules": null,
+  "deletedAt": null,
+  "hardDeleteAt": null,
+  "stripeConnect": null,
+  "hasValidToken": false
 }
 ```
 
@@ -106,9 +120,10 @@ const company = await response.json();
 
 | Code | Description |
 |------|-------------|
-| 400 | Invalid CIF format or ANAF validation failed |
+| 400 | `cif` (or `cnp` for a person) is missing |
 | 401 | Unauthorized - Invalid or missing token |
-| 403 | Forbidden - No access |
-| 409 | Conflict - Company with this CIF already exists in organization |
+| 402 | `PLAN_LIMIT` - the plan does not allow another company |
+| 404 | The CIF was not found at ANAF, or no organization was found |
+| 409 | `DUPLICATE_CIF` - the company or person is already added to the organization |
 | 422 | `INVALID_CNP` (control digit), `CNP_NOT_CIF` (a CNP given as `cif`), `VALIDATION_FAILED` (name, city or state missing for a person) |
 | 500 | Internal server error |

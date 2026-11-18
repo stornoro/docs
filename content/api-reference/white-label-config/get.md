@@ -39,7 +39,15 @@ curl https://api.storno.ro/api/v1/white-label-config \
     "appName": "Acme Invoicing",
     "logoUrl": "/v1/white-label/logo",
     "primaryColor": "#2563eb",
-    "removeBranding": true
+    "removeBranding": true,
+    "customDomain": "facturi.example.com",
+    "customDomainVerified": false,
+    "customDomainVerifiedAt": null,
+    "dnsRecord": {
+      "name": "_storno-verify.facturi.example.com",
+      "type": "TXT",
+      "value": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+    }
   }
 }
 ```
@@ -54,9 +62,13 @@ When no configuration has been created yet, `data` is `null`.
 | `data` | object\|null | The configuration, or `null` if not yet created |
 | `data.enabled` | boolean | Whether white-label branding is active |
 | `data.appName` | string\|null | Custom app name shown in the app shell and browser tab |
-| `data.logoUrl` | string\|null | Relative URL of the custom logo (fetch with the same auth header) |
+| `data.logoUrl` | string\|null | Path reference to the custom logo, or `null` when none is uploaded. The image itself is served by `GET /api/v1/white-label/logo` with the same auth header |
 | `data.primaryColor` | string\|null | Accent color in hex format |
 | `data.removeBranding` | boolean | Whether the Storno footer is removed from PDFs and client emails |
+| `data.customDomain` | string\|null | Custom domain |
+| `data.customDomainVerified` | boolean | Whether the domain's TXT record was verified |
+| `data.customDomainVerifiedAt` | string\|null | ISO 8601 time of verification |
+| `data.dnsRecord` | object\|null | TXT record to publish (`name`, `type`, `value`). `null` when there is no domain or it is verified |
 
 ## Error Codes
 

@@ -29,10 +29,10 @@ ANAF's request form decides the type list from the identifier's length alone: 13
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
 | GET | `/api/v1/spv/requests/types` | `declaration.view` | Request types the SPV form offers **this company** (a CNP sees a different list than a CUI; `?all=1` for the whole catalog), their parameters, `audience`, first year with data, ANAF notes, reasons for income certificates |
-| GET | `/api/v1/spv/requests` | `declaration.view` | Requests of the company, newest first (`page`, `limit`, `status`) |
+| GET | `/api/v1/spv/requests` | `declaration.view` | Requests of the company, newest first (`page`, `limit` default 10 max 20, `status`); answers `{data, total, page, limit}` |
 | POST | `/api/v1/spv/requests/prepare` | `declaration.submit` | Validate and register a request; returns the ANAF URL |
 | POST | `/api/v1/spv/requests/{uuid}/agent-result` | `declaration.submit` | Relay ANAF's answer |
-| DELETE | `/api/v1/spv/requests/{uuid}` | `declaration.submit` | Remove a pending or failed request |
+| DELETE | `/api/v1/spv/requests/{uuid}` | `declaration.submit` | Remove a request; answers `{"deleted": true}` |
 
 ## Prepare
 
@@ -63,7 +63,7 @@ Parameters by type (from ANAF's documentation): `an` for yearly forms and report
 {"statusCode": 200, "body": "{\"id_solicitare\":260149,\"titlu\":\"Transmitere cerere tip D300\"}"}
 ```
 
-The request becomes `requested`. An ANAF refusal such as `{"eroare":"Nu aveti drept sa solicitati informatii despre CIF=…"}` returns `422` and sets the request to `error` with the message.
+The request becomes `requested`. An ANAF refusal such as `{"eroare":"Nu aveti drept sa solicitati informatii despre CIF=…"}` returns `422` and sets the request to `error` with the message. A `statusCode` of 400 or more, or a body that is not JSON, returns `502` and sets the request to `error`.
 
 ## Request object
 

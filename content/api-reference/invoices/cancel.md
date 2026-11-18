@@ -1,11 +1,11 @@
 ---
 title: Cancel invoice
-description: Cancel an issued invoice
+description: Cancel a draft or issued invoice
 ---
 
 # Cancel invoice
 
-Cancels an issued invoice by changing its status to `cancelled`. Cancelled invoices remain in the system for record-keeping but are marked as void. A cancellation reason is required.
+Cancels an invoice by changing its status to `cancelled`. Only a `draft` invoice, or an `issued` invoice that has not been uploaded to ANAF, can be cancelled. Cancelled invoices remain in the system but are marked as void. A cancellation reason is optional.
 
 ```
 POST /api/v1/invoices/{uuid}/cancel
@@ -16,7 +16,7 @@ POST /api/v1/invoices/{uuid}/cancel
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Path parameters
@@ -29,10 +29,10 @@ POST /api/v1/invoices/{uuid}/cancel
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `reason` | string | Yes | Reason for cancellation (minimum 10 characters) |
+| `reason` | string | No | Reason for cancellation, stored on the invoice |
 
 {% callout type="warning" %}
-Cancelled invoices cannot be edited or reissued. To reverse a cancelled invoice, you must create a new invoice. Use the [restore endpoint](/api-reference/invoices/restore) only for accidental cancellations.
+A cancelled invoice cannot be edited or issued. The [restore endpoint](/api-reference/invoices/restore) turns it back into a draft. An invoice that was already uploaded to ANAF cannot be cancelled; reverse it with a credit note instead.
 {% /callout %}
 
 ## Request
@@ -73,55 +73,38 @@ const invoice = await response.json();
 
 ## Response
 
-Returns the updated invoice object with status `cancelled`.
+Returns the invoice object (same shape as [Get invoice details](/api-reference/invoices/get)) with status `cancelled`. Amounts are strings and `amountPaid` and `balance` are left as they were.
 
 ```json
 {
   "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "number": "FAC-2024-001",
+  "number": "FAC0001",
   "status": "cancelled",
   "direction": "outgoing",
   "currency": "RON",
-  "issueDate": "2024-02-15",
-  "dueDate": "2024-03-15",
-  "subtotal": 1000.00,
-  "vatTotal": 190.00,
-  "total": 1190.00,
-  "amountPaid": 0.00,
-  "balance": 0.00,
+  "issueDate": "2024-02-15T00:00:00+00:00",
+  "dueDate": "2024-03-15T00:00:00+00:00",
+  "subtotal": "1000.00",
+  "vatTotal": "210.00",
+  "total": "1210.00",
+  "amountPaid": "0.00",
+  "balance": "1210.00",
   "cancellationReason": "Client requested cancellation due to incorrect billing information",
-  "cancelledAt": "2024-02-16T14:30:00Z",
-  "cancelledBy": {
-    "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-    "name": "John Doe",
-    "email": "john@yourcompany.ro"
-  },
-  "events": [
-    {
-      "id": "6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c",
-      "type": "status_change",
-      "status": "cancelled",
-      "timestamp": "2024-02-16T14:30:00Z",
-      "details": "Invoice cancelled",
-      "metadata": {
-        "reason": "Client requested cancellation due to incorrect billing information"
-      }
-    }
-  ],
-  "updatedAt": "2024-02-16T14:30:00Z"
+  "cancelledAt": "2024-02-16T14:30:00+00:00",
+  "scheduledSendAt": null,
+  "scheduledEmailAt": null
 }
 ```
 
 ## What happens when you cancel an invoice
 
-1. **Status change** - Invoice status changes to `cancelled`
-2. **Balance zeroed** - Any remaining balance is set to zero
-3. **Event logged** - Cancellation event recorded with reason and user
-4. **Audit trail** - Cancellation cannot be undone (except via restore for accidental cancellations)
-5. **Provider notification** - If the invoice was submitted to the e-invoice provider, a cancellation notice may be sent (depending on provider requirements)
+1. The status changes to `cancelled`, and `cancelledAt` and `cancellationReason` are set.
+2. A scheduled automatic e-Factura submission and a scheduled email are removed.
+3. An event with the reason and the previous status is recorded in the [invoice events](/api-reference/invoices/events).
+4. Payments and the balance are not changed.
 
 {% callout type="info" %}
-To properly reverse an invoice for accounting purposes, consider creating a **credit note** instead of cancelling. Credit notes provide a proper audit trail and are the preferred method for invoice corrections.
+To properly reverse an invoice for accounting purposes, consider creating a **credit note** instead of cancelling. A credit note keeps the original invoice in the records and is the way to correct an invoice that was already uploaded to ANAF.
 {% /callout %}
 
 ## When to cancel vs. credit note
@@ -137,14 +120,14 @@ To properly reverse an invoice for accounting purposes, consider creating a **cr
 
 ## Error codes
 
+Error bodies have the form `{"error": "message"}`.
+
 | Code | Description |
 |------|-------------|
-| `400` | Validation error - missing or invalid cancellation reason |
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company or insufficient permissions |
+| `403` | The invoice belongs to another organization, or the user cannot cancel invoices |
 | `404` | Invoice not found |
-| `409` | Invoice cannot be cancelled in current status (e.g., already cancelled) |
-| `422` | Business rule violation (e.g., invoice has associated credit notes) |
+| `422` | The invoice is not a draft or an issued invoice, or it was already uploaded to ANAF |
 
 ## Related endpoints
 

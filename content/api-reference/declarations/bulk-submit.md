@@ -7,7 +7,7 @@ endpoint: /api/v1/declarations/bulk-submit
 
 # Bulk Submit Declarations
 
-Submits multiple declarations to ANAF SPV in a single request. Each declaration must be in `validated` status before it can be submitted. Declarations that are not in `validated` status are skipped. Submission is performed asynchronously per declaration.
+Submits multiple declarations to ANAF in a single request. Declarations in `draft` or `validated` status are submitted; declarations in any other status are skipped.
 
 ## Headers
 
@@ -71,21 +71,21 @@ const result = await response.json();
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `submitted` | integer | Number of declarations successfully queued for submission. Declarations that were not in `validated` status are excluded from this count |
+| `submitted` | integer | Number of declarations handed over for submission. Declarations that were skipped are not counted |
 
 ## Behavior
 
-- Only declarations in `validated` status are submitted; others are silently skipped
-- Each declaration is submitted independently — a failure on one does not block others
-- After submission, each declaration transitions to `submitted` status and then to `processing` as ANAF acknowledges receipt
-- Status updates are handled asynchronously; poll individual declarations or use [refresh-statuses](/api-reference/declarations/refresh-statuses) to check progress
+- Only declarations in `draft` or `validated` status are submitted; others are silently skipped
+- Ids that do not exist or belong to another company are silently ignored
+- Each declaration is submitted independently, so a failure on one does not block the others
+- A submitted declaration moves to `processing` once ANAF has received it, or to `error` with an `errorMessage` when the upload failed; read the individual declarations to follow progress
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid request body or empty `ids` array |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 422 | `validation_error` | `ids` field is missing or not an array |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `ids` is missing, empty or not an array |
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.submit` permission |

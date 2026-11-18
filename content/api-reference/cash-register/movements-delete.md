@@ -41,5 +41,7 @@ Requires `settings.manage`.
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthenticated |
-| 403 | Permission denied |
-| 404 | Movement not found in this company |
+| 403 | Permission denied, or the cash register module is disabled for the company |
+| 404 | Company not found, or movement not found in this company |
+
+Error bodies have the form `{"error": "message"}`.

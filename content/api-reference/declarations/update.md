@@ -7,7 +7,7 @@ endpoint: /api/v1/declarations/{uuid}
 
 # Update Declaration
 
-Partially updates a tax declaration's `data` or `metadata` fields. Only declarations in `draft` status can be updated. Once a declaration has been validated or submitted, it becomes immutable.
+Updates a tax declaration's `data` or `metadata`. Only declarations in `draft` status can be edited. The one exception is `filedExternally`, which records a declaration filed outside Storno.
 
 ## Headers
 
@@ -27,11 +27,11 @@ Partially updates a tax declaration's `data` or `metadata` fields. Only declarat
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `data` | object | No | Partial or full replacement of the declaration's fiscal data payload |
-| `metadata` | object | No | Partial or full replacement of the declaration's metadata |
-| `filedExternally` | object | No | `{index, ghiseu?}`: the declaration was filed outside Storno (portal by hand, another program, at the ANAF counter). Storno stores ANAF's number as `anafUploadId`, sets `submitted`, and follows the state on StareD112 (recipisa into the case file). `ghiseu: true` when the number is the counter registration number, not an online upload index. Works on any declaration not already submitted or accepted. |
+| `data` | object | No | New fiscal data payload. It replaces the stored `data` as a whole; send the complete object. Attachments sent back without `contentBase64` keep the stored file with the same name |
+| `metadata` | object | No | Keys to merge into the stored metadata; keys you do not send are kept |
+| `filedExternally` | object | No | `{index, ghiseu?}`: the declaration was filed outside Storno (portal by hand, another program, at the ANAF counter). Storno stores ANAF's number as `anafUploadId`, sets `submitted`, and follows the state on StareD112 (recipisa into the case file). `ghiseu: true` when the number is the counter registration number, not an online upload index. `index` is required. Refused when the declaration is already `submitted`, `processing` or `accepted`. |
 
-At least one of `data` or `metadata` must be provided.
+Send `data`, `metadata` or `filedExternally`.
 
 ## Request
 
@@ -42,11 +42,9 @@ curl -X PATCH https://api.storno.ro/api/v1/declarations/a1b2c3d4-e5f6-7890-abcd-
   -H "Content-Type: application/json" \
   -d '{
     "data": {
-      "totalSalesBase": "85000.00",
-      "totalSalesVat": "16150.00",
-      "totalPurchasesBase": "42016.81",
-      "totalPurchasesVat": "7983.19",
-      "invoiceCount": 48
+      "layout": "v2026",
+      "rows": { "R9_1": 85000, "R9_2": 17850 },
+      "warnings": []
     }
   }'
 ```
@@ -61,11 +59,9 @@ const response = await fetch('https://api.storno.ro/api/v1/declarations/a1b2c3d4
   },
   body: JSON.stringify({
     data: {
-      totalSalesBase: '85000.00',
-      totalSalesVat: '16150.00',
-      totalPurchasesBase: '42016.81',
-      totalPurchasesVat: '7983.19',
-      invoiceCount: 48
+      layout: 'v2026',
+      rows: { R9_1: 85000, R9_2: 17850 },
+      warnings: []
     }
   })
 });
@@ -79,84 +75,50 @@ Returns the updated declaration object.
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "type": "d394",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "type": "d300",
   "year": 2026,
   "month": 1,
   "periodType": "monthly",
   "status": "draft",
   "data": {
-    "totalSalesBase": "85000.00",
-    "totalSalesVat": "16150.00",
-    "totalPurchasesBase": "42016.81",
-    "totalPurchasesVat": "7983.19",
-    "invoiceCount": 48
+    "layout": "v2026",
+    "rows": { "R9_1": 85000, "R9_2": 17850 },
+    "warnings": []
   },
-  "metadata": {
-    "generatedAt": "2026-02-10T08:00:00Z",
-    "invoiceCountAtGeneration": 47
-  },
-  "errorMessage": null,
+  "metadata": null,
   "anafUploadId": null,
-  "xmlPath": null,
-  "recipisaPath": null,
-  "createdAt": "2026-02-10T08:00:00Z",
-  "updatedAt": "2026-02-10T08:30:00Z",
-  "createdBy": "user-uuid-here"
+  "errorMessage": null,
+  "submittedAt": null,
+  "acceptedAt": null,
+  "companyId": "company-uuid-here",
+  "dosarId": null
 }
 ```
 
-## Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `type` | string | Declaration type |
-| `year` | integer | Fiscal year |
-| `month` | integer | Fiscal month |
-| `periodType` | string \| null | Period type |
-| `status` | string | Always `draft` after a successful update |
-| `data` | object | Updated fiscal data payload |
-| `metadata` | object | Updated metadata |
-| `errorMessage` | string \| null | Error details (null for draft declarations) |
-| `anafUploadId` | string \| null | Always `null` for draft declarations |
-| `xmlPath` | string \| null | Path to generated XML (null until validated) |
-| `recipisaPath` | string \| null | Path to ANAF recipisa (null until accepted) |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 timestamp of this update |
-| `createdBy` | string \| null | UUID of the user who created the declaration |
+The fields are the ones described in [get declaration](/api-reference/declarations/get). After `filedExternally` the `status` is `submitted` and `anafUploadId` holds ANAF's number.
 
 ## Restrictions
 
-- The declaration must be in `draft` status
+- `data` and `metadata` can only be changed while the declaration is in `draft` status
 - `type`, `year`, `month`, and `periodType` cannot be changed via this endpoint
 - To refresh data from invoices automatically, use the [recalculate endpoint](/api-reference/declarations/recalculate) instead
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid request body structure |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Declaration not found or doesn't belong to the company |
-| 409 | `conflict` | Declaration is not in draft status and cannot be updated |
-| 422 | `validation_error` | Validation failed |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`.
 
-## Example Error Response
+| Status Code | Description |
+|-------------|-------------|
+| 400 | The declaration is not in `draft` status (`Only draft declarations can be edited.`), or `filedExternally` is invalid |
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.submit` permission |
+| 404 | Declaration not found or it belongs to another company |
 
-### Status Conflict
+## Example error response
 
 ```json
 {
-  "error": {
-    "code": "conflict",
-    "message": "Declaration cannot be updated",
-    "details": {
-      "status": "validated",
-      "reason": "Only draft declarations can be updated"
-    }
-  }
+  "error": "Only draft declarations can be edited."
 }
 ```

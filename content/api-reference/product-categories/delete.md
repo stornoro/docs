@@ -25,6 +25,15 @@ The product → category relation uses `ON DELETE SET NULL`, so any products tha
 { "message": "Category deleted." }
 ```
 
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| 403 | Permission denied |
+| 404 | Company not found, or category not found in this company |
+
+Error bodies have the form `{"error": "message"}`.
+
 ## Permissions
 
 Requires `product.edit`.

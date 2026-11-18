@@ -44,66 +44,46 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated declaration object with freshly calculated `data` and updated `metadata`.
+Returns the updated declaration object with freshly calculated `data`.
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "type": "d394",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "type": "d300",
   "year": 2026,
   "month": 1,
   "periodType": "monthly",
   "status": "draft",
   "data": {
-    "totalSalesBase": "91250.42",
-    "totalSalesVat": "17337.58",
-    "totalPurchasesBase": "44800.00",
-    "totalPurchasesVat": "8512.00",
-    "invoiceCount": 52
+    "layout": "v2026",
+    "rows": { "R9_1": 91250, "R9_2": 19163 },
+    "warnings": []
   },
-  "metadata": {
-    "generatedAt": "2026-02-10T09:00:00Z",
-    "invoiceCountAtGeneration": 52
-  },
-  "errorMessage": null,
+  "metadata": null,
   "anafUploadId": null,
-  "xmlPath": null,
-  "recipisaPath": null,
-  "createdAt": "2026-02-10T08:00:00Z",
-  "updatedAt": "2026-02-10T09:00:00Z",
-  "createdBy": "user-uuid-here"
+  "errorMessage": null,
+  "submittedAt": null,
+  "acceptedAt": null,
+  "companyId": "company-uuid-here",
+  "dosarId": null
 }
 ```
 
-## Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `type` | string | Declaration type |
-| `year` | integer | Fiscal year |
-| `month` | integer | Fiscal month |
-| `periodType` | string \| null | Period type |
-| `status` | string | Always `draft` after recalculation |
-| `data` | object | Freshly recalculated fiscal data from current invoice records |
-| `metadata` | object | Updated metadata with new generation timestamp and invoice count |
-| `errorMessage` | string \| null | Always `null` after successful recalculation |
-| `xmlPath` | string \| null | Reset to `null` — any previously generated XML is invalidated |
-| `recipisaPath` | string \| null | `null` until declaration is accepted |
-| `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 timestamp of this recalculation |
+The fields are the ones described in [get declaration](/api-reference/declarations/get).
 
 ## Restrictions
 
 - The declaration must be in `draft` status
+- The declaration type must be one that Storno can populate from invoices
 - Recalculating always overwrites the current `data` with freshly aggregated values; any manual edits made via PATCH will be replaced
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Declaration not found or doesn't belong to the company |
-| 409 | `conflict` | Declaration is not in draft status and cannot be recalculated |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | The declaration is not in `draft` status, or its type has no populator |
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.submit` permission |
+| 404 | Declaration not found or it belongs to another company |

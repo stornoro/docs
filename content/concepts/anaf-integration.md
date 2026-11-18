@@ -38,7 +38,7 @@ For users who can't complete the OAuth flow on the same device (e.g., mobile use
 1. Create a token link: `POST /api/v1/anaf/token-links`
 2. Share the link URL with the person who has ANAF access
 3. They open the link, complete ANAF OAuth on their device
-4. Check link status: `GET /api/v1/anaf/token-links/{linkToken}`
+4. Read the result: `GET /api/v1/anaf/token-links/{linkToken}/result` (it names the token the link produced)
 5. Once completed, the token is automatically associated with the user
 
 ```bash
@@ -49,17 +49,24 @@ curl -X POST https://api.storno.ro/api/v1/anaf/token-links \
 # Response
 {
   "linkToken": "abc123...",
-  "url": "https://app.storno.ro/anaf/link/abc123...",
+  "linkUrl": "https://app.storno.ro/anaf/link/abc123...",
+  "companyId": null,
+  "exclusive": false,
   "expiresAt": "2026-02-17T12:00:00Z"
 }
 ```
 
+### Which token serves which company
+
+By default tokens are shared: any token of the organization can serve any of its companies, the ones already used for the CIF first. One certificate with SPV rights on every company covers the whole account, and a company added later works without a new authorization.
+
+A link created with `exclusive: true` binds its token to one company instead. That company uses only its own token, the token serves no other company, and deleting it revokes that company alone. This is the mode for applications that invoice on behalf of many independent businesses. See [ANAF Token Links](/api-reference/anaf/token-links#shared-and-exclusive-tokens).
+
 ### Token Lifecycle
 
-- ANAF tokens expire (typically after 90 days)
-- Storno.ro extracts the JWT expiry and tracks validity
-- Users are notified before token expiration
-- Expired tokens must be re-obtained through a new OAuth flow
+- Storno.ro tracks the expiry of every token and refreshes it on its own: a job runs every 12 hours and renews any token that expires within 5 days and has a refresh token. Tokens obtained through the OAuth flow or a token link have one; a token pasted by hand through `POST /api/v1/anaf/tokens` does not and is never renewed
+- When the refresh fails (certificate expired, access withdrawn at ANAF) the owner of the token is notified and a new authorization is needed. The owner is also reminded 7 days before a token without a refresh token expires, and 2 days before a refreshable token that still could not be renewed
+- `GET /api/v1/anaf/tokens` returns `expiresAt` and `isExpired` for each token
 
 ## Sync Process
 
@@ -117,9 +124,11 @@ curl https://api.storno.ro/api/v1/efactura-messages \
 ```
 
 Message types include:
-- **FACTURA_PRIMITA** — Incoming invoice received
-- **FACTURA_TRIMISA** — Outgoing invoice status update
-- **ERORI_FACTURA** — Invoice validation errors
+- **FACTURA PRIMITA**: incoming invoice received
+- **FACTURA TRIMISA**: outgoing invoice status update
+- **ERORI FACTURA**: invoice validation errors
+
+The `messageType` field and filter use these names exactly, spaces included. See [List e-Factura messages](/api-reference/efactura-messages/list).
 
 ## Received invoices: product matching and messages to the issuer
 
@@ -142,16 +151,22 @@ Line VAT is recomputed from the net amount and the rate; when the sum differs fr
 Before submission, invoices can be validated against ANAF's rules:
 
 ```bash
-# Quick validation (structural)
-curl -X POST https://api.storno.ro/api/v1/invoices/{uuid}/validate?mode=quick \
+# Quick validation (structural), the default
+curl -X POST https://api.storno.ro/api/v1/invoices/{uuid}/validate \
   -H "Authorization: Bearer {token}" \
-  -H "X-Company: {company_uuid}"
+  -H "X-Company: {company_uuid}" \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "quick"}'
 
 # Full validation (Schematron rules)
-curl -X POST https://api.storno.ro/api/v1/invoices/{uuid}/validate?mode=full \
+curl -X POST https://api.storno.ro/api/v1/invoices/{uuid}/validate \
   -H "Authorization: Bearer {token}" \
-  -H "X-Company: {company_uuid}"
+  -H "X-Company: {company_uuid}" \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "full"}'
 ```
+
+`mode` is read from the JSON body; without it the quick validation runs.
 
 ## Digital Signature Verification
 

@@ -9,14 +9,14 @@ endpoint: /api/v1/receipts/{uuid}/cancel
 
 Cancels a receipt by transitioning it to `cancelled` status. Cancellation is used when a transaction must be voided — for example, when an item is returned, when the wrong products were rung up, or when a payment was reversed.
 
-Unlike deletion, cancellation preserves the receipt for historical records and audit trail. For issued receipts, cancellation on the physical fiscal device must be performed separately in accordance with ANAF regulations.
+Unlike deletion, a cancelled receipt stays visible in lists with status `cancelled`. For issued receipts, cancellation on the physical fiscal device must be performed separately in accordance with ANAF regulations.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -24,38 +24,23 @@ Unlike deletion, cancellation preserves the receipt for historical records and a
 |------|------|----------|-------------|
 | `uuid` | string | Yes | The UUID of the receipt to cancel |
 
-## Request Body (Optional)
+## Request Body
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cancellationReason` | string | No | Reason for cancellation |
-| `cancellationNotes` | string | No | Internal notes about the cancellation |
+The endpoint takes no body.
 
 ## Request
 
 ```bash {% title="cURL" %}
 curl -X POST https://api.storno.ro/api/v1/receipts/a1b2c3d4-e5f6-7890-abcd-ef1234567890/cancel \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Company: company-uuid-here" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cancellationReason": "Customer returned all items",
-    "cancellationNotes": "Full refund issued to customer card"
-  }'
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ```javascript {% title="JavaScript" %}
 const response = await fetch('https://api.storno.ro/api/v1/receipts/a1b2c3d4-e5f6-7890-abcd-ef1234567890/cancel', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer YOUR_TOKEN',
-    'X-Company': 'company-uuid-here',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    cancellationReason: 'Customer returned all items',
-    cancellationNotes: 'Full refund issued to customer card'
-  })
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
 });
 
 const data = await response.json();
@@ -63,17 +48,22 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated receipt with `status = cancelled` and `cancelledAt` timestamp:
+Returns the receipt in the same shape as [Get receipt](/api-reference/receipts/get), with `status = cancelled` and `cancelledAt` set (`lines` abbreviated here):
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "number": "BON-2026-042",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "number": "BON0042",
+  "documentSeries": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "prefix": "BON",
+    "nextNumber": "BON0043"
+  },
   "status": "cancelled",
-  "issueDate": "2026-02-18",
   "currency": "RON",
+  "issueDate": "2026-02-18T00:00:00+02:00",
   "subtotal": "210.92",
-  "vatAmount": "40.08",
+  "vatTotal": "40.08",
   "total": "251.00",
   "paymentMethod": "mixed",
   "cashPayment": "100.00",
@@ -81,12 +71,9 @@ Returns the updated receipt with `status = cancelled` and `cancelledAt` timestam
   "otherPayment": "0.00",
   "cashRegisterName": "Casa 1 - Front Desk",
   "fiscalNumber": "AAAA123456",
-  "cancellationReason": "Customer returned all items",
-  "cancellationNotes": "Full refund issued to customer card",
-  "issuedAt": "2026-02-18T10:15:00Z",
-  "cancelledAt": "2026-02-18T11:00:00Z",
-  "createdAt": "2026-02-18T10:14:00Z",
-  "updatedAt": "2026-02-18T11:00:00Z"
+  "lines": [],
+  "issuedAt": "2026-02-18T10:15:00+00:00",
+  "cancelledAt": "2026-02-18T11:00:00+00:00"
 }
 ```
 
@@ -97,15 +84,14 @@ Returns the updated receipt with `status = cancelled` and `cancelledAt` timestam
 - **After:** `status = cancelled`
 
 ### Timestamp
-- Sets `cancelledAt` to current UTC timestamp (ISO 8601 format)
-- Updates `updatedAt` timestamp
+- Sets `cancelledAt` to the current time (ISO 8601 format)
 
 ### Restrictions Applied
 Once cancelled:
 - Cannot be converted to invoice
-- Cannot be issued (if was in draft)
-- Cannot be edited or deleted
-- Serves as historical record only
+- Cannot be refunded
+- Can be restored to `draft`, or deleted
+- Serves as historical record
 
 ## Validation Rules
 
@@ -119,49 +105,14 @@ Cannot cancel receipts in these statuses:
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
-| 409 | `conflict` | Receipt status prevents cancellation (already invoiced or cancelled) |
-| 422 | `validation_error` | Invalid request body |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+| 422 | Receipt is already invoiced or already cancelled |
 
-## Example Error Responses
-
-### Status Conflict - Already Cancelled
-
-```json
-{
-  "error": {
-    "code": "conflict",
-    "message": "Receipt cannot be cancelled",
-    "details": {
-      "status": "cancelled",
-      "reason": "Receipt is already cancelled",
-      "cancelledAt": "2026-02-18T11:00:00Z"
-    }
-  }
-}
-```
-
-### Status Conflict - Already Invoiced
-
-```json
-{
-  "error": {
-    "code": "conflict",
-    "message": "Receipt cannot be cancelled",
-    "details": {
-      "status": "invoiced",
-      "reason": "Receipt has already been converted to an invoice. Use a credit note to reverse the invoice instead.",
-      "convertedInvoiceId": "650e8400-e29b-41d4-a716-446655440222",
-      "convertedInvoiceNumber": "FAC-2026-050"
-    }
-  }
-}
-```
+Error responses have the form `{"error": "message"}`.
 
 ## Fiscal Compliance Note
 
@@ -172,15 +123,6 @@ Cancelling a receipt in the system does not automatically void the physical fisc
 3. Ensure the cancellation is reflected in the daily Z report
 
 For **draft** receipts that were never printed on the fiscal device, no additional fiscal action is required.
-
-## Common Cancellation Reasons
-
-- **Customer returned items** — Customer brought back purchased goods
-- **Wrong items rung up** — Cashier entered incorrect products
-- **Payment reversed** — Card payment was declined or reversed after printing
-- **Duplicate receipt** — Same transaction printed twice by mistake
-- **Customer complaint** — Transaction disputed by customer
-- **System error** — POS system error caused incorrect receipt
 
 ## Recovery After Cancellation
 

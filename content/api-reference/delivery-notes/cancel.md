@@ -9,14 +9,13 @@ endpoint: /api/v1/delivery-notes/{uuid}/cancel
 
 Cancels a delivery note by transitioning it to `cancelled` status. This action is used when a planned delivery will not occur, or when a delivery needs to be invalidated for any reason.
 
-Unlike deletion, cancellation preserves the delivery note for historical records and audit trail while preventing any further actions.
+Unlike deletion, cancellation keeps the delivery note as a record. A cancelled delivery note can be restored to draft or deleted.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 
 ## Path Parameters
 
@@ -24,24 +23,16 @@ Unlike deletion, cancellation preserves the delivery note for historical records
 |------|------|----------|-------------|
 | `uuid` | string | Yes | The UUID of the delivery note to cancel |
 
-## Request Body (Optional)
+## Request Body
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cancellationReason` | string | No | Reason for cancellation |
-| `cancellationNotes` | string | No | Internal notes about the cancellation |
+The endpoint takes no body.
 
 ## Request
 
 ```bash {% title="cURL" %}
 curl -X POST https://api.storno.ro/api/v1/delivery-notes/950e8400-e29b-41d4-a716-446655440000/cancel \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Company: company-uuid-here" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cancellationReason": "Client cancelled order",
-    "cancellationNotes": "Client no longer needs equipment, full order cancelled"
-  }'
+  -H "X-Company: company-uuid-here"
 ```
 
 ```javascript {% title="JavaScript" %}
@@ -49,13 +40,8 @@ const response = await fetch('https://api.storno.ro/api/v1/delivery-notes/950e84
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_TOKEN',
-    'X-Company': 'company-uuid-here',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    cancellationReason: 'Client cancelled order',
-    cancellationNotes: 'Client no longer needs equipment, full order cancelled'
-  })
+    'X-Company': 'company-uuid-here'
+  }
 });
 
 const data = await response.json();
@@ -63,45 +49,27 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated delivery note with `status = cancelled` and `cancelledAt` timestamp:
+Returns the delivery note with `status = cancelled` and the `cancelledAt` timestamp. The object has the fields described in [Get delivery note](/api-reference/delivery-notes/get#response); the example is abridged:
 
 ```json
 {
-  "uuid": "950e8400-e29b-41d4-a716-446655440000",
-  "number": "DN-2026-012",
-  "seriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "DN",
-    "nextNumber": 13
-  },
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
+  "id": "950e8400-e29b-41d4-a716-446655440000",
+  "number": "DN0012",
   "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
+    "id": "750e8400-e29b-41d4-a716-446655440000",
     "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "email": "contact@client.ro"
+    "cui": "12345678"
   },
   "status": "cancelled",
   "issueDate": "2026-02-18",
   "dueDate": "2026-03-18",
   "currency": "RON",
-  "exchangeRate": 1.0,
   "subtotal": "5000.00",
-  "vatAmount": "950.00",
-  "total": "5950.00",
-  "deliveryLocation": "Client warehouse - Str. Depozit 5, București",
-  "projectReference": "PROJECT-2026-002",
-  "deputyName": "Maria Ionescu",
-  "notes": "Handle with care - fragile items",
-  "cancellationReason": "Client cancelled order",
-  "cancellationNotes": "Client no longer needs equipment, full order cancelled",
-  "issuedAt": "2026-02-18T14:30:00Z",
-  "cancelledAt": "2026-02-19T09:15:00Z",
-  "convertedAt": null,
-  "convertedInvoiceId": null,
-  "createdAt": "2026-02-18T09:00:00Z",
-  "updatedAt": "2026-02-19T09:15:00Z"
+  "vatTotal": "1050.00",
+  "total": "6050.00",
+  "issuedAt": "2026-02-18T14:30:00+00:00",
+  "cancelledAt": "2026-02-19T09:15:00+00:00",
+  "convertedInvoice": null
 }
 ```
 
@@ -112,15 +80,13 @@ Returns the updated delivery note with `status = cancelled` and `cancelledAt` ti
 - **After:** `status = cancelled`
 
 ### Timestamp
-- Sets `cancelledAt` to current UTC timestamp (ISO 8601 format)
-- Updates `updatedAt` timestamp
+- Sets `cancelledAt` to the current time
 
 ### Restrictions Applied
 Once cancelled:
 - Cannot be converted to invoice
-- Cannot be issued (if was in draft)
-- Cannot be edited or deleted
-- Serves as historical record only
+- Cannot be issued or edited
+- Can be restored to `draft`, or deleted
 
 ## Validation Rules
 
@@ -133,6 +99,8 @@ Cannot cancel delivery note in these statuses:
 - `converted` - Already converted to invoice (use credit note instead)
 - `cancelled` - Already cancelled
 
+A delivery note whose `etransportStatus` is `uploaded` or `ok` cannot be cancelled either.
+
 ### Business Logic
 Cancelling a delivery note indicates:
 - Delivery will not occur
@@ -143,64 +111,22 @@ Cancelling a delivery note indicates:
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Delivery note not found or doesn't belong to the company |
-| 409 | `conflict` | Delivery note status prevents cancellation (already converted or cancelled) |
-| 422 | `validation_error` | Invalid request body (if cancellation reason/notes provided) |
-| 500 | `internal_error` | Server error occurred |
+Errors have the form `{"error": "message"}`.
 
-## Example Error Responses
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Delivery note not found or not in the caller's organization |
+| 422 | The delivery note is already cancelled, already converted, or submitted to e-Transport (`etransportStatus` `uploaded` or `ok`) |
 
-### Status Conflict - Already Cancelled
+### Example error response
 
 ```json
 {
-  "error": {
-    "code": "conflict",
-    "message": "Delivery note cannot be cancelled",
-    "details": {
-      "status": "cancelled",
-      "reason": "Delivery note is already cancelled",
-      "cancelledAt": "2026-02-19T09:15:00Z"
-    }
-  }
+  "error": "This delivery note is already cancelled."
 }
 ```
-
-### Status Conflict - Already Converted
-
-```json
-{
-  "error": {
-    "code": "conflict",
-    "message": "Delivery note cannot be cancelled",
-    "details": {
-      "status": "converted",
-      "reason": "Delivery note has already been converted to an invoice. Use credit note to reverse the invoice instead.",
-      "convertedAt": "2026-02-20T10:00:00Z",
-      "convertedInvoiceId": "650e8400-e29b-41d4-a716-446655440222",
-      "convertedInvoiceNumber": "FAC-2026-050"
-    }
-  }
-}
-```
-
-## Cancellation Reasons
-
-### Common Reasons
-- **Client cancelled order** - Client no longer needs delivery
-- **Out of stock** - Items not available for delivery
-- **Transport issues** - Cannot complete delivery due to logistics
-- **Weather conditions** - Delivery impossible due to weather
-- **Wrong items prepared** - Incorrect items staged for delivery
-- **Client unavailable** - Cannot receive delivery at scheduled time
-- **Payment issues** - Client payment problems
-- **Duplicate delivery note** - Created by mistake
-- **Address issues** - Cannot locate delivery address
-- **Order changed** - Requirements changed significantly
 
 ## Cancel vs Delete
 
@@ -212,10 +138,10 @@ Cancelling a delivery note indicates:
 - **Inventory:** Can be returned to available stock
 
 ### Delete
-- **Use when:** Delivery note created by mistake (draft only)
-- **Preserves:** Nothing - permanently removed
-- **Status:** N/A - record is deleted
-- **Can be done:** Only in `draft` status
+- **Use when:** Delivery note created by mistake
+- **Preserves:** Nothing visible: the record is soft-deleted and no longer listed
+- **Status:** N/A
+- **Can be done:** In `draft` or `cancelled` status
 - **Inventory:** No inventory impact (wasn't committed)
 
 ## Workflow Integration
@@ -274,7 +200,7 @@ When cancelling a delivery note:
 
 ## Best Practices
 
-1. **Always provide reason** - Essential for analytics and audit
+1. **Record the reason** - Keep the reason in `internalNote` through the update endpoint, since the cancel call stores none
 2. **Coordinate returns** - If goods already shipped
 3. **Update inventory** - Restore stock levels immediately
 4. **Communicate promptly** - Notify all affected parties
@@ -289,7 +215,6 @@ When cancelling a delivery note:
 Track these metrics for process improvement:
 - Cancellation rate by status (draft vs issued)
 - Time between creation and cancellation
-- Most common cancellation reasons
 - Cancellations by client or product
 - Cost of cancelled deliveries
 
@@ -317,7 +242,7 @@ If the delivery note was cancelled by mistake, use the `POST /api/v1/delivery-no
 1. **Return to stock** - Make items available for other orders
 2. **Cancel order** - Close the entire order in system
 3. **Update forecast** - Adjust sales projections
-4. **Learn from it** - Document reason for future reference
+4. **Learn from it** - Document the reason for future reference
 
 ### Partial Cancellation
 1. **Create new delivery note** - With reduced quantities

@@ -7,6 +7,22 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-11-18 — Token ANAF legat de firmă, chei de idempotență pe firmă
+
+### Added
+
+- **Exclusive ANAF token links.** `POST /api/v1/anaf/token-links` takes `exclusive: true` with a `companyId`: the token the link produces is bound to that company, used for it alone and never for another company, and deleting it revokes that one company. The default stays as it was: tokens are shared by the companies of the organization, so one certificate with rights on all of them needs no per-company setup. See [ANAF Token Links](/api-reference/anaf/token-links).
+- **Link result.** `GET /api/v1/anaf/token-links/{linkToken}/result` tells the user who created a link whether it was authorized and which `tokenId` it produced. `POST /anaf/token-links` and the list now also return `companyId` and `exclusive`; tokens carry `exclusive`.
+- **Active link limit per organization.** The limit of 5 active links per user can be raised for an organization that enrols many companies at once. The 429 response carries `code: TOO_MANY_ACTIVE_LINKS` and the `limit`.
+
+### Fixed
+
+- **Idempotency keys are scoped to the company.** A key was looked up across all companies: the same `idempotencyKey` sent for another company returned the first company's invoice (or receipt) and created nothing. Shop plugins build the key from the order number, so two shops with the same order number collided. The key is now unique per company, for invoices and receipts.
+- **`vatRateId` on document lines was ignored.** Invoices, proformas, recurring invoices, receipts and delivery notes read only `vatRate`, so a line sent with `vatRateId` alone got the 21% default without any error. `vatRateId` now sets the percentage and category of the line from the company's rate, `vatRate` still wins when both are sent, and an id that is not a rate of the company is refused. The create pages state the default: with neither field a line gets 21%, also for a company that is not a VAT payer, which must send `vatRate: "0.00"`. The MCP tools (`invoices_create`, `proforma_invoices_create`, `recurring_invoices_create`, `receipts_create`, `delivery_notes_create` and their updates) gained `vatRate` and `vatCategoryCode`; they only had `vatRateId`.
+- **`collect` on a retried create.** Retrying `POST /invoices` with the same key and a partial `collect` recorded the payment again. `collect` now applies only while the invoice has no payment.
+- **API reference checked against the code.** About 250 pages were corrected where they described fields, routes, status codes or limits the API does not have. The changes that matter most to an existing integration: list responses are wrapped in `data` (declarations in `items`) and carry no `pages`; identifiers are `id`, not `uuid`; errors are `{"error": "..."}` with an optional string `code`, 400 for most validation failures and 422 for a wrong document state; `limit` defaults to 10 and is capped at 20; webhooks are signed in `X-Webhook-Signature` (bare hex HMAC-SHA256) and the event list is the one `GET /api/v1/webhooks/events` returns; recording a payment updates `amountPaid`, `balance` and `paidAt`, not the invoice `status`; `efacturaDelayHours` accepts null, 2, 24, 48, 72 or 96; the refresh route is `/api/auth/refresh`; email template placeholders are `[[name]]`; there is no general per-request rate limit today, only the per-endpoint and ANAF limits.
+- **Token link documentation.** The create response field is `linkUrl` (not `url`) and the public status returns `expired`, `used`, `completed` and `expiresAt` (not `status` / `tokenId`). The token list and delete pages now show the real response shapes.
+
 ## 2026-11-15 — Centrifugo 6
 
 ### Changed

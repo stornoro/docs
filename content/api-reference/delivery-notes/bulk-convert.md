@@ -16,14 +16,14 @@ This is useful for end-of-period billing where multiple deliveries to the same c
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID to scope the request. Can be omitted when the organization has exactly one company; the `company` query parameter is accepted too |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Request Body
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `ids` | string[] | Yes | Array of delivery note UUIDs to convert (minimum 2) |
+| `ids` | string[] | Yes | Array of delivery note UUIDs to convert (at least 1) |
 
 ## Request
 
@@ -63,118 +63,68 @@ const invoice = await response.json();
 
 ## Response
 
-Returns the newly created invoice object in `draft` status:
+Returns `201 Created` with the new invoice object directly (no wrapper key), in `draft` status. The fields are described in [Get invoice](/api-reference/invoices/get#response); the example is abridged:
 
 ```json
 {
-  "uuid": "650e8400-e29b-41d4-a716-446655440222",
-  "number": "FAC-2026-051",
+  "id": "650e8400-e29b-41d4-a716-446655440222",
+  "documentType": "invoice",
   "status": "draft",
   "direction": "outgoing",
-  "isCreditNote": false,
-  "clientId": "750e8400-e29b-41d4-a716-446655440000",
-  "client": {
-    "uuid": "750e8400-e29b-41d4-a716-446655440000",
-    "name": "Client SRL",
-    "registrationNumber": "RO12345678",
-    "email": "contact@client.ro"
-  },
   "currency": "RON",
-  "exchangeRate": 1.0,
-  "issueDate": "2026-02-28",
-  "dueDate": "2026-03-28",
-  "lines": [
-    {
-      "uuid": "C10e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 1,
-      "description": "Laptop Dell Latitude 7420",
-      "quantity": "10.00",
-      "unitPrice": "450.00",
-      "unitOfMeasure": "piece",
-      "subtotal": "4500.00",
-      "vatAmount": "855.00",
-      "total": "5355.00"
-    },
-    {
-      "uuid": "C20e8400-e29b-41d4-a716-446655440000",
-      "lineNumber": 2,
-      "description": "Wireless Mouse Logitech MX Master 3",
-      "quantity": "5.00",
-      "unitPrice": "50.00",
-      "unitOfMeasure": "piece",
-      "subtotal": "250.00",
-      "vatAmount": "47.50",
-      "total": "297.50"
-    }
-  ],
+  "issueDate": "2026-02-28T00:00:00+00:00",
   "subtotal": "4750.00",
-  "vatAmount": "902.50",
-  "total": "5652.50",
-  "deliveryNoteIds": [
-    "950e8400-e29b-41d4-a716-446655440000",
-    "951e8400-e29b-41d4-a716-446655440001",
-    "952e8400-e29b-41d4-a716-446655440002"
-  ],
-  "createdAt": "2026-02-28T16:00:00Z",
-  "updatedAt": "2026-02-28T16:00:00Z"
+  "vatTotal": "997.50",
+  "total": "5747.50"
 }
 ```
 
 ## State Changes
 
-### Created Invoice
-- New invoice created in `draft` status
+### Created invoice
+- A new invoice is created in `draft` status
 - Lines from all delivery notes are merged in order
-- `deliveryNoteIds` lists all source delivery note UUIDs
-- Issue date defaults to today
-- The company's default `invoice` series is automatically assigned to the created invoice
+- The issue date is today
+- The client and currency are those of the first delivery note. Notes, mentions and other header fields of the delivery notes are not copied
+- The company's default `invoice` series is assigned to the invoice
 
-### Source Delivery Notes
-- Each delivery note status is changed from `issued` → `converted`
-- `convertedAt` is set on each delivery note
-- `convertedInvoiceId` is set to the new invoice UUID
+### Source delivery notes
+- Each delivery note status is changed from `issued` to `converted`
+- `convertedInvoice` is set on each delivery note
 
 ## Validation Rules
 
 All delivery notes in the `ids` array must:
-- Exist and belong to the same company
+- Exist and belong to the company
 - Be in `issued` status
 - Share the same client
 - Share the same currency
 
-| Validation Failure | Error Code | Description |
-|--------------------|------------|-------------|
-| Different clients | `validation_error` | All delivery notes must have the same client |
-| Different currencies | `validation_error` | All delivery notes must use the same currency |
-| Non-issued status | `validation_error` | All delivery notes must be in issued status |
-| Not found | `not_found` | One or more delivery note UUIDs not found |
+| Validation failure | Status | Error message |
+|--------------------|--------|---------------|
+| Different clients | 422 | `All selected delivery notes must have the same client.` |
+| Different currencies | 422 | `All selected delivery notes must have the same currency.` |
+| Non-issued status | 422 | `Delivery note <number> is not issued. Only issued delivery notes can be converted.` |
+| Not found | 404 | `Delivery note <id> not found.` |
+| Missing or empty `ids` | 400 | `ids array is required.` |
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | One or more delivery notes not found or not in this company |
-| 422 | `validation_error` | Validation failed (different clients, currencies, or non-issued status) |
-| 500 | `internal_error` | Server error occurred |
+Errors have the form `{"error": "message"}`.
 
-## Example Error Response
+| Status Code | Description |
+|-------------|-------------|
+| 400 | `ids` is missing or empty |
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Company not found, or a delivery note is not found in the company |
+| 422 | Different clients, different currencies, or a delivery note that is not issued |
 
-### Mixed Clients
+## Example error response
 
 ```json
 {
-  "error": {
-    "code": "validation_error",
-    "message": "Cannot bulk convert delivery notes",
-    "details": {
-      "reason": "All delivery notes must belong to the same client",
-      "conflictingIds": [
-        "952e8400-e29b-41d4-a716-446655440002"
-      ]
-    }
-  }
+  "error": "All selected delivery notes must have the same client."
 }
 ```
 
@@ -185,7 +135,7 @@ All delivery notes in the `ids` array must:
 2. At period end, collect all issued delivery note UUIDs for a client
 3. **Bulk convert** (`POST /api/v1/delivery-notes/bulk-convert`) ← You are here
 4. Review the consolidated invoice
-5. Upload to ANAF (`POST /api/v1/invoices/{uuid}/upload`)
+5. Issue the invoice and submit it to ANAF (`POST /api/v1/invoices/{uuid}/submit`)
 6. Send invoice to client
 
 ## Related Endpoints

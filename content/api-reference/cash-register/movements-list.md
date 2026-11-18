@@ -49,4 +49,4 @@ If no cash account is configured, an empty `data` array is returned.
 
 ## Permissions
 
-Requires `report.view`.
+Requires `report.view`. Returns 403 when the cash register module is disabled for the company.

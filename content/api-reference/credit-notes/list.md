@@ -2,52 +2,56 @@
 title: List Credit Notes
 description: Retrieve a paginated list of credit notes with optional filtering
 method: GET
-endpoint: /api/v1/invoices?direction=outgoing&isCreditNote=true
+endpoint: /api/v1/invoices?type=credit_note
 ---
 
 # List Credit Notes
 
-Retrieves a paginated list of credit notes for the authenticated company. Credit notes are special invoices that reverse or partially reverse original invoices. They share the same endpoint as invoices but are filtered using `isCreditNote=true`.
+Lists the credit notes of the company. Credit notes are invoices with `documentType: "credit_note"`, so they are listed with the invoice endpoint and the `type=credit_note` filter. Without `type` the endpoint returns every document.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | Yes | Company UUID to scope the request. Optional when the organization has a single company |
 
 ## Query Parameters
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `direction` | string | Yes | Must be `outgoing` for credit notes |
-| `isCreditNote` | boolean | Yes | Must be `true` to filter for credit notes |
+| `type` | string | No | Send `credit_note` to list credit notes |
+| `direction` | string | No | `outgoing` or `incoming` |
 | `page` | integer | No | Page number (default: 1) |
-| `limit` | integer | No | Items per page (default: 20, max: 100) |
-| `search` | string | No | Search term for credit note number or client name |
-| `status` | string | No | Filter by status: `draft`, `uploaded`, `validated`, `error` |
-| `from` | string | No | Start date filter (ISO 8601 format: YYYY-MM-DD) |
-| `to` | string | No | End date filter (ISO 8601 format: YYYY-MM-DD) |
-| `clientId` | string | No | Filter by client UUID |
-| `parentDocumentId` | string | No | Filter by parent invoice UUID |
+| `limit` | integer | No | Items per page (default: 10, maximum: 20; a larger value is reduced to 20) |
+| `search` | string | No | Search in the number, client name, sender and receiver names and tax ids |
+| `status` | string | No | A document status: `draft`, `issued`, `sent_to_provider`, `validated`, `rejected`, `cancelled`, `paid`, `partially_paid`, `overdue`, `converted`, `refund`, `refunded`, `synced`. An unknown value makes the request fail with `500` |
+| `from` | string | No | Issue date from (YYYY-MM-DD). `dateFrom` is the same filter |
+| `to` | string | No | Issue date to (YYYY-MM-DD). `dateTo` is the same filter |
+| `clientId` | string | No | Filter by client id |
+| `currency` | string | No | Filter by currency code |
+| `isPaid` | boolean | No | `true` for documents with `paidAt` set, `false` for the others |
+| `sort` | string | No | `number`, `issueDate` (default), `total`, `status`, `direction` or `createdAt` |
+| `order` | string | No | `asc` or `desc` (default) |
+
+There is no filter by parent invoice. The credit notes of one invoice are read from `refundInvoices` on the [invoice detail](/api-reference/credit-notes/get).
 
 ## Request
 
 ```bash {% title="cURL" %}
-curl -X GET "https://api.storno.ro/api/v1/invoices?direction=outgoing&isCreditNote=true&page=1&limit=20" \
+curl -X GET "https://api.storno.ro/api/v1/invoices?type=credit_note&direction=outgoing&page=1&limit=10" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "X-Company: company-uuid-here"
 ```
 
 ```javascript {% title="JavaScript" %}
-const response = await fetch('https://api.storno.ro/api/v1/invoices?direction=outgoing&isCreditNote=true&page=1&limit=20', {
+const response = await fetch('https://api.storno.ro/api/v1/invoices?type=credit_note&direction=outgoing&page=1&limit=10', {
   method: 'GET',
   headers: {
     'Authorization': 'Bearer YOUR_TOKEN',
     'X-Company': 'company-uuid-here'
   }
 });
-
 const data = await response.json();
 ```
 
@@ -57,51 +61,55 @@ const data = await response.json();
 {
   "data": [
     {
-      "uuid": "850e8400-e29b-41d4-a716-446655440000",
-      "number": "CN-2026-005",
+      "id": "850e8400-e29b-41d4-a716-446655440000",
+      "number": "CN0005",
+      "documentType": "credit_note",
+      "status": "refund",
       "direction": "outgoing",
-      "isCreditNote": true,
-      "seriesId": "750e8400-e29b-41d4-a716-446655440000",
-      "series": {
-        "uuid": "750e8400-e29b-41d4-a716-446655440000",
-        "name": "CN",
-        "nextNumber": 6,
-        "prefix": "CN-",
-        "year": 2026
-      },
-      "clientId": "750e8400-e29b-41d4-a716-446655440000",
+      "senderName": "Your Company SRL",
+      "senderCif": "12345678",
+      "receiverName": "Client SRL",
+      "receiverCif": "87654321",
       "client": {
-        "uuid": "750e8400-e29b-41d4-a716-446655440000",
+        "id": "750e8400-e29b-41d4-a716-446655440000",
         "name": "Client SRL",
-        "registrationNumber": "RO12345678",
-        "address": "Str. Exemplu 123, București"
+        "cui": "87654321",
+        "isVatPayer": true,
+        "country": "RO"
       },
+      "clientName": "Client SRL",
       "parentDocumentId": "650e8400-e29b-41d4-a716-446655440111",
-      "parentDocument": {
-        "uuid": "650e8400-e29b-41d4-a716-446655440111",
-        "number": "FAC-2026-045",
-        "issueDate": "2026-02-18",
-        "total": "8330.00"
-      },
-      "status": "uploaded",
-      "anafStatus": "validated",
-      "issueDate": "2026-02-20",
-      "dueDate": "2026-03-20",
+      "issueDate": "2026-02-20T00:00:00+00:00",
+      "dueDate": "2026-03-20T00:00:00+00:00",
       "currency": "RON",
-      "exchangeRate": 1.0,
       "subtotal": "-1000.00",
-      "vatAmount": "-190.00",
+      "vatTotal": "-190.00",
       "total": "-1190.00",
-      "notes": "Partial refund - hosting services cancelled",
-      "anafUploadIndex": 2026000234,
-      "createdAt": "2026-02-20T09:00:00Z",
-      "updatedAt": "2026-02-20T10:15:00Z"
+      "amountPaid": "-1190.00",
+      "balance": "0.00",
+      "paidAt": "2026-02-20T09:00:00+00:00",
+      "paymentMethod": null,
+      "invoiceTypeCode": null,
+      "anafErrorMessage": null,
+      "scheduledSendAt": null,
+      "scheduledEmailAt": null,
+      "cancelledAt": null,
+      "isDuplicate": false,
+      "isLateSubmission": false
     }
   ],
   "total": 12,
   "page": 1,
-  "limit": 20,
-  "pages": 1
+  "limit": 10,
+  "currency": "RON",
+  "distinctCurrencies": ["RON"],
+  "totals": {
+    "subtotal": "-1000.00",
+    "vatTotal": "-190.00",
+    "total": "-1190.00",
+    "receivable": "0.00",
+    "payable": "0.00"
+  }
 }
 ```
 
@@ -109,83 +117,49 @@ const data = await response.json();
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `data` | array | Array of credit note objects |
-| `total` | integer | Total number of credit notes matching the filters |
-| `page` | integer | Current page number |
+| `data` | array | Credit notes of the page |
+| `total` | integer | Number of documents matching the filters |
+| `page` | integer | Current page |
 | `limit` | integer | Items per page |
-| `pages` | integer | Total number of pages |
+| `currency` | string | The `currency` filter, or the company default currency |
+| `distinctCurrencies` | array | Currencies used by the documents of the company |
+| `totals` | object | Sums over all filtered documents, excluding cancelled ones: `subtotal`, `vatTotal`, `total`, `receivable`, `payable` |
 
-### Credit Note Object
+There is no `pages` field. Compute the number of pages as `ceil(total / limit)`.
+
+### Credit note object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `number` | string | Credit note number (e.g., CN-2026-005) |
-| `isCreditNote` | boolean | Always `true` for credit notes |
-| `direction` | string | Always `outgoing` for credit notes |
-| `parentDocumentId` | string | UUID of the original invoice being credited |
-| `parentDocument` | object | Details of the original invoice |
-| `status` | string | Status: `draft`, `uploaded`, `validated`, `error` |
-| `anafStatus` | string | ANAF validation status |
-| `issueDate` | string | Date of issue (YYYY-MM-DD) |
-| `dueDate` | string | Due date (YYYY-MM-DD) |
+| `id` | string | Credit note id |
+| `number` | string | Number, or `DRAFT-xxxxxxxx` for a draft |
+| `documentType` | string | `credit_note` |
+| `status` | string | Document status |
+| `direction` | string | `outgoing` or `incoming` |
+| `parentDocumentId` | string \| null | Id of the original invoice |
+| `client`, `clientName` | object, string | Client summary and its name |
+| `senderName`, `senderCif`, `receiverName`, `receiverCif` | string | Parties of the document |
+| `issueDate`, `dueDate` | string | ISO 8601 date-times |
 | `currency` | string | Currency code |
-| `subtotal` | string | Negative subtotal amount |
-| `vatAmount` | string | Negative VAT amount |
-| `total` | string | Negative total amount |
-| `client` | object | Client details |
-| `series` | object | Series details |
-| `anafUploadIndex` | integer \| null | ANAF upload index number |
+| `subtotal`, `vatTotal`, `total` | string | Amounts, negative for a credit note |
+| `amountPaid`, `balance` | string | Settlement amounts |
+| `paidAt`, `paymentMethod` | string \| null | Settlement data |
+| `anafErrorMessage` | string \| null | e-Factura error, if any |
+| `scheduledSendAt`, `scheduledEmailAt` | string \| null | Scheduled automatic submission and email |
+| `cancelledAt` | string \| null | Set when cancelled |
+| `isDuplicate`, `isLateSubmission` | boolean | e-Factura flags |
 
-## Credit Note Amounts
+## Status values
 
-Credit notes have **negative amounts** to indicate they reverse the original invoice:
-- `subtotal`, `vatAmount`, and `total` are negative
-- Line item amounts are negative
-- When applied, they reduce the client's outstanding balance
+A credit note starts as `draft`. Issuing it sets `refund` (and sets the original invoice to `refunded`). After submission to ANAF the status follows the invoice statuses: `sent_to_provider`, `validated`, `rejected`.
 
-## Status Values
+## Error codes
 
-Credit notes use the same statuses as invoices:
-- **draft** - Created but not yet uploaded to ANAF
-- **uploaded** - Uploaded to ANAF, awaiting validation
-- **validated** - ANAF validated the credit note
-- **error** - ANAF validation failed
+Errors have the body `{"error": "message"}`.
 
-## Error Codes
-
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 422 | `validation_error` | Invalid query parameters |
-| 500 | `internal_error` | Server error occurred |
-
-## Use Cases
-
-### Full Refund
-Credit note with same amount as original invoice (negative):
-- Original invoice: 1,190.00 RON
-- Credit note: -1,190.00 RON
-- Net result: 0.00 RON
-
-### Partial Refund
-Credit note with portion of original amount:
-- Original invoice: 8,330.00 RON
-- Credit note: -1,190.00 RON (one line item)
-- Net result: 7,140.00 RON
-
-### Error Correction
-Credit original invoice, issue new corrected invoice:
-1. Credit note: -8,330.00 RON (reverses entire original)
-2. New invoice: 8,530.00 RON (correct amount)
-3. Net result: +200.00 RON difference
-
-## Best Practices
-
-1. **Always reference parent** - Link credit note to original invoice
-2. **Include clear notes** - Explain reason for credit note
-3. **Upload promptly** - Submit to ANAF within required timeframe
-4. **Track against original** - Monitor total credited amount vs original
-5. **Notify client** - Send credit note to client with explanation
-6. **Update accounting** - Sync to accounting system for proper recording
+| Status Code | Description |
+|-------------|-------------|
+| `401` | Missing or invalid authentication token |
+| `403` | The user lacks the permission to view invoices |
+| `404` | `Company not found.` |
+| `500` | `status` or `type` has an unknown value |

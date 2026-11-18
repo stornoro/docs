@@ -28,7 +28,7 @@ Retrieve user notifications with pagination support.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | page | integer | No | Page number (default: 1) |
-| limit | integer | No | Items per page (default: 20, max: 100) |
+| limit | integer | No | Items per page (default: 10, max: 20). Larger values are reduced to 20 |
 
 ### Response
 
@@ -37,35 +37,39 @@ Retrieve user notifications with pagination support.
   "data": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "type": "invoice_received",
-      "title": "Factură nouă primită",
-      "message": "Ați primit factura FINV2026001 de la SC Example SRL",
+      "type": "invoice.validated",
+      "channel": "in_app",
+      "title": "Factură validată",
+      "message": "Factura FINV2026001 a fost validată de ANAF",
+      "from": null,
+      "link": null,
       "data": {
-        "invoiceId": "123e4567-e89b-12d3-a456-426614174000",
-        "invoiceNumber": "FINV2026001",
-        "clientName": "SC Example SRL",
-        "amount": 11900.00
+        "invoiceNumber": "FINV2026001"
       },
       "isRead": false,
-      "createdAt": "2026-02-16T10:30:00Z",
+      "readAt": null,
+      "sentAt": "2026-02-16T10:30:00+00:00",
+      "createdAt": "2026-02-16T10:30:00+00:00",
       "push": {
         "attempted": true,
-        "sentAt": "2026-02-16T10:30:01Z",
+        "sentAt": "2026-02-16T10:30:01+00:00",
         "error": null,
         "skippedReason": null
       }
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440001",
-      "type": "sync_completed",
-      "title": "Sincronizare finalizată",
-      "message": "Sincronizare e-Factura finalizată: 5 facturi noi",
-      "data": {
-        "syncedCount": 5,
-        "cif": "12345678"
-      },
+      "type": "sync.error",
+      "channel": "in_app",
+      "title": "Eroare la sincronizare",
+      "message": "Sincronizarea e-Factura a întâmpinat erori",
+      "from": null,
+      "link": null,
+      "data": {},
       "isRead": true,
-      "createdAt": "2026-02-16T09:00:00Z",
+      "readAt": "2026-02-16T09:10:00+00:00",
+      "sentAt": "2026-02-16T09:00:00+00:00",
+      "createdAt": "2026-02-16T09:00:00+00:00",
       "push": {
         "attempted": false,
         "sentAt": null,
@@ -76,12 +80,11 @@ Retrieve user notifications with pagination support.
   ],
   "total": 47,
   "page": 1,
-  "limit": 20,
-  "pages": 3
+  "limit": 10
 }
 ```
 
-### Response Fields
+### Response fields
 
 #### Pagination
 | Field | Type | Description |
@@ -90,21 +93,25 @@ Retrieve user notifications with pagination support.
 | total | integer | Total number of notifications |
 | page | integer | Current page number |
 | limit | integer | Items per page |
-| pages | integer | Total number of pages |
 
-#### Notification Object
+#### Notification object
 | Field | Type | Description |
 |-------|------|-------------|
-| id | string | UUID of notification |
-| type | string | Notification type identifier |
+| id | string | Notification UUID |
+| type | string | Event name, for example `invoice.validated` |
+| channel | string | Channel the notification was created for, `in_app` |
 | title | string | Notification title |
 | message | string | Notification message |
-| data | object | Additional notification data (type-specific) |
-| isRead | boolean | Whether notification has been read |
+| from | string\|null | Sender label |
+| link | string\|null | Link to the related page |
+| data | object | Additional data, depends on the type |
+| isRead | boolean | Whether the notification has been read |
+| readAt | string\|null | ISO 8601 time of the last update of a read notification |
+| sentAt | string\|null | ISO 8601 timestamp |
 | createdAt | string | ISO 8601 timestamp |
 | push | object | Push delivery diagnostics (see below) |
 
-#### Push Delivery Object
+#### Push delivery object
 | Field | Type | Description |
 |-------|------|-------------|
 | attempted | boolean | Whether the backend tried to push to FCM/APNs |
@@ -112,22 +119,12 @@ Retrieve user notifications with pagination support.
 | error | string\|null | Last error from FCM/relay if all attempts failed |
 | skippedReason | string\|null | `quiet_hours` (muted overnight) or `no_devices` (no registered devices) |
 
-### Notification Types
+### Notification types
 
-| Type | Description |
-|------|-------------|
-| invoice_received | New invoice received from ANAF |
-| invoice_paid | Invoice marked as paid |
-| sync_completed | E-Factura sync finished |
-| sync_failed | E-Factura sync failed |
-| token_expiring | ANAF token expiring soon |
-| token_expired | ANAF token has expired |
-| payment_overdue | Payment is overdue |
-| invitation_received | Invited to join organization |
+`type` is a dotted event name. The event types a user can configure are listed in [Get notification preferences](/api-reference/notification-preferences/get). Examples are `invoice.validated`, `invoice.rejected`, `invoice.overdue`, `payment.received`, `token.expiring_soon`, `sync.error` and `fiscal.deadline`. Other types can appear, so treat `type` as an open set.
 
-### Error Responses
+### Error responses
 
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
-| 422 | Invalid pagination parameters |

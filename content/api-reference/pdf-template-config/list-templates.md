@@ -18,14 +18,12 @@ GET /api/v1/pdf-template-config/templates
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token or API key for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 
 ## Request
 
 ```bash {% title="cURL" %}
 curl https://api.storno.ro/api/v1/pdf-template-config/templates \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Company: 550e8400-e29b-41d4-a716-446655440000"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 ## Response

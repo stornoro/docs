@@ -5,7 +5,7 @@ description: Permanently delete an email template.
 
 # Delete email template
 
-Permanently deletes an email template from the authenticated company.
+Permanently deletes an email template. Needs the Professional or Business plan, otherwise the call returns `402` with `code: "PLAN_LIMIT"`.
 
 ```http
 DELETE /api/v1/email-templates/{uuid}
@@ -24,11 +24,17 @@ DELETE /api/v1/email-templates/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | Conditional | Company UUID. Optional when the organization has a single company. The `?company=` query parameter is also accepted |
 
 ## Response
 
-Returns a `204 No Content` status on successful deletion with no response body.
+Returns `200 OK`:
+
+```json
+{
+  "message": "Email template deleted."
+}
+```
 
 ## Example Request
 
@@ -38,37 +44,19 @@ curl -X DELETE 'https://api.storno.ro/api/v1/email-templates/template-uuid-3' \
   -H 'X-Company: company-uuid'
 ```
 
-## Example Response
-
-```http
-HTTP/1.1 204 No Content
-```
-
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Email template not found or doesn't belong to company |
-| 409 | conflict | Cannot delete the last template or the default template |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 402 | The plan does not include email templates. Body has `code: "PLAN_LIMIT"` |
+| 403 | Missing the `email_template.manage` permission |
+| 404 | Email template not found, or it belongs to another organization |
 
 ## Important Notes
 
-- This is a permanent delete operation - data cannot be recovered
-- You cannot delete the last remaining email template for a company
-- You cannot delete the default template; set another template as default first
+- This is a permanent delete. The data cannot be recovered
 - Emails already sent using this template are not affected
-- Recurring invoices configured to use this template will fall back to the default template
-
-## Recommended Approach
-
-Before deleting a template:
-
-1. **Check usage** - Verify if any recurring invoices use this template
-2. **Set new default** - If deleting the default template, set another as default
-3. **Keep alternatives** - Ensure at least one other template exists
-4. **Archive content** - Save the template content externally if you might need it later
 
 ## Related Endpoints
 

@@ -24,25 +24,29 @@ GET /api/v1/invoices/{uuid}/payments
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The invoice is found by its UUID, so the header is not used |
 
 ## Response
 
-Returns an array of payment objects.
+Returns a JSON array of payment objects. The list is not paginated.
 
 ### Payment Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `amount` | number | Payment amount |
+| `id` | string | Unique identifier |
+| `amount` | string | Payment amount, for example `"1500.00"` |
 | `currency` | string | Currency code (ISO 4217) |
-| `paymentDate` | string | ISO 8601 payment date |
-| `paymentMethod` | string | Payment method: `bank_transfer`, `cash`, `card`, `other` |
-| `reference` | string \| null | Payment reference number |
-| `notes` | string \| null | Additional notes |
+| `paymentDate` | string | ISO 8601 date and time |
+| `paymentMethod` | string | Payment method, stored as it was sent (for example `bank_transfer`, `cash`, `card`) |
+| `reference` | string or null | Payment reference number |
+| `notes` | string or null | Additional notes |
+| `isReconciled` | boolean | Whether the payment was matched to a bank transaction |
+| `receiptNumber` | string or null | Receipt (chitanta) number, once issued |
+| `receiptDate` | string or null | Receipt date |
+| `receiptIssuedAt` | string or null | When the receipt was issued |
+| `receiptSeriesId` | string or null | UUID of the receipt series |
 | `createdAt` | string | ISO 8601 creation timestamp |
-| `updatedAt` | string | ISO 8601 update timestamp |
 
 ## Example Request
 
@@ -57,54 +61,52 @@ curl -X GET 'https://api.storno.ro/api/v1/invoices/invoice-uuid-1/payments' \
 ```json
 [
   {
-    "uuid": "payment-uuid-1",
-    "amount": 1500.00,
+    "id": "payment-uuid-1",
+    "amount": "1500.00",
     "currency": "RON",
-    "paymentDate": "2026-02-15",
+    "paymentDate": "2026-02-15T00:00:00+00:00",
     "paymentMethod": "bank_transfer",
     "reference": "TRF-2026-02-15-001",
     "notes": "Virament bancar în cont principal",
-    "createdAt": "2026-02-15T14:30:00Z",
-    "updatedAt": "2026-02-15T14:30:00Z"
+    "isReconciled": false,
+    "receiptNumber": null,
+    "receiptDate": null,
+    "receiptIssuedAt": null,
+    "receiptSeriesId": null,
+    "createdAt": "2026-02-15T14:30:00+00:00"
   },
   {
-    "uuid": "payment-uuid-2",
-    "amount": 880.00,
+    "id": "payment-uuid-2",
+    "amount": "880.00",
     "currency": "RON",
-    "paymentDate": "2026-02-10",
+    "paymentDate": "2026-02-10T00:00:00+00:00",
     "paymentMethod": "bank_transfer",
     "reference": "TRF-2026-02-10-045",
     "notes": "Plată parțială",
-    "createdAt": "2026-02-10T10:15:00Z",
-    "updatedAt": "2026-02-10T10:15:00Z"
+    "isReconciled": false,
+    "receiptNumber": null,
+    "receiptDate": null,
+    "receiptIssuedAt": null,
+    "receiptSeriesId": null,
+    "createdAt": "2026-02-10T10:15:00+00:00"
   }
 ]
 ```
 
-## Payment Methods
-
-| Value | Description |
-|-------|-------------|
-| `bank_transfer` | Bank transfer / wire transfer |
-| `cash` | Cash payment |
-| `card` | Card payment (credit/debit) |
-| `other` | Other payment method |
-
 ## Errors
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | unauthorized | Invalid or missing authentication token |
-| 403 | forbidden | Missing or invalid X-Company header |
-| 404 | not_found | Invoice not found or doesn't belong to company |
+Error responses have the body `{"error": "message"}`.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Invalid or missing authentication token |
+| 403 | The invoice is not accessible to the caller |
+| 404 | Invoice not found |
 
 ## Important Notes
 
-- Payments are ordered by `paymentDate` in descending order (most recent first)
-- The sum of all payment amounts should not exceed the invoice total
-- Each payment updates the invoice's `amountPaid` field
-- When `amountPaid` equals `totalAmount`, the invoice status becomes `paid`
-- When `amountPaid` is greater than 0 but less than `totalAmount`, status becomes `partially_paid`
+- Payments are ordered by `paymentDate`, most recent first.
+- Payments update the invoice `amountPaid`, `balance` and `paidAt`. They do not change the invoice `status`.
 
 ## Related Endpoints
 

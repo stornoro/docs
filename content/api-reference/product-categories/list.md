@@ -32,10 +32,19 @@ GET /api/v1/product-categories
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Category UUID |
-| `name` | string | Display name (1–100 chars) |
+| `name` | string | Display name (up to 100 chars) |
 | `color` | string \| null | Optional hex swatch (`#RRGGBB`) used for the chip and as Product card fallback |
 | `sortOrder` | integer | Sort key (smaller = earlier) |
 
 ## Permissions
 
 Requires `product.view`.
+
+## Errors
+
+| Status | Description |
+|--------|-------------|
+| 403 | Permission denied |
+| 404 | Company not found |
+
+Error bodies have the form `{"error": "message"}`.

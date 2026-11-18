@@ -5,7 +5,7 @@ description: Download or generate the PDF representation of an invoice
 
 # Download invoice PDF
 
-Downloads the PDF representation of an invoice. If the PDF has not been generated yet, it will be created on-demand.
+Downloads the PDF of an invoice. A PDF of an outgoing invoice is rendered on every request from the current invoice data and the company's template settings. A received invoice is served from its stored PDF when there is one, otherwise it is rendered from its XML. Plans without PDF generation get `402`.
 
 ```
 GET /api/v1/invoices/{uuid}/pdf
@@ -16,7 +16,7 @@ GET /api/v1/invoices/{uuid}/pdf
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -70,12 +70,10 @@ Returns the PDF file with `Content-Type: application/pdf`.
 
 ### Response headers
 
-| Header | Value | Description |
-|--------|-------|-------------|
-| `Content-Type` | application/pdf | PDF content type |
-| `Content-Disposition` | inline; filename="FAC-2024-001.pdf" | Display inline or download |
-| `Content-Length` | {size} | File size in bytes |
-| `X-Generated-At` | 2024-02-15T09:00:00Z | When the PDF was generated |
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/pdf` |
+| `Content-Disposition` | `inline; filename="invoice-FAC0001.pdf"` |
 
 ## PDF features
 
@@ -123,44 +121,21 @@ PDF appearance can be customized in company settings:
 - Custom footer text
 - Signature image
 
-## When is PDF generated
+## Generation
 
-The PDF is generated automatically or on-demand:
-
-1. **Automatic** - When invoice is issued
-2. **On-demand** - First time this endpoint is called
-3. **Regeneration** - When invoice is updated and reissued
-
-## Performance
-
-- **First generation**: 1-3 seconds
-- **Cached PDF**: < 100ms
-- **Complex invoices** (50+ lines): 3-5 seconds
-
-For large invoices, consider using asynchronous generation:
-
-```javascript
-// Check if PDF exists
-const invoice = await fetch('/api/v1/invoices/{uuid}').then(r => r.json());
-
-if (invoice.pdfGenerated) {
-  // Download immediately
-  window.open('/api/v1/invoices/{uuid}/pdf', '_blank');
-} else {
-  // Show loading state and poll
-  await generatePdf();
-}
-```
+Rendering takes a second or more, longer for invoices with many lines. When the invoice is issued, a PDF is also stored on the invoice; the download of an outgoing invoice does not use it.
 
 ## Error codes
+
+Error bodies have the form `{"error": "message"}`.
 
 | Code | Description |
 |------|-------------|
 | `401` | Missing or invalid authentication token |
-| `403` | No access to company |
+| `402` | PDF generation is not available on the plan: `{"error": "...", "code": "PLAN_LIMIT"}` |
+| `403` | The invoice belongs to another organization, or the user cannot view invoices |
 | `404` | Invoice not found |
-| `422` | Invoice cannot be rendered as PDF (invalid data) |
-| `500` | PDF generation failed (temporary error) |
+| `500` | PDF generation failed |
 
 ## Use cases
 

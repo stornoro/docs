@@ -28,58 +28,53 @@ Register a device token to enable push notifications for the authenticated user.
 
 ```json
 {
-  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "token": "fcm-device-token-0123456789abcdef",
   "platform": "ios"
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| token | string | Yes | Device push notification token |
+| token | string | Yes | Device push token. 20 to 512 characters from `A-Z`, `a-z`, `0-9`, `:`, `_` and `-` |
 | platform | string | Yes | Device platform: `ios`, `android`, or `web` |
 
 ### Response
 
-Returns `201 Created` with the device registration:
+Returns `201 Created` when the device is new:
 
 ```json
 {
-  "id": "bb0e8400-e29b-41d4-a716-446655440007",
-  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
-  "platform": "ios",
-  "registeredAt": "2026-02-16T12:00:00Z"
+  "status": "registered"
 }
 ```
 
-### Response Fields
+Returns `200 OK` when the same user registers a token that already exists. The `lastUsedAt` time is refreshed:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | string | Device registration UUID |
-| token | string | Device push token |
-| platform | string | Device platform |
-| registeredAt | string | ISO 8601 registration timestamp |
+```json
+{
+  "status": "updated"
+}
+```
 
-### Platform Values
+### Platform values
 
-| Platform | Description | Token Format |
-|----------|-------------|--------------|
-| ios | iOS devices | Apple APNs token or Expo token |
-| android | Android devices | Firebase FCM token or Expo token |
-| web | Web browsers | Web Push subscription or Expo token |
+| Platform | Description |
+|----------|-------------|
+| ios | iOS devices |
+| android | Android devices |
+| web | Web browsers |
 
 ### Error Responses
 
 | Status | Description |
 |--------|-------------|
+| 400 | `token` or `platform` is missing, the token does not match the format above, or `platform` is not one of the listed values |
 | 401 | Unauthorized - invalid authentication |
-| 422 | Validation error - invalid token or platform |
+| 402 | The organization's plan does not include the mobile app. Body has `code: "PLAN_LIMIT"` |
+| 409 | The token is already registered to another account |
 
 ### Notes
 
-- Multiple devices can be registered per user
-- Registering the same token again updates the existing registration
-- Tokens are validated for format based on platform
-- Use the `/devices` DELETE endpoint to unregister
-- Expo push tokens work across all platforms
-- Only active devices receive push notifications
+- A user can have at most 10 devices. Registering an 11th removes the oldest one
+- Registering the same token again from the same account updates the existing registration
+- Use `DELETE /api/v1/devices` to unregister

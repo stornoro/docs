@@ -21,7 +21,7 @@ Deactivate a member by setting their `isActive` status to false. Member data is 
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| uuid | string | Member UUID |
+| uuid | string | Membership UUID (the `id` field of the members list) |
 
 ### Headers
 
@@ -35,18 +35,20 @@ Returns `204 No Content` on successful deactivation.
 
 ### Restrictions
 
-The following members cannot be deactivated:
-- The authenticated user (cannot deactivate self)
-- Organization owner
-- Super admin accounts
+- You cannot deactivate yourself
+- Only an owner can deactivate an owner
+- Super admin accounts can only be deactivated by super admins
 
 ### Error Responses
+
+Errors return `{"error": "..."}`.
 
 | Status | Description |
 |--------|-------------|
 | 401 | Unauthorized - invalid authentication |
-| 403 | Forbidden - cannot deactivate self, owner, or super admin |
+| 403 | Insufficient permissions, deactivating an owner without being an owner, or deactivating a super admin |
 | 404 | Member not found |
+| 422 | You cannot deactivate your own account |
 
 ### Notes
 
@@ -54,4 +56,4 @@ The following members cannot be deactivated:
 - Deactivated members cannot log in to the organization
 - Invoices and other data created by the member remain intact
 - To reactivate, use the PATCH endpoint to set `isActive: true`
-- Only organization admins and owners can deactivate members
+- Requires the `org.manage_members` permission

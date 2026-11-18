@@ -14,7 +14,6 @@ Sends a delivery note to a client via email with the PDF attached. The subject a
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ## Path Parameters
@@ -32,6 +31,7 @@ Sends a delivery note to a client via email with the PDF attached. The subject a
 | `body` | string | No | Email body (uses default template if omitted) |
 | `cc` | string[] | No | Array of CC email addresses |
 | `bcc` | string[] | No | Array of BCC email addresses |
+| `templateId` | string | No | Id of one of the company's email templates, used for `subject` and `body` when they are omitted |
 
 ## Request
 
@@ -42,8 +42,8 @@ curl -X POST https://api.storno.ro/api/v1/delivery-notes/950e8400-e29b-41d4-a716
   -H "Content-Type: application/json" \
   -d '{
     "to": "contact@client.ro",
-    "subject": "Aviz de livrare DN-2026-012",
-    "body": "Buna ziua,\n\nGasiti atasat avizul de livrare DN-2026-012.\n\nMultumim!",
+    "subject": "Aviz de livrare DN0012",
+    "body": "Buna ziua,\n\nGasiti atasat avizul de livrare DN0012.\n\nMultumim!",
     "cc": ["accounting@client.ro"]
   }'
 ```
@@ -58,8 +58,8 @@ const response = await fetch('https://api.storno.ro/api/v1/delivery-notes/950e84
   },
   body: JSON.stringify({
     to: 'contact@client.ro',
-    subject: 'Aviz de livrare DN-2026-012',
-    body: 'Buna ziua,\n\nGasiti atasat avizul de livrare DN-2026-012.\n\nMultumim!',
+    subject: 'Aviz de livrare DN0012',
+    body: 'Buna ziua,\n\nGasiti atasat avizul de livrare DN0012.\n\nMultumim!',
     cc: ['accounting@client.ro']
   })
 });
@@ -69,18 +69,29 @@ const data = await response.json();
 
 ## Response
 
-Returns an email log object confirming the email was sent:
+Returns the email log entry (`200 OK`):
 
 ```json
 {
   "id": "8f9a0b1c-2d3e-4f5a-6b7c-8d9e0f1a2b3c",
-  "to": "contact@client.ro",
-  "cc": ["accounting@client.ro"],
-  "bcc": null,
-  "subject": "Aviz de livrare DN-2026-012",
-  "attachments": ["aviz-DN-2026-012.pdf"],
-  "sentAt": "2026-02-18T14:35:00Z",
-  "deliveryStatus": "sent"
+  "category": "delivery_note",
+  "toEmail": "contact@client.ro",
+  "ccEmails": ["accounting@client.ro"],
+  "bccEmails": null,
+  "subject": "Aviz de livrare DN0012",
+  "sentAt": "2026-02-18T14:35:00+00:00",
+  "status": "sent",
+  "templateUsed": null,
+  "errorMessage": null,
+  "sesMessageId": "0102018d-example",
+  "fromEmail": "noreply@example.com",
+  "fromName": "Your Company SRL",
+  "events": [],
+  "invoiceId": null,
+  "invoiceNumber": null,
+  "sentByEmail": "john@yourcompany.ro",
+  "deliveryNoteId": "950e8400-e29b-41d4-a716-446655440000",
+  "deliveryNoteNumber": "DN0012"
 }
 ```
 
@@ -89,13 +100,21 @@ Returns an email log object confirming the email was sent:
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Email log UUID |
-| `to` | string | Primary recipient email address |
-| `cc` | string[]\|null | CC recipients |
-| `bcc` | string[]\|null | BCC recipients |
+| `category` | string | `delivery_note` |
+| `toEmail` | string | Primary recipient email address |
+| `ccEmails` | string[]\|null | CC recipients |
+| `bccEmails` | string[]\|null | BCC recipients |
 | `subject` | string | Subject line that was sent |
-| `attachments` | string[] | List of attached file names |
 | `sentAt` | string | ISO 8601 timestamp of when the email was sent |
-| `deliveryStatus` | string | `sent`, `queued`, or `failed` |
+| `status` | string | `sent`, `delivered`, `bounced` or `failed` |
+| `templateUsed` | string\|null | Template used, if any |
+| `errorMessage` | string\|null | Error text when `status` is `failed` |
+| `sesMessageId` | string\|null | Id of the message at the mail provider |
+| `fromEmail`, `fromName` | string\|null | Sender address and display name |
+| `events` | array | Delivery events recorded for the message (bounces, opens) |
+| `sentByEmail` | string\|null | Email of the user who sent it |
+| `deliveryNoteId`, `deliveryNoteNumber` | string\|null | The delivery note the email belongs to |
+| `invoiceId`, `invoiceNumber` | string\|null | Always null for delivery note emails |
 
 ## Template Variables
 
@@ -104,8 +123,8 @@ When using the default email template (subject or body omitted), the following v
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `[[client_name]]` | Client company name | Client SRL |
-| `[[delivery_note_number]]` | Delivery note number | DN-2026-012 |
-| `[[total]]` | Formatted total with currency | 5,950.00 RON |
+| `[[delivery_note_number]]` | Delivery note number | DN0012 |
+| `[[total]]` | Total as stored, without currency (use `[[currency]]` next to it) | 6050.00 |
 | `[[issue_date]]` | Issue date | 18.02.2026 |
 | `[[company_name]]` | Your company name | Your Company SRL |
 | `[[currency]]` | Currency code | RON |
@@ -126,19 +145,22 @@ Organizations on the Business plan that relay through their own SMTP server (whi
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `bad_request` | Invalid or missing `to` email address |
+Errors have the form `{"error": "message"}`. The email guard adds a `code` field.
+
+| Status Code | `code` | Description |
+|-------------|--------|-------------|
+| 400 | | Invalid or missing `to` email address, or unknown `templateId` |
 | 400 | `EMAIL_TOO_MANY_RECIPIENTS` | More than 5 recipients across `to`, `cc` and `bcc` |
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Delivery note not found or doesn't belong to the company |
+| 401 | | Missing or invalid authentication token |
 | 402 | `PLAN_LIMIT` | Email sending is not available on the organization's plan |
+| 403 | | Permission denied |
+| 403 | `PLAN_LIMIT` | Email sending is disabled for the organization |
+| 404 | | Delivery note not found or not in the caller's organization |
 | 422 | `EMAIL_RECIPIENT_NOT_CLIENT` | A recipient is not a client of the company |
 | 422 | `EMAIL_CONTENT_BLOCKED` | Subject or body rejected by the abuse filter |
 | 429 | `EMAIL_RATE_LIMIT` | Per-user burst limit exceeded; retry after the `Retry-After` header |
 | 429 | `EMAIL_DAILY_LIMIT` | Organization's rolling 24h cap reached |
-| 500 | `internal_error` | Email sending failed |
+| 500 | | Email sending failed |
 
 ## Related Endpoints
 

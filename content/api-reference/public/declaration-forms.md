@@ -85,8 +85,9 @@ The PDF is what gets uploaded: through the [Storno Agent](/agent) with a qualifi
 | Status | Code | Description |
 |---|---|---|
 | `400` | `INVALID_JSON`, `INVALID_ATTACHMENT` | body is not JSON, or an attachment is not base64 |
-| `404` | `UNKNOWN_FORM` | no builder for this type |
+| `404` | `UNKNOWN_FORM`, `NO_XSD` | no builder for this type, or no XSD for the form with `?xsd=1` |
 | `413` | `PAYLOAD_TOO_LARGE` | build over 512 KB, PDF request over 16 MB |
 | `422` | `VALIDATION_FAILED`, `UNKNOWN_TYPE` | attachment missing where required, XML rejected by ANAF, type not given |
 | `429` | `RATE_LIMITED` | more than 60 requests per hour from this IP |
+| `502` | `PDF_FAILED` | the PDF could not be generated |
 | `503` | `VALIDATOR_UNAVAILABLE` | DUKIntegrator not running |

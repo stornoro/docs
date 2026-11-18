@@ -7,7 +7,7 @@ endpoint: /api/v1/licensing/keys/{id}
 
 # Revoke License Key
 
-Deactivate a license key, revoking access for the associated self-hosted instance. The instance will fall back to the Community (free) plan on its next validation cycle. Only the organization owner can revoke keys.
+Deactivate a license key, revoking access for the associated self-hosted instance. The instance will fall back to the Community (free) plan on its next validation cycle. Requires the `org.manage_billing` permission.
 
 ## Request
 
@@ -78,7 +78,7 @@ $response = $client->delete(
 | Code | Description |
 |------|-------------|
 | `401` | Unauthorized — Missing or invalid token |
-| `403` | Forbidden — User is not the organization owner |
+| `403` | Forbidden — the user lacks `org.manage_billing` |
 | `404` | Not Found — License key not found or belongs to a different organization |
 
 ## Usage Notes

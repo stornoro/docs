@@ -46,30 +46,32 @@ const data = await response.json();
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "type": "d394",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "type": "d300",
   "year": 2026,
   "month": 1,
   "periodType": "monthly",
   "status": "accepted",
   "data": {
-    "totalSalesBase": "84033.61",
-    "totalSalesVat": "15966.39",
-    "totalPurchasesBase": "42016.81",
-    "totalPurchasesVat": "7983.19",
-    "invoiceCount": 47
+    "layout": "v2026",
+    "rows": {
+      "R9_1": 84034,
+      "R9_2": 17647
+    },
+    "warnings": []
   },
   "metadata": {
-    "generatedAt": "2026-02-10T08:05:00Z",
-    "invoiceCountAtGeneration": 47
+    "dukValidation": {
+      "valid": true,
+      "validatedAt": "2026-02-10 08:10:00"
+    }
   },
-  "errorMessage": null,
   "anafUploadId": "5000012345",
-  "xmlPath": "declarations/2026/01/d394-2026-01.xml",
-  "recipisaPath": "declarations/2026/01/d394-2026-01-recipisa.pdf",
-  "createdAt": "2026-02-10T08:00:00Z",
-  "updatedAt": "2026-02-10T09:15:00Z",
-  "createdBy": "user-uuid-here"
+  "errorMessage": null,
+  "submittedAt": "2026-02-10T08:15:00+00:00",
+  "acceptedAt": "2026-02-10T09:15:00+00:00",
+  "companyId": "company-uuid-here",
+  "dosarId": null
 }
 ```
 
@@ -77,27 +79,27 @@ const data = await response.json();
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `uuid` | string | Unique identifier |
-| `type` | string | Declaration type: `d394`, `d300`, `d390`, `d100`, `d112` |
+| `id` | string | Declaration UUID |
+| `type` | string | Declaration type: `d394`, `d300`, `d390`, `d392`, `d393`, `d406`, `d100`, `d101`, `d106`, `d112`, `d120`, `d130`, `d180`, `d205`, `d208`, `d212`, `d301`, `d311`, `d398`, `c168` |
 | `year` | integer | Fiscal year |
 | `month` | integer | Fiscal month (1–12) |
-| `periodType` | string \| null | Period type (e.g., `monthly`, `quarterly`) |
+| `periodType` | string | Period type: `monthly`, `quarterly` or `annual` |
 | `status` | string | Current status: `draft`, `validated`, `submitted`, `processing`, `accepted`, `rejected`, `error` |
-| `data` | object | Declaration payload — fiscal figures auto-populated from invoices; structure varies by declaration type |
-| `metadata` | object | System metadata such as generation timestamp and source invoice counts |
-| `errorMessage` | string \| null | Error details when status is `rejected` or `error` |
+| `data` | object \| null | Declaration payload; the structure depends on the declaration type. Attachments (for example the scanned contract of a C168) carry only `name`, `size`, `mime` and `stored`, never the file content |
+| `metadata` | object \| null | System metadata such as the validation result (`dukValidation`), the upload `source` or the ANAF answer (`uploadResult`) |
 | `anafUploadId` | string \| null | ANAF upload index number assigned after submission |
-| `xmlPath` | string \| null | Internal storage path of the generated XML file |
-| `recipisaPath` | string \| null | Internal storage path of the ANAF recipisa PDF |
-| `createdAt` | string | ISO 8601 timestamp of creation |
-| `updatedAt` | string | ISO 8601 timestamp of last update |
-| `createdBy` | string \| null | UUID of the user who created the declaration |
+| `errorMessage` | string \| null | Error details when status is `rejected` or `error` |
+| `submittedAt` | string \| null | ISO 8601 time the declaration was submitted |
+| `acceptedAt` | string \| null | ISO 8601 time ANAF accepted it |
+| `companyId` | string | UUID of the company |
+| `dosarId` | string \| null | UUID of the [dosar](/api-reference/dosare/overview) the declaration belongs to |
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Declaration not found or doesn't belong to the company |
-| 500 | `internal_error` | Server error occurred |
+Errors have the body `{"error": "message"}`, with an extra `code` field on some of them.
+
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | The caller lacks the `declaration.view` permission |
+| 404 | Declaration not found or it belongs to another company |

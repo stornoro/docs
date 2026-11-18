@@ -9,16 +9,16 @@ endpoint: /api/v1/receipts/{uuid}/issue
 
 Marks a receipt as issued, recording the moment the fiscal receipt is printed and handed to the customer. This action transitions the receipt from `draft` status to `issued` status and records the timestamp.
 
-When the receipt is issued, the next sequential number from its assigned `receipt` series is permanently assigned. If no series was explicitly set on the receipt, the company's default `receipt` series is auto-found and used at this point.
+When the receipt is issued, the next sequential number from its assigned `receipt` series is permanently assigned. If no series was explicitly set on the receipt, the company's default `receipt` series is auto-found and used at this point. When the company has no `receipt` series, the receipt is issued and keeps its temporary number.
 
-Once issued, the receipt becomes immutable and can only be cancelled or converted to an invoice.
+Once issued, the receipt keeps its number and can be cancelled, refunded or converted to an invoice.
 
 ## Headers
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -48,24 +48,24 @@ const data = await response.json();
 
 ## Response
 
-Returns the updated receipt with `status = issued` and `issuedAt` timestamp:
+Returns the receipt in the same shape as [Get receipt](/api-reference/receipts/get), with `status = issued` and `issuedAt` set (`lines` abbreviated here):
 
 ```json
 {
-  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "number": "BON-2026-042",
-  "documentSeriesId": "850e8400-e29b-41d4-a716-446655440000",
-  "series": {
-    "uuid": "850e8400-e29b-41d4-a716-446655440000",
-    "name": "BON",
-    "nextNumber": 43
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "number": "BON0042",
+  "documentSeries": {
+    "id": "850e8400-e29b-41d4-a716-446655440000",
+    "prefix": "BON",
+    "nextNumber": "BON0043"
   },
   "status": "issued",
-  "issueDate": "2026-02-18",
   "currency": "RON",
+  "issueDate": "2026-02-18T00:00:00+02:00",
   "subtotal": "210.92",
-  "vatAmount": "40.08",
+  "vatTotal": "40.08",
   "total": "251.00",
+  "discount": "0.00",
   "paymentMethod": "mixed",
   "cashPayment": "100.00",
   "cardPayment": "151.00",
@@ -74,11 +74,12 @@ Returns the updated receipt with `status = issued` and `issuedAt` timestamp:
   "fiscalNumber": "AAAA123456",
   "customerName": "Acme SRL",
   "customerCif": "RO12345678",
-  "issuedAt": "2026-02-18T10:15:00Z",
+  "lines": [],
+  "convertedInvoice": null,
+  "issuedAt": "2026-02-18T10:15:00+00:00",
   "cancelledAt": null,
-  "convertedInvoiceId": null,
-  "createdAt": "2026-02-18T10:14:00Z",
-  "updatedAt": "2026-02-18T10:15:00Z"
+  "refundOf": null,
+  "refundedBy": []
 }
 ```
 
@@ -91,52 +92,31 @@ Returns the updated receipt with `status = issued` and `issuedAt` timestamp:
 ### Series & Number Assignment
 - The next sequential number from the assigned `receipt` series is permanently locked in
 - If no `documentSeriesId` was set on the receipt, the company's default `receipt` series is auto-found and assigned at this point
-- Once issued, the series and document number cannot be changed
+- The document number does not change after it is assigned
 
 ### Timestamp
-- Sets `issuedAt` to current UTC timestamp (ISO 8601 format)
-- Updates `updatedAt` timestamp
+- Sets `issuedAt` to the current time (ISO 8601 format)
 
 ### Restrictions Applied
-Once marked as issued:
-- Cannot be updated (PUT requests will fail)
-- Cannot be deleted (DELETE requests will fail)
-- Can be cancelled or converted to an invoice
+Once issued:
+- The receipt can still be updated with `PUT`, but its number does not change
+- It cannot be deleted
+- It can be cancelled, refunded or converted to an invoice
 
 ## Validation Rules
 
-- Receipt must have `status = draft`
-- Cannot issue a receipt that is already issued, invoiced, or cancelled
-- Receipt must have at least one line item
+- Receipt must have `status = draft`. Any other status is refused with 422
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
-| 409 | `conflict` | Receipt status prevents issuing (not in draft status) |
-| 422 | `validation_error` | Receipt data is incomplete or invalid |
-| 500 | `internal_error` | Server error occurred |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+| 422 | Receipt is not in `draft` status |
 
-## Example Error Response
-
-### Status Conflict
-
-```json
-{
-  "error": {
-    "code": "conflict",
-    "message": "Receipt cannot be issued",
-    "details": {
-      "status": "issued",
-      "reason": "Receipt is already marked as issued",
-      "issuedAt": "2026-02-18T10:15:00Z"
-    }
-  }
-}
-```
+Error responses have the form `{"error": "message"}`.
 
 ## Workflow Integration
 

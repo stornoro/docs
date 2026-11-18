@@ -1,11 +1,11 @@
 ---
 title: Issue invoice
-description: Issue a draft invoice and generate XML/PDF
+description: Issue a draft invoice, assign its number and schedule the e-Factura submission
 ---
 
 # Issue invoice
 
-Issues a draft invoice by validating the data, generating the UBL 2.1 XML file, generating the PDF representation, and optionally scheduling e-invoice provider submission. Changes the invoice status from `draft` to `issued`.
+Issues a draft invoice: it validates the invoice, takes the next number of its document series, changes the status from `draft` to `issued` and stores the XML and PDF files. If the company has an automatic e-Factura delay configured, it also schedules the submission to ANAF.
 
 ```
 POST /api/v1/invoices/{uuid}/issue
@@ -16,7 +16,7 @@ POST /api/v1/invoices/{uuid}/issue
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Not used on this route: the invoice is found by its UUID |
 
 ## Path parameters
 
@@ -24,20 +24,28 @@ POST /api/v1/invoices/{uuid}/issue
 |------|------|----------|-------------|
 | `uuid` | string | Yes | Invoice UUID |
 
+The endpoint takes no body.
+
 ## What happens when you issue an invoice
 
-1. **Validation** - The invoice data is validated against business rules and UBL schema
-2. **Number assignment** - If the invoice number is not yet assigned, it gets the next number from the series
-3. **XML generation** - A UBL 2.1 compliant XML file is generated
-4. **PDF generation** - A formatted PDF invoice is generated
-5. **Status change** - The invoice status changes from `draft` to `issued`
-6. **Event logging** - An issue event is recorded in the invoice timeline
+1. **Validation.** The invoice is validated in full (UBL schema and Schematron). If it is not valid, nothing changes and the response is `422` with the list of errors.
+2. **Number assignment.** The invoice gets the next number of its document series (the default series for the document type when none is set), replacing the temporary `DRAFT-` number. Without any series the request fails with `422`.
+3. **Status change.** The status changes from `draft` to `issued`. An invoice that has a `parentDocumentId` (a credit note or storno) gets status `refund` instead, and its parent invoice becomes `refunded`.
+4. **Settlement.** An invoice with a zero or negative total, and any invoice with a parent, is marked as fully paid at once (`amountPaid` equals `total`).
+5. **Files.** The XML and PDF are generated and stored. A failure here does not stop the issue.
+6. **Event.** An event is recorded in the [invoice events](/api-reference/invoices/events).
+7. **Scheduled submission.** See below.
 
-Once issued, the invoice cannot be edited or deleted - only cancelled.
+An issued invoice that has not been uploaded to ANAF can still be edited. It cannot be deleted; it can be cancelled until it is uploaded.
 
-{% callout type="info" %}
-This endpoint does not automatically submit to the e-invoice provider. Use the [submit endpoint](/api-reference/invoices/submit) to send the invoice to the provider.
-{% /callout %}
+## Automatic e-Factura submission
+
+Issuing does not send the invoice to ANAF at once, but it schedules the submission when both conditions hold:
+
+- the company setting `efacturaDelayHours` is not null (allowed values: `null`, `2`, `24`, `48`, `72`, `96`; see [Update company](/api-reference/companies/update)), and
+- the client country is `RO` or not set.
+
+The invoice then gets a `scheduledSendAt` date and a background job submits it inside the 00:00 to 06:00 upload window (Romania time). For a delay of 24 hours or more it is the midnight starting that many days ahead; for a shorter delay it is the delay from now, moved to the next window if it falls outside it. With `efacturaDelayHours` set to `null`, nothing is scheduled and the invoice is sent only when you call the [submit endpoint](/api-reference/invoices/submit). Calling submit clears the schedule, and cancelling the invoice clears it too.
 
 ## Request
 
@@ -46,8 +54,7 @@ This endpoint does not automatically submit to the e-invoice provider. Use the [
 {% code-snippet title="cURL" %}
 ```bash
 curl -X POST https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/issue \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Company: 550e8400-e29b-41d4-a716-446655440000"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 {% /code-snippet %}
 
@@ -56,12 +63,12 @@ curl -X POST https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc
 const response = await fetch('https://api.storno.ro/api/v1/invoices/7c9e6679-7425-40de-944b-e07fc1f90ae7/issue', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer YOUR_TOKEN',
-    'X-Company': '550e8400-e29b-41d4-a716-446655440000'
+    'Authorization': 'Bearer YOUR_TOKEN'
   }
 });
 
-const invoice = await response.json();
+const result = await response.json();
+// result.status, result.number, result.scheduledSendAt
 ```
 {% /code-snippet %}
 
@@ -69,69 +76,40 @@ const invoice = await response.json();
 
 ## Response
 
-Returns the updated invoice object with status `issued`.
+Returns `200 OK` with a short summary, not the invoice. Fetch the invoice with [Get invoice details](/api-reference/invoices/get) if you need it.
 
 ```json
 {
-  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "number": "FAC-2024-001",
   "status": "issued",
-  "direction": "outgoing",
-  "currency": "RON",
-  "issueDate": "2024-02-15",
-  "dueDate": "2024-03-15",
-  "subtotal": 1000.00,
-  "vatTotal": 190.00,
-  "total": 1190.00,
-  "amountPaid": 0.00,
-  "balance": 1190.00,
-  "client": {
-    "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
-    "name": "Acme Corporation SRL",
-    "cif": "RO98765432"
-  },
-  "xmlGenerated": true,
-  "xmlPath": "/storage/invoices/2024/02/7c9e6679-xml.xml",
-  "pdfGenerated": true,
-  "pdfPath": "/storage/invoices/2024/02/7c9e6679-pdf.pdf",
-  "events": [
-    {
-      "id": "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
-      "type": "status_change",
-      "status": "issued",
-      "timestamp": "2024-02-15T09:00:00Z",
-      "details": "Invoice issued successfully"
-    }
-  ],
-  "updatedAt": "2024-02-15T09:00:00Z"
+  "number": "FAC0001",
+  "efacturaDelayHours": 24,
+  "scheduledSendAt": "2024-02-16T00:00:00+02:00",
+  "warning": null
 }
 ```
 
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | `issued`, or `refund` when the invoice has a parent document |
+| `number` | string | The number assigned from the series |
+| `efacturaDelayHours` | integer or null | The company setting at the time of issue |
+| `scheduledSendAt` | string or null | When the automatic submission is due. `null` when none was scheduled |
+| `warning` | object or null | Set when the client has a credit limit and this invoice takes the outstanding balance above it. Fields: `code` (`credit_limit_exceeded`), `message`, `creditLimit`, `outstanding`, `invoiceTotal`, `projected`, `currency`. The invoice is issued anyway |
+
 ## Error codes
+
+Error bodies have the form `{"error": "message"}`.
 
 | Code | Description |
 |------|-------------|
-| `400` | Validation error - invoice data is invalid or incomplete |
 | `401` | Missing or invalid authentication token |
-| `403` | No access to the specified company |
+| `403` | The invoice belongs to another organization, or the user cannot issue invoices |
 | `404` | Invoice not found |
-| `409` | Invoice is already issued or cannot be issued in current status |
-| `422` | Business validation error (e.g., missing required fields, invalid amounts) |
-
-## Common validation errors
-
-- Missing or invalid client information
-- Missing invoice lines
-- Negative or zero line quantities
-- Invalid VAT rates
-- Invalid currency code
-- Missing required tax identification numbers
-- Issue date in the future
-- Due date before issue date
+| `422` | The invoice is not a draft, has no document series, belongs to a blocked client, or failed validation. A validation failure returns `{"error": "...", "valid": false, "errors": [{"message", "source", "ruleId", "location"}], "warnings": []}` |
 
 ## Related endpoints
 
 - [Validate invoice](/api-reference/invoices/validate) - Validate invoice before issuing
-- [Submit invoice](/api-reference/invoices/submit) - Submit issued invoice to e-invoice provider
-- [Download XML](/api-reference/invoices/xml) - Download the generated XML
-- [Download PDF](/api-reference/invoices/pdf) - Download the generated PDF
+- [Submit invoice](/api-reference/invoices/submit) - Send an issued invoice to ANAF at once
+- [Download XML](/api-reference/invoices/xml) - Download the XML
+- [Download PDF](/api-reference/invoices/pdf) - Download the PDF

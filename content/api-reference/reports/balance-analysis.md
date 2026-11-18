@@ -120,23 +120,30 @@ Get the parsed account rows for a balance. Useful for debugging and verifying PD
 **Response:** `200 OK`
 
 ```json
-[
-  {
-    "accountCode": "411",
-    "accountName": "Clienti",
-    "initialDebit": "5000.00",
-    "initialCredit": "0.00",
-    "previousDebit": "12000.00",
-    "previousCredit": "8000.00",
-    "currentDebit": "3000.00",
-    "currentCredit": "2000.00",
-    "totalDebit": "15000.00",
-    "totalCredit": "10000.00",
-    "finalDebit": "10000.00",
-    "finalCredit": "5000.00"
-  }
-]
+{
+  "id": "0192d3e4-...",
+  "status": "completed",
+  "totalAccounts": 85,
+  "rows": [
+    {
+      "account_code": "411",
+      "account_name": "Clienti",
+      "initial_debit": "5000.00",
+      "initial_credit": "0.00",
+      "previous_debit": "12000.00",
+      "previous_credit": "8000.00",
+      "current_debit": "3000.00",
+      "current_credit": "2000.00",
+      "total_debit": "15000.00",
+      "total_credit": "10000.00",
+      "final_debit": "10000.00",
+      "final_credit": "5000.00"
+    }
+  ]
+}
 ```
+
+The rows are ordered by `account_code` and use snake_case keys.
 
 ---
 
@@ -164,7 +171,6 @@ Re-parse a balance PDF. Useful after parser improvements to re-extract data from
 
 ```json
 {
-  "message": "Reprocessing started",
   "id": "0192d3e4-...",
   "status": "pending"
 }
@@ -360,28 +366,28 @@ Romanian thresholds are configured at the top of `BalanceAnalysisService` (`MICR
 
 ## Indicator Computation
 
-Indicators are computed from the **latest month's** trial balance rows using the Romanian chart of accounts.
+Indicators are computed from the **latest completed month's** trial balance rows using the Romanian chart of accounts.
 
-**P&L accounts (classes 6-7)** use **cumulative turnover columns** (`currentDebit`/`currentCredit`) instead of final balance columns. This handles Romanian trial balances where monthly closing entries make `finalDebit == finalCredit` for P&L accounts, and year-end closings zero out final balances entirely.
+**P&L accounts (classes 6-7)** use the cumulative **total turnover columns** (`total_debit` / `total_credit`, "Sume totale"), which hold the year-to-date movement because these accounts open at zero. The monthly turnover columns (`current_debit` / `current_credit`) feed only `monthlyEvolution`.
 
-**Balance sheet accounts (classes 1-5)** use `GREATEST(finalDebit, finalCredit)` to handle potential column order inconsistencies from PDF text extraction.
+**Balance sheet accounts (classes 1-5)** use the signed net of the final balance columns: the receivable and asset accounts count `GREATEST(final_debit - final_credit, 0)` and the debt accounts count `GREATEST(final_credit - final_debit, 0)`.
 
-| Indicator | Account Code Pattern | Column Used |
+| Indicator | Account code pattern | Column used |
 |-----------|---------------------|-------------|
-| Revenue | `7%` | SUM(currentCredit) |
-| Expenses | `6%` | SUM(currentDebit) |
+| Revenue | `7%` | SUM(total_credit) |
+| Expenses | `6%` | SUM(total_debit) |
 | Net Profit | - | Revenue - Expenses |
-| Turnover | `70%`, `71%` | SUM(currentCredit) |
-| Salaries | `641%`, `642%` | SUM(currentDebit) |
-| Profit Tax | `691%` | SUM(currentDebit) |
-| Supplier Debts | `401%` | SUM(GREATEST(finalCredit, finalDebit)) |
-| Client Receivables | `411%` | SUM(GREATEST(finalDebit, finalCredit)) |
-| Bank Balance | `5121%` | SUM(GREATEST(finalDebit, finalCredit)) |
-| Cash Balance | `5311%` | SUM(GREATEST(finalDebit, finalCredit)) |
+| Turnover | `70%`, `71%` | SUM(total_credit) |
+| Salaries | `641%`, `642%` | SUM(total_debit) |
+| Profit Tax | `691%`, `698%` | SUM(total_debit) |
+| Supplier Debts | `401%`, `403%`, `404%`, `405%`, `408%`, `419%` | SUM of the net credit balance |
+| Client Receivables | `411%`, `413%`, `418%`, `461%` | SUM of the net debit balance |
+| Bank Balance | `5121%`, `5124%`, `5125%` | SUM of the net debit balance |
+| Cash Balance | `5311%`, `5314%`, `532%` | SUM of the net debit balance |
 
 ## Permissions
 
-All endpoints require `REPORT_VIEW` permission and the `canViewReports()` license check.
+All endpoints require the `report.view` permission. Upload and analysis also need a plan that includes reports (`402` with `code: PLAN_LIMIT` otherwise).
 
 ## PDF Parsing
 

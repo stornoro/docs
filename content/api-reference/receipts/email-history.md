@@ -14,7 +14,7 @@ Returns the complete history of emails sent for a specific receipt, ordered by s
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | Company UUID to scope the request |
+| `X-Company` | string | No | Company UUID. Not used to find the receipt; access is checked against your organization |
 
 ## Path Parameters
 
@@ -41,51 +41,55 @@ const response = await fetch('https://api.storno.ro/api/v1/receipts/a1b2c3d4-e5f
 const emailHistory = await response.json();
 
 emailHistory.forEach(entry => {
-  console.log(`Sent to ${entry.to} on ${entry.sentAt}: ${entry.deliveryStatus}`);
+  console.log(`Sent to ${entry.toEmail} on ${entry.sentAt}: ${entry.status}`);
 });
 ```
 
 ## Response
 
-Returns an array of email log entries:
+Returns an array of email log entries, newest first:
 
 ```json
 [
   {
     "id": "8f9a0b1c-2d3e-4f5a-6b7c-8d9e0f1a2b3c",
-    "to": "office@acme.ro",
-    "cc": ["accounting@acme.ro"],
-    "bcc": null,
-    "subject": "Bon fiscal BON-2026-042",
-    "attachments": ["bon-BON-2026-042.pdf"],
-    "sentAt": "2026-02-18T10:30:00Z",
-    "deliveryStatus": "delivered",
-    "openedAt": "2026-02-18T10:45:00Z",
-    "bouncedAt": null,
-    "bounceReason": null,
-    "sentBy": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "John Doe",
-      "email": "john@yourcompany.ro"
-    }
+    "category": "receipt",
+    "toEmail": "office@acme.example",
+    "ccEmails": ["accounting@acme.example"],
+    "bccEmails": null,
+    "subject": "Bon fiscal BON0042",
+    "sentAt": "2026-02-18T10:30:00+00:00",
+    "status": "delivered",
+    "templateUsed": null,
+    "errorMessage": null,
+    "sesMessageId": "0100018f-example",
+    "fromEmail": "noreply@example.test",
+    "fromName": "Your Company SRL",
+    "sentByEmail": "john@yourcompany.example",
+    "invoiceId": null,
+    "invoiceNumber": null,
+    "deliveryNoteId": null,
+    "deliveryNoteNumber": null
   },
   {
     "id": "7e8f9a0b-1c2d-3e4f-5a6b-7c8d9e0f1a2b",
-    "to": "old@acme.ro",
-    "cc": null,
-    "bcc": null,
-    "subject": "Bon fiscal BON-2026-042",
-    "attachments": ["bon-BON-2026-042.pdf"],
-    "sentAt": "2026-02-18T10:16:00Z",
-    "deliveryStatus": "bounced",
-    "openedAt": null,
-    "bouncedAt": "2026-02-18T10:17:00Z",
-    "bounceReason": "Mailbox does not exist",
-    "sentBy": {
-      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
-      "name": "John Doe",
-      "email": "john@yourcompany.ro"
-    }
+    "category": "receipt",
+    "toEmail": "old@acme.example",
+    "ccEmails": null,
+    "bccEmails": null,
+    "subject": "Bon fiscal BON0042",
+    "sentAt": "2026-02-18T10:16:00+00:00",
+    "status": "bounced",
+    "templateUsed": null,
+    "errorMessage": null,
+    "sesMessageId": "0100018f-example2",
+    "fromEmail": "noreply@example.test",
+    "fromName": "Your Company SRL",
+    "sentByEmail": "john@yourcompany.example",
+    "invoiceId": null,
+    "invoiceNumber": null,
+    "deliveryNoteId": null,
+    "deliveryNoteNumber": null
   }
 ]
 ```
@@ -95,36 +99,40 @@ Returns an array of email log entries:
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Email log UUID |
-| `to` | string | Primary recipient email address |
-| `cc` | string[]\|null | CC recipients |
-| `bcc` | string[]\|null | BCC recipients |
+| `category` | string | `receipt` |
+| `toEmail` | string | Primary recipient email address |
+| `ccEmails` | string[]\|null | CC recipients |
+| `bccEmails` | string[]\|null | BCC recipients |
 | `subject` | string | Email subject line |
-| `attachments` | string[] | List of attached file names |
 | `sentAt` | string | ISO 8601 timestamp when email was sent |
-| `deliveryStatus` | string | Current delivery status (see values below) |
-| `openedAt` | string\|null | When the email was first opened |
-| `bouncedAt` | string\|null | When the email bounced |
-| `bounceReason` | string\|null | Reason for bounce |
-| `sentBy` | object | User who triggered the send |
+| `status` | string | Delivery status (see values below) |
+| `templateUsed` | string\|null | Template name, when one was used |
+| `errorMessage` | string\|null | Failure message, for `failed` |
+| `sesMessageId` | string\|null | Provider message id |
+| `fromEmail` | string\|null | Sender address |
+| `fromName` | string\|null | Sender display name |
+| `sentByEmail` | string\|null | Email of the user who sent it |
+| `invoiceId`, `invoiceNumber`, `deliveryNoteId`, `deliveryNoteNumber` | string\|null | Always `null` for a receipt email |
+| `events` | array | Tracking events recorded for the email. Entries carry no fields at the moment |
 
 ### Delivery Status Values
 
 | Status | Description |
 |--------|-------------|
-| `queued` | Email is queued for sending |
-| `sent` | Sent to recipient's mail server |
+| `sent` | Sent to the mail provider |
 | `delivered` | Delivered to recipient's inbox |
-| `opened` | Email was opened by recipient |
 | `bounced` | Email bounced (hard or soft) |
 | `failed` | Email sending failed |
 
 ## Error Codes
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `unauthorized` | Missing or invalid authentication token |
-| 403 | `forbidden` | Invalid or missing X-Company header |
-| 404 | `not_found` | Receipt not found or doesn't belong to the company |
+| Status Code | Description |
+|-------------|-------------|
+| 401 | Missing or invalid authentication token |
+| 403 | Permission denied |
+| 404 | Receipt not found or not in your organization |
+
+Error responses have the form `{"error": "message"}`.
 
 ## Related Endpoints
 

@@ -15,7 +15,7 @@ Authenticate or register a user using Google OAuth. If the user doesn't exist, a
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `idToken` | string | Yes | Google ID token from Google Sign-In |
+| `credential` | string | Yes | Google ID token from Google Sign-In |
 
 ### Example Request
 
@@ -25,7 +25,7 @@ Authenticate or register a user using Google OAuth. If the user doesn't exist, a
 curl -X POST https://api.storno.ro/api/auth/google \
   -H "Content-Type: application/json" \
   -d '{
-    "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5ZmUyYTdiNjc5NTIzOTYwNmNhMGE3NTA3N..."
+    "credential": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE5ZmUyYTdiNjc5NTIzOTYwNmNhMGE3NTA3N..."
   }'
 ```
 {% /tab %}
@@ -33,7 +33,7 @@ curl -X POST https://api.storno.ro/api/auth/google \
 ```js
 // After Google Sign-In
 const googleUser = await google.accounts.id.prompt();
-const idToken = googleUser.credential;
+const credential = googleUser.credential;
 
 const response = await fetch('https://api.storno.ro/api/auth/google', {
   method: 'POST',
@@ -41,11 +41,11 @@ const response = await fetch('https://api.storno.ro/api/auth/google', {
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    idToken: idToken,
+    credential: credential,
   }),
 });
 
-const { token, refresh_token, isNewUser } = await response.json();
+const { token, refresh_token } = await response.json();
 ```
 {% /tab %}
 {% tab label="PHP" %}
@@ -54,14 +54,13 @@ $client = new \GuzzleHttp\Client();
 
 $response = $client->post('https://api.storno.ro/api/auth/google', [
     'json' => [
-        'idToken' => $googleIdToken,
+        'credential' => $googleIdToken,
     ],
 ]);
 
 $data = json_decode($response->getBody(), true);
 $token = $data['token'];
 $refreshToken = $data['refresh_token'];
-$isNewUser = $data['isNewUser'];
 ```
 {% /tab %}
 {% /tabs %}
@@ -73,8 +72,7 @@ $isNewUser = $data['isNewUser'];
 ```json
 {
   "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "def50200a1b2c3d4e5f6...",
-  "isNewUser": false
+  "refresh_token": "def50200a1b2c3d4e5f6..."
 }
 ```
 
@@ -82,15 +80,14 @@ $isNewUser = $data['isNewUser'];
 |-------|------|-------------|
 | `token` | string | JWT access token, valid for 1 hour |
 | `refresh_token` | string | Refresh token used to obtain new access tokens |
-| `isNewUser` | boolean | `true` if account was just created, `false` for existing user |
 
 ## Error Codes
 
 | Code | Description |
 |------|-------------|
-| `400` | Bad Request - Missing or invalid ID token |
+| `400` | Bad Request - Missing `credential` |
 | `401` | Unauthorized - Invalid Google ID token or token verification failed |
-| `403` | Forbidden - Google account email not verified |
+| `403` | Forbidden - `registration_required`: the request has `X-Platform: ios` and no account exists for the Google user. Also returned on single-organization instances when an account would have to be created |
 | `429` | Too Many Requests - Rate limit exceeded |
 
 ### Error Response Examples
@@ -99,17 +96,16 @@ $isNewUser = $data['isNewUser'];
 
 ```json
 {
-  "code": 401,
-  "message": "Invalid Google ID token."
+  "error": "Invalid Google token."
 }
 ```
 
-**Email Not Verified (403)**
+**Registration required (403)**
 
 ```json
 {
-  "code": 403,
-  "message": "Google account email must be verified."
+  "error": "Account not found. Please register at storno.ro first.",
+  "code": "registration_required"
 }
 ```
 
@@ -122,7 +118,7 @@ When a user signs in with Google for the first time:
 3. **Auto-Registration**: If not found, creates a new user account with:
    - Email from Google account
    - First and last name from Google profile
-   - Email marked as confirmed (no confirmation email needed)
+   - Email marked as confirmed when Google reports it as verified
    - Default organization created with owner role
 4. **Token Issuance**: Returns JWT tokens for immediate authenticated access
 
@@ -140,7 +136,7 @@ When a user signs in with Google for the first time:
     fetch('https://api.storno.ro/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: response.credential }),
+      body: JSON.stringify({ credential: response.credential }),
     })
       .then(res => res.json())
       .then(data => {
@@ -148,16 +144,8 @@ When a user signs in with Google for the first time:
         localStorage.setItem('token', data.token);
         localStorage.setItem('refresh_token', data.refresh_token);
 
-        // Handle new vs returning user
-        if (data.isNewUser) {
-          console.log('Welcome! Account created successfully.');
-          // Redirect to onboarding
-          window.location.href = '/onboarding';
-        } else {
-          console.log('Welcome back!');
-          // Redirect to dashboard
-          window.location.href = '/dashboard';
-        }
+        // Redirect to dashboard
+        window.location.href = '/dashboard';
       })
       .catch(error => {
         console.error('Authentication failed:', error);
@@ -201,7 +189,7 @@ async function signInWithGoogle() {
     const response = await fetch('https://api.storno.ro/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({ credential: idToken }),
     });
 
     const data = await response.json();
@@ -220,7 +208,7 @@ If the user has two-factor authentication enabled, the endpoint returns an MFA c
 {
   "mfa_required": true,
   "mfa_token": "a1b2c3d4e5f6789...",
-  "mfa_methods": ["totp", "backup_code"]
+  "mfa_methods": ["totp", "backup_code", "email_otp"]
 }
 ```
 
@@ -231,9 +219,8 @@ Complete the challenge by calling [Verify MFA Challenge](/api-reference/auth/mfa
 - Google ID tokens are verified server-side for security
 - When the user has MFA enabled, handle the `mfa_required` response by redirecting to MFA verification
 - Token verification includes checking signature, expiration, and audience
-- Users can link multiple authentication methods (password + Google) to the same email
+- When an account with the Google email exists, the Google account is linked to it
 - Google OAuth does not require a separate password
-- Email confirmation is not required for Google OAuth users
 - Rate limiting: maximum 10 OAuth attempts per minute per IP address
 
 ## Security Considerations

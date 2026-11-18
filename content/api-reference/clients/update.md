@@ -28,7 +28,7 @@ PATCH /api/v1/clients/{uuid}
 | Header | Type | Required | Description |
 |--------|------|----------|-------------|
 | `Authorization` | string | Yes | Bearer token for authentication |
-| `X-Company` | string | Yes | UUID of the company context |
+| `X-Company` | string | No | UUID of the company context. The `company` query parameter is accepted as an alternative, and the header can be omitted when the organization has a single company. Routes addressed by UUID resolve the company from the record |
 | `Content-Type` | string | Yes | Must be `application/json` |
 
 ### Request body
@@ -55,6 +55,9 @@ PATCH /api/v1/clients/{uuid}
 | `contactPerson` | string | Contact person name |
 | `notes` | string | Internal notes |
 | `idNumber` | string | Client identification number (personal ID, passport, etc.) |
+| `status` | string | `active`, `warning` or `blocked` |
+| `creditLimit` | number \| null | Credit limit in the company currency; `null` removes it |
+| `affiliated` | boolean | Affiliated party flag |
 | `currency` | string | Preferred currency for this client (ISO 4217: EUR, USD, RON, etc.) |
 
 ## Example Request
