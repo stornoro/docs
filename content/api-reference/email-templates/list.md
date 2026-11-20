@@ -82,7 +82,8 @@ curl -X GET 'https://api.storno.ro/api/v1/email-templates' \
     "[[company_name]]",
     "[[balance]]",
     "[[client_outstanding]]",
-    "[[currency]]"
+    "[[currency]]",
+    "[[days_overdue]]"
   ]
 }
 ```
@@ -101,6 +102,7 @@ Templates support these placeholders in `subject` and `body`. The syntax is doub
 | `[[due_date]]` | Due date, `dd.mm.yyyy` | 15.03.2026 |
 | `[[balance]]` | Amount still to pay | 2380.00 |
 | `[[client_outstanding]]` | Total outstanding for the client | 4760.00 |
+| `[[days_overdue]]` | Whole days past the due date, 0 when not overdue | 7 |
 | `[[company_name]]` | Your company name | My Company SRL |
 
 Templates of category `delivery_note` use `[[client_name]]`, `[[delivery_note_number]]`, `[[total]]`, `[[issue_date]]`, `[[company_name]]` and `[[currency]]`. Templates of category `receipt` use `[[client_name]]`, `[[receipt_number]]`, `[[total]]`, `[[issue_date]]`, `[[company_name]]` and `[[currency]]`.

@@ -94,6 +94,7 @@ Variables are written between double square brackets and replaced in the subject
 | `[[currency]]` | RON | Invoice currency |
 | `[[client_name]]` | Acme Corporation SRL | Client name |
 | `[[client_outstanding]]` | 1500.00 | Client's outstanding balance in the invoice currency |
+| `[[days_overdue]]` | 7 | Whole days past the due date, 0 when not overdue |
 | `[[company_name]]` | Your Company SRL | Your company name |
 | `[[due_date]]` | 15.03.2024 | Payment due date |
 | `[[issue_date]]` | 15.02.2024 | Invoice issue date |

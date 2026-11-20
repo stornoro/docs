@@ -35,6 +35,8 @@ The Company object represents a business entity within the system. Each organiza
 | lastSyncedAt | datetime | Last sync timestamp from e-invoice provider |
 | syncDaysBack | integer | How many days back to sync from e-invoice provider |
 | efacturaDelayHours | integer | Delay in hours before syncing from e-invoice provider |
+| overdueRemindersEnabled | boolean | Whether the automatic overdue reminders are on (default `false`) |
+| overdueReminderSteps | array | The reminder steps in effect, sorted by `days`: objects of `{ days, subject, body }` |
 | createdAt | datetime | Timestamp when created |
 | updatedAt | datetime | Timestamp of last update |
 
@@ -65,6 +67,12 @@ The Company object represents a business entity within the system. Each organiza
   "lastSyncedAt": "2024-02-16T08:00:00+02:00",
   "syncDaysBack": 30,
   "efacturaDelayHours": 2,
+  "overdueRemindersEnabled": true,
+  "overdueReminderSteps": [
+    { "days": 3, "subject": null, "body": null },
+    { "days": 7, "subject": null, "body": null },
+    { "days": 14, "subject": null, "body": null }
+  ],
   "createdAt": "2024-01-01T10:00:00+02:00",
   "updatedAt": "2024-02-16T08:00:00+02:00"
 }
@@ -76,6 +84,13 @@ The Company object represents a business entity within the system. Each organiza
 - **syncDaysBack**: Number of days to look back when syncing invoices
 - **efacturaDelayHours**: Delay before syncing to allow for provider processing
 - **lastSyncedAt**: Tracks when the last successful sync occurred
+
+## Overdue reminder settings
+
+- **overdueRemindersEnabled**: Turns on the emails sent to clients about overdue invoices
+- **overdueReminderSteps**: One email per step, `days` after the due date (1 to 5 steps, `days` from 1 to 365). A `subject` or `body` of `null` means the default text. The default steps are 3, 7 and 14 days
+
+See [Overdue reminders](/concepts/overdue-reminders).
 
 ## Archive Settings
 

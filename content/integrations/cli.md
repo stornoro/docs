@@ -210,6 +210,7 @@ The 228 tools are organized into these categories:
 | `invoices_validate` | Pre-flight UBL validation (quick or full) |
 | `invoices_cancel` | Cancel with reason |
 | `invoices_restore` | Undo cancellation |
+| `invoices_overdue_reminders` | Turn automatic overdue reminders off or on for one invoice |
 | `invoices_pdf` | Download PDF (base64) |
 | `invoices_xml` | Download UBL 2.1 XML |
 | `invoices_email` | Send invoice with attachments |

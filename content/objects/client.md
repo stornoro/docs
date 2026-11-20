@@ -31,6 +31,7 @@ The Client object represents customers who receive invoices and other documents.
 | bankName | string | ✗ | ✓ | Bank name for payments |
 | bankAccount | string | ✗ | ✓ | Bank account number (IBAN) |
 | defaultPaymentTermDays | integer | ✗ | ✓ | Default payment term in days |
+| overdueRemindersDisabled | boolean | ✗ | ✓ | `true` when the company's automatic [overdue reminders](/concepts/overdue-reminders) skip this client |
 | notes | text | ✗ | ✓ | Internal notes about the client |
 | viesValid | boolean \| null | ✓ | ✓ | VIES validation result for EU clients (`true` = valid, `false` = invalid, `null` = not validated) |
 | viesValidatedAt | datetime \| null | ✗ | ✓ | Timestamp of last VIES validation |
@@ -76,6 +77,7 @@ The Client object represents customers who receive invoices and other documents.
   "bankName": "Banca Transilvania",
   "bankAccount": "RO49AAAA1B31007593840000",
   "defaultPaymentTermDays": 30,
+  "overdueRemindersDisabled": false,
   "notes": "VIP client - priority support",
   "source": "manual",
   "lastSyncedAt": null,
@@ -109,6 +111,7 @@ The Client object represents customers who receive invoices and other documents.
   "bankName": null,
   "bankAccount": null,
   "defaultPaymentTermDays": 15,
+  "overdueRemindersDisabled": false,
   "notes": "Individual client - cash payments preferred",
   "source": "manual",
   "lastSyncedAt": null,

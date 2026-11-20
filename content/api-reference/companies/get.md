@@ -86,6 +86,12 @@ const company = await response.json();
   "archiveEnabled": true,
   "archiveRetentionYears": 10,
   "efacturaDelayHours": 24,
+  "overdueRemindersEnabled": false,
+  "overdueReminderSteps": [
+    { "days": 3, "subject": null, "body": null },
+    { "days": 7, "subject": null, "body": null },
+    { "days": 14, "subject": null, "body": null }
+  ],
   "isReadOnly": false,
   "enabledModules": null,
   "deletedAt": null,
@@ -96,6 +102,8 @@ const company = await response.json();
 ```
 
 The `enabledModules` field controls sidebar/menu visibility for optional modules. When `null`, all modules are visible (default). When set to an array, only those module keys appear in the navigation. Valid keys: `delivery_notes`, `receipts`, `proforma_invoices`, `recurring_invoices`, `reports`, `cash_register`, `efactura`, `spv_messages`.
+
+`overdueRemindersEnabled` says whether the automatic [overdue reminders](/concepts/overdue-reminders) are on. `overdueReminderSteps` always holds the steps in effect, sorted by `days`: the default steps (3, 7 and 14 days) when the company has set none. A `subject` or `body` of `null` means the default text.
 
 ## Error Codes
 

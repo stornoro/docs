@@ -44,6 +44,7 @@ POST /api/v1/clients
 | `bankName` | string | No | Bank name |
 | `bankAccount` | string | No | Bank account number (IBAN) |
 | `defaultPaymentTermDays` | integer | No | Default payment term in days |
+| `overdueRemindersDisabled` | boolean | No | `true` keeps this client out of the company's automatic [overdue reminders](/concepts/overdue-reminders) (default: `false`) |
 | `contactPerson` | string | No | Contact person name |
 | `notes` | string | No | Internal notes |
 | `idNumber` | string | No | Client identification number (personal ID, passport, etc.) |

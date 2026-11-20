@@ -53,9 +53,33 @@ Updates a company. Only the fields present in the body change. The CIF cannot be
 | email | string | No | Contact email address |
 | syncDaysBack | integer | No | Number of days to sync back from ANAF |
 | efacturaDelayHours | integer \| null | No | Hours to delay e-Factura submission. `null` or one of 2, 24, 48, 72, 96. Any other value returns 400 |
+| overdueRemindersEnabled | boolean | No | Turn the automatic [overdue reminders](/concepts/overdue-reminders) on or off. Default `false` |
+| overdueReminderSteps | object[] \| null | No | The reminder steps, 1 to 5, each `{ days, subject, body }`. `null` restores the default steps (3, 7 and 14 days). See [Reminder steps](#reminder-steps) |
 | archiveEnabled | boolean | No | Enable automatic archiving |
 | archiveRetentionYears | integer | No | Years to retain archived data. `null` clears it |
 | enabledModules | string[] \| null | No | Array of enabled module keys for sidebar visibility. `null` = all enabled. Valid keys: `delivery_notes`, `receipts`, `proforma_invoices`, `recurring_invoices`, `reports`, `cash_register`, `efactura`, `spv_messages`. When all 8 keys are provided, the server stores `null`. |
+
+### Reminder steps
+
+Each element of `overdueReminderSteps` is one email, sent once per invoice.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| days | integer | Yes | Days after the due date when the step is sent. A whole number from 1 to 365, unique across the steps |
+| subject | string \| null | No | Email subject. One line, up to 200 characters, without `<` or `>`. `null` or empty uses the default subject |
+| body | string \| null | No | Email body, up to 5000 characters. `null` or empty uses the default body |
+
+`subject` and `body` take the variables `[[client_name]]`, `[[invoice_number]]`, `[[total]]`, `[[balance]]`, `[[currency]]`, `[[due_date]]`, `[[issue_date]]`, `[[days_overdue]]`, `[[company_name]]`, `[[client_outstanding]]`. The response returns the steps in effect, sorted by `days`.
+
+```json
+{
+  "overdueRemindersEnabled": true,
+  "overdueReminderSteps": [
+    { "days": 5, "subject": "Factura [[invoice_number]] a depășit scadența", "body": "Bună ziua,\n\nFactura [[invoice_number]] are un rest de plată de [[balance]] [[currency]]." },
+    { "days": 15 }
+  ]
+}
+```
 
 ## Request
 
@@ -138,6 +162,12 @@ const company = await response.json();
   "archiveEnabled": true,
   "archiveRetentionYears": 10,
   "efacturaDelayHours": 24,
+  "overdueRemindersEnabled": false,
+  "overdueReminderSteps": [
+    { "days": 3, "subject": null, "body": null },
+    { "days": 7, "subject": null, "body": null },
+    { "days": 14, "subject": null, "body": null }
+  ],
   "isReadOnly": false,
   "enabledModules": null,
   "deletedAt": null,
@@ -150,7 +180,7 @@ const company = await response.json();
 
 | Code | Description |
 |------|-------------|
-| 400 | Bad Request - `vatPeriod` or `incomeTaxPeriod` is not `monthly` or `quarterly`, `efacturaDelayHours` is not allowed, or `enabledModules` is not `null` or an array of valid keys |
+| 400 | Bad Request - `vatPeriod` or `incomeTaxPeriod` is not `monthly` or `quarterly`, `efacturaDelayHours` is not allowed, `enabledModules` is not `null` or an array of valid keys, or `overdueReminderSteps` breaks a rule of [Reminder steps](#reminder-steps) (the `error` text names the rule) |
 | 401 | Unauthorized - Invalid or missing token |
 | 403 | Forbidden - No access to this company |
 | 404 | Not Found - Company does not exist |

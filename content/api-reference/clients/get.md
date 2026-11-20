@@ -81,6 +81,7 @@ curl -X GET 'https://api.storno.ro/api/v1/clients/b2c3d4e5-f6a7-8901-bcde-f12345
     "bankName": "Banca Transilvania",
     "bankAccount": "RO49AAAA1B31007593840000",
     "defaultPaymentTermDays": 30,
+    "overdueRemindersDisabled": false,
     "contactPerson": "Ion Popescu",
     "notes": null,
     "source": "manual",

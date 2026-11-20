@@ -39,6 +39,7 @@ Machine-readable documentation files for AI assistants and LLMs:
 - [Error Handling](/getting-started/errors) — Error codes and formats
 - [Multi-Tenancy](/concepts/multi-tenancy) — How organizations and companies work
 - [Licensing](/concepts/licensing) — SaaS vs self-hosted licensing model
+- [Overdue reminders](/concepts/overdue-reminders): emails to clients about overdue invoices, on the steps you set
 
 ## Integrations
 

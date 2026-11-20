@@ -22,7 +22,7 @@ Every import goes through the same four steps, whatever the source is: **upload*
 | `GET` | `/api/v1/import/history` | past jobs with their counters, as `{data}`; `limit` defaults to 50, maximum 200 |
 | `GET` | `/api/v1/import/{id}` | the job with its status and counters, as `{job}` |
 
-**Access.** All import endpoints need the `import.manage` permission and the `X-Company` header. Upload, mapping, execute and revert answer `402` with code `PLAN_LIMIT` on the Freemium plan, because import and export need Starter or higher. A file with the wrong extension, a missing `file`, an unknown `importType` or an unknown `source` answers `422`. The accepted extensions are `csv`, `xlsx`, `xml` and `zip`, and `zip` is accepted only for `cash_register`. If the preview cannot read the file, the upload still answers `201` with the job in status `failed` and the reason in `job.errors`. `cancel` works only on a job in status `processing` and answers `422` otherwise. `execute` answers `409` for a job that is already processing or completed.
+**Access.** All import endpoints need the `import.manage` permission and the `X-Company` header. Upload, mapping, execute and revert answer `402` with code `PLAN_LIMIT` on the Freemium plan, because import and export need Starter or higher. A file with the wrong extension, a missing `file`, an unknown `importType` or an unknown `source` answers `422`. The accepted extensions are `csv`, `xlsx`, `xml` and `zip`, and `zip` is accepted only for `cash_register` and `efactura`. The `efactura` source takes `xml` and `zip` only. If the preview cannot read the file, the upload still answers `201` with the job in status `failed` and the reason in `job.errors`. `cancel` works only on a job in status `processing` and answers `422` otherwise. `execute` answers `409` for a job that is already processing or completed.
 
 **Idempotency.** Every document an import creates carries a key made of the source, the company and the row's external id (the trip / order id, the group of a statement, the fiscal id of a receipt). Re-uploading the same file creates nothing: the rows come back as *skipped*.
 
@@ -40,7 +40,7 @@ Target fields: `name` (required), `cui`, `registrationNumber`, `address`, `city`
 
 ## Invoice history — `importType: invoices_issued` / `invoices_received`
 
-The invoice report or sales journal exported by another invoicing or accounting program, or any spreadsheet (CSV / XLSX), kept as history. Every source that imports clients imports invoices too (`smartbill`, `saga`, `oblio`, `fgo`, `facturis_online`, `easybill`, `ciel`, `factureaza`, `facturare_pro`, `icefact`, `generic`); `facturis` and `emag` keep their own fixed layouts. Such a report has no fixed set of columns, so `suggestedMapping` is built from the headers the file actually has, by their usual names (`Serie`, `Număr`, `Data`, `Scadență`, `Client`, `CIF`, `Valoare fără TVA`, `TVA`, `Total`, `Monedă`, `Rest de plată`, `Stare`, `Produs`, `Cantitate`, `Preț unitar`, `Cotă TVA`…). Check it in the mapping step.
+The invoice report or sales journal exported by another invoicing or accounting program, or any spreadsheet (CSV / XLSX), kept as history. Every source that imports clients imports invoices too (`smartbill`, `saga`, `oblio`, `fgo`, `facturis_online`, `easybill`, `ciel`, `factureaza`, `facturare_pro`, `icefact`, `generic`); `emag` keeps its own fixed layout. `facturis` (the Facturis desktop sales journal) keeps the meaning of its own columns and also reads the columns added to the journal by their usual names: a due date, the amount left to pay, the paid amount, the state and `stornoOf`. Such a report has no fixed set of columns, so `suggestedMapping` is built from the headers the file actually has, by their usual names (`Serie`, `Număr`, `Data`, `Scadență`, `Client`, `CIF`, `Valoare fără TVA`, `TVA`, `Total`, `Monedă`, `Rest de plată`, `Stare`, `Produs`, `Cantitate`, `Preț unitar`, `Cotă TVA`…). Check it in the mapping step.
 
 **XML export for accounting.** The same sources also take the invoice XML these programs export for the accountant — `<Facturi><Factura><Antet>…</Antet><Detalii><Continut><Linie>…` — uploaded as an `.xml` file (`smartbill`, `saga`, `oblio`, `fgo`, `generic`). It is the most reliable input: its fields are fixed (`FacturaNumar`, `FacturaData`, `FacturaScadenta`, `ClientNume`, `ClientCIF`, `FurnizorCIF`, `FacturaMoneda`, and per line `Descriere`, `UM`, `Cantitate`, `Pret`, `Valoare`, `ProcTVA` / `CotaTVA`, `TVA`), so the whole mapping is suggested and each `<Linie>` becomes a line of its invoice. The file names both parties: an invoice issued by another fiscal code than the company's (or, for received invoices, addressed to another one) is refused with an error on its row. The matching client list (`<clienti><linie>` with `denumire`, `cod_fiscal`, `reg_com`, `localitate`, `cont_banca`, `tel`…) is read by `importType: clients` the same way.
 
@@ -49,13 +49,64 @@ In a spreadsheet, two shapes are read:
 - **one row per invoice** — the invoice gets a single line carrying its amounts;
 - **one row per invoice line** (the file has product / quantity / price columns) — rows sharing an invoice number become the lines of one invoice and its totals are the sum of the lines.
 
-Target fields: `number` (required), `series` (prepended to the number), `issueDate`, `dueDate`, `receiverName` / `receiverCif` (issued) or `senderName` / `senderCif` (received), `subtotal`, `vatTotal`, `total`, `currency`, `exchangeRate`, `paidAmount`, `unpaidAmount`, `state`, `paymentMethod`, `notes`, the line fields `lineDescription`, `lineProductCode`, `lineQuantity`, `lineUnitOfMeasure`, `lineUnitPrice`, `lineVatRate`, `lineVatAmount`, `lineTotal`, `lineTotalGross`, and the partner fields `clientEmail`, `clientPhone`, `clientAddress`, `clientCity`, `clientCounty`, `clientCountry`. Dates are read as `YYYY-MM-DD`, `DD.MM.YYYY`, `DD/MM/YYYY` or a spreadsheet date cell. An amount the file leaves out is derived from the others; a file that only has the gross total is split with the company's default VAT rate.
+Target fields: `number` (required), `series` (prepended to the number), `issueDate`, `dueDate`, `receiverName` / `receiverCif` (issued) or `senderName` / `senderCif` (received), `subtotal`, `vatTotal`, `total`, `currency`, `exchangeRate`, `paidAmount`, `unpaidAmount`, `state`, `stornoOf`, `paymentMethod`, `notes`, the line fields `lineDescription`, `lineProductCode`, `lineQuantity`, `lineUnitOfMeasure`, `lineUnitPrice`, `lineVatRate`, `lineVatAmount`, `lineTotal`, `lineTotalGross`, and the partner fields `clientEmail`, `clientPhone`, `clientAddress`, `clientCity`, `clientCounty`, `clientCountry`. Dates are read as `YYYY-MM-DD`, `DD.MM.YYYY`, `DD/MM/YYYY` or a spreadsheet date cell. An amount the file leaves out is derived from the others; a file that only has the gross total is split with the company's default VAT rate.
 
 **What an imported invoice is.** A record: status `synced`, never sent to ANAF. A row whose `state` says cancelled becomes `cancelled`. The collection comes from the file when it has it — `unpaidAmount` (rest de plată), `paidAmount`, or a `state` saying paid — and gives `paid` or `partially_paid` with a payment dated on the invoice date; rows that say nothing follow the `markAsPaid` option.
+
+**Stornos.** `stornoOf` (*Factura stornata (numar)*) holds the number of the invoice a storno reverses. The storno is linked to that invoice as its `parentDocument` and gets status `refund`. The reversed invoice becomes `refunded` when it is an imported record itself; an invoice issued in Storno.ro keeps its status.
 
 **Partners.** An issued invoice is linked to the client with the same fiscal code (`RO12345678` and `12345678` are the same client); a client the company does not have yet is created from the name and code on the invoice. A received invoice is linked to the supplier with that fiscal code when there is one.
 
 **No duplicates.** An issued invoice whose number the company already has is skipped; a received one is identified by its number together with the supplier's fiscal code. `revert` deletes the invoices, payments and clients the job created.
+
+**Importing part of a file.** `execute` takes these options for invoice imports:
+
+| Option | Values | Meaning |
+|---|---|---|
+| `dateFrom`, `dateTo` | `YYYY-MM-DD` | keep the invoices whose issue date is inside the period, both ends included; either one can be sent alone |
+| `clientCifs` | an array of tax codes, or one string with the codes separated by commas, spaces or newlines; at most 2000 | keep the invoices of these partners (the client of an issued invoice, the supplier of a received one); the `RO` prefix and spacing are ignored |
+
+Rows outside the filter are counted as `skipped`. With a filter set, a row without a readable date or tax code is skipped too. A date in another format, `dateFrom` after `dateTo` or a `clientCifs` that is not a list of tax codes answers `422`.
+
+```json
+{
+  "importOptions": {
+    "dateFrom": "2025-01-01",
+    "dateTo": "2025-12-31",
+    "clientCifs": ["RO12345678", "87654321"]
+  }
+}
+```
+
+## e-Factura XML — `source: efactura`
+
+The XML files of e-Factura (UBL `Invoice` or `CreditNote`), for `importType: invoices_issued` and `invoices_received`. Upload one `.xml` file or a `.zip` of them, up to 5000 XML files per archive. XML files in the archive that are not invoices, such as signature files, are ignored.
+
+The mapping is fixed, so the mapping step needs no changes. The invoices are kept as history: status `synced`, never sent to ANAF.
+
+- A credit note becomes a negative invoice. It is linked to the invoice named in its `BillingReference` when the company has that invoice.
+- An invoice whose seller (for `invoices_issued`) or buyer (for `invoices_received`) is not the company is refused with an error on its row.
+- An invoice whose number the company already has is skipped.
+
+The `dateFrom`, `dateTo` and `clientCifs` options apply here too.
+
+## Collections — `importType: payments`
+
+The collections of issued invoices, one row per payment, from a CSV or XLSX file. Every source that imports invoices imports their collections too, `facturis` and `generic` included. `suggestedMapping` is built from the usual names of the columns (`Factura`, `Data incasarii`, `Suma`, `Mod plata`, `Nr chitanta`…).
+
+Target fields: `invoiceNumber` (required), `amount` (required), `series` (prepended to the number), `paymentDate`, `paymentMethod`, `reference`, `notes`.
+
+**Finding the invoice.** The invoice is found by its number among the company's issued invoices. A number the company does not have is an error on that row.
+
+**Partial payments.** Several rows for one invoice are its partial payments, each with its own date. A payment larger than what is left to pay on the invoice is an error on that row.
+
+**Invoices imported as history.** An invoice history import records what was collected as one placeholder payment dated on the invoice date (reference `Import automat`). The first imported payment for such an invoice replaces the placeholder, so the invoice shows the real dates.
+
+**No duplicates.** A payment the invoice already has, with the same date, amount and reference, is skipped. Re-importing the same file adds nothing.
+
+**What changes on the invoice.** `amountPaid` follows the payments, and `paidAt` is the date of the last payment once the invoice is fully paid. An imported invoice also takes its status from the collection: `paid`, `partially_paid` or `synced`. An invoice issued in Storno.ro keeps its status.
+
+`job.summary` carries `paymentsCreated`, `invoicesUpdated` and `replacedPayments`. `revert` removes the payments the job created and restores the placeholders it replaced.
 
 ## Platform statements — `importType: platform_sales`
 
@@ -106,7 +157,7 @@ Orders → Export. The admin export is `ID, Reference, New client, Delivery, Cus
 
 ## Fiscal cash register — `importType: receipts`, `source: cash_register`
 
-The XML a fiscal cash register (AMEF) exports for ANAF's A4200 reporting: a message per fiscal day whose `<bon>` elements are the receipts and whose `<rB>` element is the Z report. Upload one XML file or a `.zip` with a whole month (only this source accepts ZIP).
+The XML a fiscal cash register (AMEF) exports for ANAF's A4200 reporting: a message per fiscal day whose `<bon>` elements are the receipts and whose `<rB>` element is the Z report. Upload one XML file or a `.zip` with a whole month.
 
 Each `<bon>` becomes one issued **receipt** (`Receipt`), numbered `<device serial>-Z<z report>-B<number>`, keeping the fiscal identifier `idB` (device serial, date, time, Z report number and receipt number) in `fiscalNumber` and the device serial in `deviceSerial`. Payments are split into cash / card / other, and one receipt line is created per VAT level of the receipt — or per product line when the file carries them. The Z report itself creates nothing; it feeds the daily summary (`job.summary.days[]`: receipts, total, VAT, cash, card, other, the Z reports of the day and the number of receipts each one declares).
 

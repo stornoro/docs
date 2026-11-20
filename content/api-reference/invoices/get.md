@@ -94,6 +94,9 @@ Returns the invoice object directly (no wrapper key). Decimal amounts are string
   "penaltyEnabled": true,
   "penaltyPercentPerDay": "0.05",
   "penaltyGraceDays": 5,
+  "overdueRemindersDisabled": false,
+  "lastOverdueReminderDays": 7,
+  "lastOverdueReminderAt": "2026-11-12T09:30:04+02:00",
   "parentDocumentId": null,
   "parentDocumentNumber": null,
   "parentDocumentDate": null,
@@ -160,6 +163,8 @@ Returns the invoice object directly (no wrapper key). Decimal amounts are string
 | `lines[].lineTotal` | Line amount before VAT |
 | `attachments` | Files attached to a received invoice: each has `id`, `filename`, `mimeType`, `description` and `size`. Download one with [Download attachment](/api-reference/invoices/attachments) |
 | `anafUploadId`, `anafDownloadId`, `anafStatus`, `anafErrorMessage` | e-Factura submission identifiers and the last error from ANAF |
+| `overdueRemindersDisabled` | `true` when the automatic [overdue reminders](/concepts/overdue-reminders) skip this invoice. Change it with [Overdue reminders for an invoice](/api-reference/invoices/overdue-reminders) |
+| `lastOverdueReminderDays`, `lastOverdueReminderAt` | The latest reminder step sent for this invoice (days after the due date) and when it was sent. Both are null until a reminder goes out |
 | `scheduledSendAt` | When the automatic e-Factura submission is due, if one is scheduled |
 | `refundInvoices` | Present when the invoice has credit notes or stornos: a list of `{id, number, issueDate, status}` for each of them |
 

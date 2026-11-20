@@ -115,7 +115,7 @@ Returns an array of email records, newest first.
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Email record UUID |
-| `category` | string | `invoice` |
+| `category` | string | `invoice`, or `payment_reminder` for an automatic [overdue reminder](/concepts/overdue-reminders) |
 | `toEmail` | string | Primary recipient |
 | `ccEmails` | array \| null | CC addresses |
 | `bccEmails` | array \| null | BCC addresses |

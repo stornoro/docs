@@ -58,6 +58,9 @@ The Invoice object represents both outgoing (issued by the company) and incoming
 | penaltyEnabled | boolean | ✗ | ✓ | Whether late payment penalties are enabled |
 | penaltyPercentPerDay | decimal | ✗ | ✓ | Daily penalty percentage |
 | penaltyGraceDays | integer | ✗ | ✓ | Grace period before penalties apply |
+| overdueRemindersDisabled | boolean | ✗ | ✓ | `true` when the company's automatic [overdue reminders](/concepts/overdue-reminders) skip this invoice |
+| lastOverdueReminderDays | integer \| null | ✗ | ✓ | The latest reminder step sent for this invoice, in days after the due date |
+| lastOverdueReminderAt | datetime \| null | ✗ | ✓ | When that reminder was sent |
 | ublExtensions | object | ✗ | ✓ | UBL extension fields (invoicePeriod, delivery, allowanceCharges, prepaidAmount, additionalDocumentReferences) |
 | lines | array | ✗ | ✓ | Array of InvoiceLine objects |
 | events | array | ✗ | ✓ | Array of DocumentEvent objects (audit trail) |

@@ -7,6 +7,30 @@ description: API version history and breaking changes.
 
 All notable changes to the Storno.ro API are documented here.
 
+## 2026-11-20 — Reamintiri automate de plată, import de încasări și XML e-Factura
+
+### Added
+
+- **Automatic overdue reminders.** A company can have its clients emailed about overdue invoices. `PATCH /api/v1/companies/{uuid}` takes `overdueRemindersEnabled` and `overdueReminderSteps` (1 to 5 steps of `{ days, subject, body }`, default 3, 7 and 14 days after the due date), and company responses return both. Each step is one email per invoice, sent to the client with the invoice PDF every day at 09:30 UTC, on the step's day or up to 2 days late. Older steps are never sent, so turning the reminders on or importing history does not email clients about invoices that are long overdue. Reminders stop when the invoice is fully paid, count toward the plan's daily document email limit and appear in `GET /api/v1/invoices/{uuid}/emails` with category `payment_reminder`. See [Overdue reminders](/concepts/overdue-reminders).
+- **Opt-outs for reminders.** Clients take `overdueRemindersDisabled` on create and update. `POST /api/v1/invoices/{uuid}/overdue-reminders` with `{ "enabled": false }` excludes one invoice, also an issued one. Invoice detail returns `overdueRemindersDisabled`, `lastOverdueReminderDays` and `lastOverdueReminderAt`. See [Overdue reminders for an invoice](/api-reference/invoices/overdue-reminders).
+- **`[[days_overdue]]` in email templates.** The variable gives the whole days past the due date, in reminder steps and in the invoice emails you send yourself.
+- **Collections import.** `importType: "payments"` reads the collections of issued invoices, one row per payment (`invoiceNumber`, `amount`, `series`, `paymentDate`, `paymentMethod`, `reference`, `notes`), for every source that imports invoices. Several rows for one invoice are its partial payments. The first imported payment replaces the placeholder payment of an invoice imported as history, and re-importing the same file adds nothing. `revert` removes the job's payments and restores the placeholders. See [Imports](/api-reference/import/overview).
+- **e-Factura XML import.** The new source `efactura` reads UBL `Invoice` and `CreditNote` files, one `.xml` or a `.zip` of up to 5000, as `invoices_issued` or `invoices_received`. The invoices are history: status `synced`, never sent to ANAF. A credit note becomes a negative invoice linked to the invoice it names. An invoice of another company is refused.
+- **Import filters.** `importOptions` on `POST /api/v1/import/{id}/execute` takes `dateFrom`, `dateTo` and `clientCifs` for invoice imports. Rows outside the filter count as skipped. Invalid values answer `422`.
+- **`stornoOf` on invoice imports.** The new target field holds the number of the invoice a storno reverses. The storno is linked to that invoice and gets status `refund`. The reversed invoice becomes `refunded` when it is an imported record itself.
+- **MCP.** New tool `invoices_overdue_reminders`. `companies_update` takes `overdueRemindersEnabled` and `overdueReminderSteps`; `clients_create` and `clients_update` take `overdueRemindersDisabled`. `import_upload` and `import_template` take `payments`, `import_upload` takes the source `efactura`, and `import_execute` documents the filter options.
+
+- **Realtime events for every document change.** The company channel `invoices:company_{uuid}` now also carries `invoice.changed` (an invoice, one of its payments or one of its emails changed), `proforma.changed`, `receipt.changed`, `delivery_note.changed`, `recurring_invoice.changed` and `client.changed`, whoever made the change: another user, another session, a background job. The events carry only `type`; a client refetches what it shows.
+
+### Fixed
+
+- **Web app: realtime stopped in a tab left open for more than an hour.** The realtime token and the session expire together, and the token renewal failed quietly once the session had expired. The renewal now refreshes the session first. A page that leaves a channel no longer cuts off the other listeners of that channel, and a tab that was in the background or lost its connection refetches when it comes back.
+- **Mobile app: an open invoice did not refresh on realtime events.** Events now refresh the open document, its payments and its events, each kind of event refreshes its own lists, and everything is refetched when the app returns from the background. Leaving the sync screen no longer stops the realtime updates of the other screens.
+
+### Changed
+
+- **Facturis sales journal.** The `facturis` source also reads the columns added to the journal by their usual names: due date, amount left to pay, paid amount, state and `stornoOf`. The collection status and the due date of its invoices now come in with the import.
+
 ## 2026-11-18 — Token ANAF legat de firmă, chei de idempotență pe firmă
 
 ### Added

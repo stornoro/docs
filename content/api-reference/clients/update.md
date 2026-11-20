@@ -52,6 +52,7 @@ PATCH /api/v1/clients/{uuid}
 | `bankName` | string | Bank name |
 | `bankAccount` | string | Bank account number (IBAN) |
 | `defaultPaymentTermDays` | integer | Default payment term in days |
+| `overdueRemindersDisabled` | boolean | `true` keeps this client out of the company's automatic [overdue reminders](/concepts/overdue-reminders); `false` includes it again |
 | `contactPerson` | string | Contact person name |
 | `notes` | string | Internal notes |
 | `idNumber` | string | Client identification number (personal ID, passport, etc.) |

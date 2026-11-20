@@ -147,6 +147,7 @@ Variables are written between double square brackets and are replaced in `subjec
 | `[[client_outstanding]]` | Client's outstanding balance in the invoice currency | 1500.00 |
 | `[[company_name]]` | Your company name | Your Company SRL |
 | `[[due_date]]` | Payment due date | 15.03.2024 |
+| `[[days_overdue]]` | Whole days past the due date; 0 when the invoice is not overdue or has no due date | 7 |
 | `[[issue_date]]` | Invoice issue date | 15.02.2024 |
 
 When neither the request nor a template provides them, the subject is `Factura {number} - {company name}` and the body is a short Romanian greeting that mentions the invoice number.
